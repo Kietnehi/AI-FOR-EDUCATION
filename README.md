@@ -36,8 +36,8 @@
 
   <br/><br/>
 
-  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/OpenAI%20Logo%20Since%20February%202025.png" height="42" alt="OpenAI"/>&nbsp;&nbsp;&nbsp;
-  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Google-gemini-icon.png" height="42" alt="Gemini"/>
+  <img src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/openai.svg" alt="OpenAI" height="48"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Google-gemini-icon.png" alt="Gemini" height="48"/>
 
   <br/><br/>
 
