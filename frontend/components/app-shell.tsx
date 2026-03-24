@@ -1,25 +1,43 @@
-import Link from "next/link";
-import { ReactNode } from "react";
+"use client";
 
-const links = [
-  { href: "/", label: "Dashboard" },
-  { href: "/materials/upload", label: "Upload" },
-];
+import { ReactNode, useState } from "react";
+import { motion } from "framer-motion";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Topbar } from "@/components/layout/topbar";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <div className="app">
-      <header className="header">
-        <h1>AI Learning Studio</h1>
-        <nav>
-          {links.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-      <main className="main">{children}</main>
-    </div>
+    <ThemeProvider>
+      <div className="min-h-screen bg-[var(--bg-primary)]" style={{ background: "var(--gradient-mesh), var(--bg-primary)" }}>
+        <a
+          href="#main-content"
+          className="
+            sr-only focus:not-sr-only focus:absolute focus:z-50
+            focus:top-2 focus:left-2 focus:px-4 focus:py-2
+            focus:bg-brand-600 focus:text-white focus:rounded-xl
+          "
+        >
+          Bỏ qua đến nội dung chính
+        </a>
+
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+        <Topbar sidebarCollapsed={sidebarCollapsed} />
+
+        <motion.main
+          id="main-content"
+          initial={false}
+          animate={{ paddingLeft: sidebarCollapsed ? 72 : 260 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="pt-16 min-h-screen"
+        >
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            {children}
+          </div>
+        </motion.main>
+      </div>
+    </ThemeProvider>
   );
 }
