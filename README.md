@@ -1,31 +1,47 @@
-<p align="center">
-  <img src="https://img.shields.io/github/repo-size/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=blue" alt="Repo Size" />
-  <img src="https://img.shields.io/github/stars/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=yellow" alt="Stars" />
-  <img src="https://img.shields.io/github/forks/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=orange" alt="Forks" />
-  <img src="https://img.shields.io/github/last-commit/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=green" alt="Last Commit" />
-</p>
+<div align="center">
 
-<p align="center">
-  <img src="https://img.shields.io/github/issues/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=red" alt="Issues" />
-  <img src="https://img.shields.io/github/issues-pr/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=purple" alt="Pull Requests" />
-  <img src="https://img.shields.io/github/languages/top/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=blueviolet" alt="Top Language" />
-  <img src="https://img.shields.io/badge/Maintained%3F-yes-brightgreen.svg?style=for-the-badge" alt="Maintained" />
-</p>
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=150&section=header&text=AI%20Learning%20Studio&fontSize=40&fontAlignY=35&animation=twinkling&fontColor=ffffff" width="100%" alt="Header"/>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs" alt="Next.js" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind" />
-</p>
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
+    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=22&pause=1000&color=3B82F6&center=true&vCenter=true&width=600&lines=🚀+Nền+tảng+AI+Tạo+Học+Liệu+Số;🤖+Multimodal+RAG+%7C+FastAPI+%7C+Next.js;🎓+Dự+án+AI+For+Education+-+SGU" alt="Typing SVG" />
+  </a>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI" />
-  <img src="https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white" alt="Framer Motion" />
-</p>
+  <br/><br/>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/stargazers">
+    <img src="https://img.shields.io/github/stars/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FFD700&logo=github&logoColor=black&label=Stars" alt="Stars"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/network/members">
+    <img src="https://img.shields.io/github/forks/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FF8C00&logo=github&logoColor=white&label=Forks" alt="Forks"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/issues">
+    <img src="https://img.shields.io/github/issues/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FF4D4D&logo=github&logoColor=white&label=Issues" alt="Issues"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/pulls">
+    <img src="https://img.shields.io/github/issues-pr/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=00E676&logo=github&logoColor=white&label=Pull%20Requests" alt="Pull Requests"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=0088FF&logo=github&logoColor=white&label=License" alt="License"/>
+  </a>
+
+  <br/><br/>
+
+  <a href="https://skillicons.dev">
+    <img src="https://skillicons.dev/icons?i=nextjs,react,tailwind,ts,python,fastapi,mongodb,docker" alt="Tech Stack"/>
+  </a>
+
+  <br/><br/>
+
+  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/OpenAI%20Logo%20Since%20February%202025.png" height="42" alt="OpenAI"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Google-gemini-icon.png" height="42" alt="Gemini"/>
+
+  <br/><br/>
+
+</div>
 
 ![AI Learning Studio Pipeline](image/pipeline.png)
 
