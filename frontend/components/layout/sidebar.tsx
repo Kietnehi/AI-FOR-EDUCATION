@@ -63,10 +63,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          // Find the most specific match to avoid highlighting parent when child is active
+          const isBestMatch = navItems.reduce((best, navItem) => {
+            if (pathname === navItem.href || pathname.startsWith(navItem.href + "/")) {
+              if (!best || navItem.href.length > best.length) {
+                return navItem.href;
+              }
+            }
+            return best;
+          }, "") === item.href;
+
+          const isActive = item.href === "/" ? pathname === "/" : isBestMatch;
           const Icon = item.icon;
 
           return (

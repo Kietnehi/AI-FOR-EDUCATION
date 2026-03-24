@@ -12,7 +12,7 @@ class ChatbotOrchestrator:
 
         if not contexts:
             return {
-                "answer": "Toi khong tim thay du lieu lien quan trong hoc lieu da tai len, nen chua the tra loi chac chan.",
+                "answer": "Tôi không tìm thấy dữ liệu liên quan trong học liệu đã tải lên, nên chưa thể trả lời chắc chắn.",
                 "citations": [],
             }
 
@@ -20,12 +20,12 @@ class ChatbotOrchestrator:
             f"[Chunk {item['chunk_index']}] {item['chunk_text']}" for item in contexts
         )
         system_prompt = (
-            "Ban la tro ly day hoc. Chi tra loi dua tren context duoc cung cap. "
-            "Neu thieu du lieu, phai noi ro khong chac chan."
+            "Bạn là trợ lý dạy học. Chỉ trả lời dựa trên context được cung cấp bằng tiếng Việt có dấu chuẩn xác. "
+            "Nếu thiếu dữ liệu, phải nói rõ là không chắc chắn."
         )
-        user_prompt = f"Cau hoi: {question}\n\nContext:\n{context_text}"
+        user_prompt = f"Câu hỏi: {question}\n\nContext:\n{context_text}"
 
-        fallback_answer = "Du lieu cho thay: " + contexts[0]["chunk_text"][:300]
+        fallback_answer = "Dữ liệu cho thấy: " + contexts[0]["chunk_text"][:300]
         answer = self.llm.text_response(system_prompt, user_prompt, fallback_answer)
 
         citations = [

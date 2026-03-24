@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class APIResponse(BaseModel):
     success: bool = True
-    message: str = "ok"
+    message: str = "Tác vụ thành công"
     data: Any | None = None
 
 

@@ -2,9 +2,15 @@
 
 import { ReactNode, useState } from "react";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { ThemeProvider } from "@/components/theme-provider";
+
+// Load 3D component correctly
+const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").then(mod => mod.FloatingMascot), {
+  ssr: false
+});
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -33,10 +39,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="pt-16 min-h-screen"
         >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
             {children}
           </div>
         </motion.main>
+        
+        {/* Floating AI Mascot */}
+        <FloatingMascot />
       </div>
     </ThemeProvider>
   );

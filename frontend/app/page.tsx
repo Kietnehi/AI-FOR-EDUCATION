@@ -20,8 +20,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TiltCard } from "@/components/ui/tilt-card";
 import { listMaterials } from "@/lib/api";
 import { Material } from "@/types";
+import dynamic from "next/dynamic";
+
+const AIVisualizer = dynamic(() => import("@/components/3d/ai-visualizer").then(mod => mod.AIVisualizer), {
+  ssr: false,
+  loading: () => <div className="absolute inset-0 z-0 bg-transparent" />
+});
 
 const container = {
   hidden: { opacity: 0 },
@@ -64,27 +71,32 @@ export default function DashboardPage() {
     >
       {/* Hero Section */}
       <motion.div variants={item}>
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-accent-600 to-brand-700 p-8 sm:p-10 text-white">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-accent-600 to-brand-700 p-8 sm:p-10 text-white min-h-[400px] flex flex-col justify-center">
           {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent-400/20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent-400/20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl pointer-events-none" />
 
-          <div className="relative z-10 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm text-sm font-medium mb-4">
+          {/* 3D Visualizer Background */}
+          <div className="absolute top-0 right-0 bottom-0 w-full sm:w-2/3 lg:w-1/2 min-h-[300px]">
+             <AIVisualizer />
+          </div>
+
+          <div className="relative z-10 max-w-xl pointer-events-none">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm text-sm font-medium mb-4 pointer-events-auto">
               <Sparkles className="w-4 h-4" />
               AI-Powered Learning
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight mb-3" style={{ fontFamily: "var(--font-display)" }}>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-4 pointer-events-auto" style={{ fontFamily: "var(--font-display)" }}>
               Tạo học liệu số
               <br />
-              <span className="text-accent-200">thông minh với AI</span>
+              <span className="text-accent-200 drop-shadow-sm">thông minh với AI</span>
             </h1>
-            <p className="text-base text-brand-100 mb-6 max-w-md">
-              Upload tài liệu, tự động tạo slide, podcast, minigame và chatbot hỏi đáp trong vài phút.
+            <p className="text-base text-brand-50 mb-8 max-w-md pointer-events-auto text-lg leading-relaxed">
+              Upload tài liệu, tự động tạo slide gốc, podcast, minigame và chatbot hỏi đáp chỉ trong vài phút.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 pointer-events-auto shadow-lg rounded-full w-fit">
               <Link href="/materials/upload">
-                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />}>
+                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-semibold">
                   Tải lên học liệu
                 </Button>
               </Link>
@@ -93,7 +105,7 @@ export default function DashboardPage() {
                   variant="ghost"
                   size="lg"
                   icon={<ArrowRight className="w-5 h-5" />}
-                  className="!text-white/90 hover:!bg-white/10"
+                  className="!text-white/90 hover:!bg-white/20 h-12 px-6 rounded-full backdrop-blur-sm bg-white/5 font-semibold"
                 >
                   Xem tất cả
                 </Button>
@@ -104,7 +116,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Quick Stats */}
-      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ perspective: 1000 }}>
         {statCards.map((stat) => {
           const Icon = stat.icon;
           const count =
@@ -112,17 +124,19 @@ export default function DashboardPage() {
               ? materials.length
               : "—";
           return (
-            <Card key={stat.label} className="!p-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0`}>
-                  <Icon className="w-5 h-5 text-white" />
+            <TiltCard key={stat.label}>
+              <Card className="!p-4 h-full shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0 shadow-inner`}>
+                    <Icon className="w-5 h-5 text-white drop-shadow-md" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">{count}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">{stat.label}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold text-[var(--text-primary)]">{count}</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">{stat.label}</p>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </TiltCard>
           );
         })}
       </motion.div>

@@ -10,14 +10,15 @@ import {
   Send,
   Bot,
   User,
-  Sparkles,
+  Mic,
+  Square,
   FileText,
   Loader2,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { ChatSkeleton } from "@/components/ui/skeleton";
-import { createChatSession, getChatSession, sendChatMessage } from "@/lib/api";
+import { createChatSession, getChatSession, sendChatMessage, transcribeChatAudio } from "@/lib/api";
 import { ChatMessage } from "@/types";
 
 export default function ChatbotPage() {
@@ -28,9 +29,14 @@ export default function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
   const [initializing, setInitializing] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
 
   useEffect(() => {
     if (!materialId) return;
@@ -47,6 +53,14 @@ export default function ChatbotPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   async function handleSend(event: FormEvent) {
     event.preventDefault();
@@ -80,6 +94,60 @@ export default function ChatbotPage() {
       e.preventDefault();
       handleSend(e);
     }
+  }
+
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      alert("Trình duyệt không hỗ trợ ghi âm");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (!blob.size) {
+          return;
+        }
+
+        setIsTranscribing(true);
+        try {
+          const result = await transcribeChatAudio(blob, sttModel);
+          setInput((prev) => (prev.trim() ? `${prev.trim()} ${result.text}` : result.text));
+          inputRef.current?.focus();
+        } catch {
+          alert("Không thể chuyển giọng nói thành văn bản");
+        } finally {
+          setIsTranscribing(false);
+          setIsRecording(false);
+          mediaRecorderRef.current = null;
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      alert("Không thể truy cập microphone");
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
   }
 
   return (
@@ -244,6 +312,25 @@ export default function ChatbotPage() {
 
         {/* Input Area */}
         <div className="border-t border-[var(--border-light)] p-4 bg-[var(--bg-elevated)]">
+          <div className="mb-3 flex items-center justify-end">
+            <label className="text-xs text-[var(--text-tertiary)] mr-2">Model STT</label>
+            <select
+              value={sttModel}
+              onChange={(e) => setSttModel(e.target.value as "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo")}
+              disabled={isRecording || isTranscribing}
+              className="
+                text-xs rounded-lg px-2.5 py-1.5
+                bg-[var(--bg-secondary)] border border-[var(--border-light)]
+                text-[var(--text-primary)]
+                focus:outline-none focus:border-brand-400
+                disabled:opacity-60
+              "
+            >
+              <option value="local-base">Local - Whisper base</option>
+              <option value="whisper-large-v3">Groq - whisper-large-v3</option>
+              <option value="whisper-large-v3-turbo">Groq - whisper-large-v3-turbo</option>
+            </select>
+          </div>
           <form onSubmit={handleSend} className="flex items-end gap-3">
             <div className="flex-1 relative">
               <textarea
@@ -271,8 +358,32 @@ export default function ChatbotPage() {
               />
             </div>
             <motion.button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={loading || isTranscribing}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`
+                w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0
+                text-white transition-all duration-200 shadow-md cursor-pointer border-0
+                ${isRecording
+                  ? "bg-gradient-to-r from-rose-500 to-red-500 hover:shadow-rose-500/30"
+                  : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-emerald-500/30"
+                }
+                disabled:opacity-40 disabled:cursor-not-allowed
+              `}
+            >
+              {isTranscribing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : isRecording ? (
+                <Square className="w-4 h-4" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </motion.button>
+            <motion.button
               type="submit"
-              disabled={loading || !input.trim()}
+              disabled={loading || isTranscribing || !input.trim()}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="
@@ -292,7 +403,7 @@ export default function ChatbotPage() {
             </motion.button>
           </form>
           <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
-            Trợ lý AI trả lời dựa trên nội dung học liệu. Nhấn Enter để gửi, Shift+Enter để xuống dòng.
+            Trợ lý AI trả lời dựa trên nội dung học liệu. Nhấn Mic để ghi âm, Enter để gửi, Shift+Enter để xuống dòng.
           </p>
         </div>
       </Card>

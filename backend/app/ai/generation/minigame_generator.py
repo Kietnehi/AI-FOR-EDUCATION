@@ -14,10 +14,10 @@ class MinigameGenerator:
                     "items": [
                         {
                             "id": "q1",
-                            "question": "Noi dung chinh cua bai hoc la gi?",
+                            "question": "Nội dung chính của bài học là gì?",
                             "options": ["A", "B", "C", "D"],
                             "correct_answer": "A",
-                            "explanation": "A la dap an phu hop theo tai lieu.",
+                            "explanation": "A là đáp án phù hợp theo tài liệu.",
                         }
                     ],
                 },
@@ -25,16 +25,16 @@ class MinigameGenerator:
                     "type": "flashcard",
                     "title": "Flashcard",
                     "items": [
-                        {"id": "f1", "front": "Khai niem", "back": "Dinh nghia ngan gon"}
+                        {"id": "f1", "front": "Khái niệm", "back": "Định nghĩa ngắn gọn"}
                     ],
                 },
             ]
         }
 
-        system_prompt = "You generate educational minigames in Vietnamese and return strict JSON."
+        system_prompt = "Bạn là chuyên gia tạo trò chơi giáo dục. Bắt buộc tạo nội dung bằng tiếng Việt có dấu chuẩn xác (Vietnamese with diacritics) and return strict JSON."
         user_prompt = (
-            f"Sinh cac game {game_types} dua tren tai lieu sau. "
+            f"Sinh các game {game_types} dựa trên tài liệu sau. Bắt buộc dùng tiếng Việt có dấu. "
             "Game types: mcq, fill_blank, matching, flashcard. "
-            "Tra ve JSON: {games:[{type,title,items:...}]}" + f"\n\n{context[:12000]}"
+            "Trả về JSON: {games:[{type,title,items:...}]}" + f"\n\n{context[:12000]}"
         )
         return self.llm.json_response(system_prompt, user_prompt, fallback)

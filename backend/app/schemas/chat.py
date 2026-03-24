@@ -35,3 +35,7 @@ class ChatMessageResponse(BaseModel):
 class ChatSessionDetailResponse(BaseModel):
     session: ChatSessionResponse
     messages: list[ChatMessageResponse]
+
+
+class TranscriptionResponse(BaseModel):
+    text: str

@@ -78,6 +78,28 @@ export async function sendChatMessage(sessionId: string, message: string): Promi
   });
 }
 
+export async function transcribeChatAudio(
+  audioBlob: Blob,
+  sttModel: "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo"
+): Promise<{ text: string }> {
+  const formData = new FormData();
+  formData.append("file", audioBlob, "recording.webm");
+  formData.append("stt_model", sttModel);
+
+  const response = await fetch(`${API_BASE}/chat/transcribe`, {
+    method: "POST",
+    body: formData,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<{ text: string }>;
+}
+
 export async function submitGameAttempt(
   generatedContentId: string,
   answers: Array<{ id: string; answer: string }>

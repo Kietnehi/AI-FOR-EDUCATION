@@ -27,14 +27,21 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
 
+    whisper_model: str = "base"
+    whisper_language: str | None = None
+
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com"
+
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    chunk_size: int = 900
-    chunk_overlap: int = 120
-    retrieval_top_k: int = 5
+    # Token-based chunking parameters (for text-embedding-3 models)
+    chunk_size: int = 2500  # tokens per chunk
+    chunk_overlap: int = 500  # tokens overlap
+    retrieval_top_k: int = 6
 
     @field_validator("upload_dir", "generated_dir", "chroma_persist_dir")
     @classmethod

@@ -13,3 +13,6 @@ python-pptx
 python-docx
 pypdf
 httpx
+tiktoken
+openai-whisper
+groq

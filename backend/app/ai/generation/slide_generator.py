@@ -11,15 +11,15 @@ class SlideGenerator:
 
     def generate_outline(self, context: str, max_slides: int) -> dict:
         fallback = {
-            "title": "Bai giang tong hop",
+            "title": "Bài giảng tổng hợp",
             "slides": [
-                {"type": "title", "title": "Gioi thieu", "bullets": ["Muc tieu", "Noi dung chinh"]},
-                {"type": "content", "title": "Kien thuc cot loi", "bullets": ["Khai niem", "Vi du", "Ung dung"]},
-                {"type": "summary", "title": "Tong ket", "bullets": ["Diem can nho", "Huong on tap"]},
-                {"type": "review", "title": "Cau hoi on tap", "bullets": ["Cau hoi 1", "Cau hoi 2"]},
+                {"type": "title", "title": "Giới thiệu", "bullets": ["Mục tiêu", "Nội dung chính"]},
+                {"type": "content", "title": "Kiến thức cốt lõi", "bullets": ["Khái niệm", "Ví dụ", "Ứng dụng"]},
+                {"type": "summary", "title": "Tổng kết", "bullets": ["Điểm cần nhớ", "Hướng ôn tập"]},
+                {"type": "review", "title": "Câu hỏi ôn tập", "bullets": ["Câu hỏi 1", "Câu hỏi 2"]},
             ],
         }
-        system_prompt = "You create concise lecture slide outlines in Vietnamese. Output JSON with title and slides."
+        system_prompt = "Bạn là AI tạo nội dung chuẩn. Bắt buộc trả về tiếng Việt có dấu chuẩn xác (Vietnamese with diacritics). Output JSON with title and slides."
         user_prompt = (
             f"Tao toi da {max_slides} slides tu noi dung sau. Moi slide co type,title,bullets(3-5 y).\n\n{context[:12000]}"
         )
