@@ -1,0 +1,158 @@
+:root {
+    --bg: #f6f8ef;
+    --surface: #ffffff;
+    --ink: #1b2a1e;
+    --muted: #5f6f63;
+    --accent: #0f7a5b;
+    --accent-2: #f4a259;
+    --danger: #b53535;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+    background: radial-gradient(circle at top right, #e8f4db, var(--bg));
+    color: var(--ink);
+}
+
+.app {
+    min-height: 100vh;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: linear-gradient(90deg, #173b2f, #2a6042);
+    color: #f5f8f4;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 20px;
+}
+
+nav {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-link {
+    color: #f5f8f4;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+
+.main {
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid #d5dfd3;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+}
+
+button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+input,
+textarea,
+select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #c9d5c6;
+    border-radius: 8px;
+}
+
+.grid {
+    display: grid;
+    gap: 12px;
+}
+
+.grid-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 768px) {
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.status {
+    font-size: 12px;
+    border-radius: 999px;
+    padding: 3px 9px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.status-processed,
+.status-generated {
+    background: #daf5e9;
+    color: #0c6e49;
+}
+
+.status-processing,
+.status-queued,
+.status-generating,
+.status-uploaded {
+    background: #fff1d8;
+    color: #8e5a16;
+}
+
+.status-failed {
+    background: #ffe1e1;
+    color: #9f2323;
+}
+
+.toast {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.toast-success {
+    background: #dbf7e8;
+    color: #086a45;
+}
+
+.toast-error {
+    background: #ffe3e3;
+    color: #8d2020;
+}
+
+a {
+    color: #1a5b46;
+}
+
+pre {
+    white-space: pre-wrap;
+    background: #f1f6f2;
+    border-radius: 8px;
+    padding: 10px;
+}

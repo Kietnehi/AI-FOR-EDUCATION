@@ -1,0 +1,22 @@
+{
+    "name": "ai-learning-platform-frontend",
+    "private": true,
+    "version": "0.1.0",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "next": "14.2.25",
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
+    },
+    "devDependencies": {
+        "@types/node": "22.13.4",
+        "@types/react": "18.3.18",
+        "@types/react-dom": "18.3.5",
+        "typescript": "5.7.3"
+    }
+}

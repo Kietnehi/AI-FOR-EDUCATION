@@ -1,0 +1,22 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/storage/chroma/
+backend/storage/uploads/*
+backend/storage/generated/*
+!backend/storage/uploads/.gitkeep
+!backend/storage/generated/.gitkeep
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# Env
+*.env
+frontend/.env.local
+backend/.env
+
+# OS
+.DS_Store
+Thumbs.db

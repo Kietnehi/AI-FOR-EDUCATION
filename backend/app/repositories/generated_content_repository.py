@@ -1,0 +1,26 @@
+from bson import ObjectId
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from app.repositories.base import serialize_document
+
+
+class GeneratedContentRepository:
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self.collection = db.generated_contents
+
+    async def create(self, payload: dict) -> dict:
+        result = await self.collection.insert_one(payload)
+        created = await self.collection.find_one({"_id": result.inserted_id})
+        return serialize_document(created) or {}
+
+    async def get_by_id(self, content_id: ObjectId) -> dict | None:
+        return serialize_document(await self.collection.find_one({"_id": content_id}))
+
+    async def list_by_material_and_type(self, material_id: str, content_type: str) -> list[dict]:
+        cursor = self.collection.find({"material_id": material_id, "content_type": content_type}).sort("version", -1)
+        items = [serialize_document(doc) async for doc in cursor]
+        return [item for item in items if item]
+
+    async def update(self, content_id: ObjectId, update_fields: dict) -> dict | None:
+        await self.collection.update_one({"_id": content_id}, {"$set": update_fields})
+        return await self.get_by_id(content_id)

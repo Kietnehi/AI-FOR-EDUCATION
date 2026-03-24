@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+motor
+pymongo
+chromadb
+openai
+google-generativeai
+python-dotenv
+python-pptx
+python-docx
+pypdf
+httpx
