@@ -7,6 +7,7 @@ backend/storage/generated/*
 !backend/storage/uploads/.gitkeep
 !backend/storage/generated/.gitkeep
 
+
 # Node
 frontend/node_modules/
 frontend/.next/
@@ -19,3 +20,6 @@ backend/.env
 # OS
 .DS_Store
 Thumbs.db
+
+# Github
+.github/copilot-instructions.md
