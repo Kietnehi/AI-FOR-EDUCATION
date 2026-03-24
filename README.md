@@ -205,10 +205,8 @@ Mặc định đã đúng local:
 
 ```powershell
 cd ..\backend
-py -m venv .venv
-.\.venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Khi backend chạy thành công:
@@ -239,7 +237,6 @@ Frontend chạy tại:
 
 ```powershell
 cd d:\DACN\backend
-.\.venv\Scripts\activate
 py -m scripts.seed
 ```
 
@@ -258,8 +255,6 @@ Terminal 1 (backend):
 ```powershell
 cd d:\DACN\backend
 copy .env.example .env
-py -m venv .venv
-.\.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```

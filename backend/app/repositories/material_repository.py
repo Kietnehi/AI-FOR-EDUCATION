@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
