@@ -1,15 +1,14 @@
 import json
 
-import google.generativeai as genai
+from google import genai
 from openai import OpenAI
 
 from app.core.config import settings
+from app.core.logging import logger
 
 
 class LLMClient:
     def __init__(self) -> None:
-        self.provider = settings.llm_provider.lower().strip()
-
         self.openai_api_key = settings.openai_api_key
         self.openai_model = settings.openai_model
         self.openai_base_url = settings.openai_base_url
@@ -24,8 +23,8 @@ class LLMClient:
 
         self.gemini_api_key = settings.gemini_api_key
         self.gemini_model = settings.gemini_model
-        if self.gemini_api_key:
-            genai.configure(api_key=self.gemini_api_key)
+        # New SDK style: `genai.Client()` reads GEMINI_API_KEY from env.
+        self.gemini_client = genai.Client(api_key=self.gemini_api_key) if self.gemini_api_key else None
 
     def json_response(self, system_prompt: str, user_prompt: str, fallback: dict) -> dict:
         content = self._generate_text(system_prompt, user_prompt, temperature=0.4, force_json=True)
@@ -47,25 +46,15 @@ class LLMClient:
         temperature: float,
         force_json: bool,
     ) -> str | None:
-        if self.provider == "gemini":
+        try:
             result = self._generate_gemini(system_prompt, user_prompt, temperature, force_json)
             if result is not None:
                 return result
+            return None
+        except Exception as exc:
+            # Only fallback to OpenAI when Gemini API call fails.
+            logger.warning("Gemini API failed, fallback to OpenAI model %s: %s", self.openai_model, exc)
             return self._generate_openai(system_prompt, user_prompt, temperature, force_json)
-
-        if self.provider == "openai":
-            result = self._generate_openai(system_prompt, user_prompt, temperature, force_json)
-            if result is not None:
-                return result
-            return self._generate_gemini(system_prompt, user_prompt, temperature, force_json)
-
-        # Auto-fallback by availability when provider value is unexpected.
-        return self._generate_gemini(system_prompt, user_prompt, temperature, force_json) or self._generate_openai(
-            system_prompt,
-            user_prompt,
-            temperature,
-            force_json,
-        )
 
     def _generate_gemini(
         self,
@@ -74,22 +63,22 @@ class LLMClient:
         temperature: float,
         force_json: bool,
     ) -> str | None:
-        if not self.gemini_api_key:
+        if not self.gemini_client:
             return None
 
-        model = genai.GenerativeModel(model_name=self.gemini_model)
-        generation_config = {
+        config = {
             "temperature": temperature,
         }
         if force_json:
-            generation_config["response_mime_type"] = "application/json"
+            config["response_mime_type"] = "application/json"
 
-        response = model.generate_content(
-            [
-                f"System instruction:\n{system_prompt}",
-                f"User request:\n{user_prompt}",
-            ],
-            generation_config=generation_config,
+        response = self.gemini_client.models.generate_content(
+            model=self.gemini_model,
+            contents=(
+                f"System instruction:\n{system_prompt}\n\n"
+                f"User request:\n{user_prompt}"
+            ),
+            config=config,
         )
         text = getattr(response, "text", None)
         return text.strip() if text else None

@@ -7,7 +7,7 @@ motor
 pymongo
 chromadb
 openai
-google-generativeai
+google-genai
 python-dotenv
 python-pptx
 python-docx
