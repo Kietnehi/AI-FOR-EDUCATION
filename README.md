@@ -369,7 +369,15 @@ copy .env.example .env
 Mở file `.env` và cập nhật tối thiểu:
 - `MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>`
 - `MONGO_DB_NAME=ai_learning_platform`
-- `OPENAI_API_KEY=`
+- `OPENAI_API_KEY=` (có thể để trống nếu chỉ dùng Gemini, nhưng cần để fallback)
+
+**Lưu ý về Gemini API keys:**
+- **Nếu muốn dùng nhiều Gemini keys** (để tránh rate limit): điền `GEMINI_API_KEYS` với các keys phân cách bằng dấu phẩy (ví dụ: `key1,key2,key3`). Hệ thống sẽ thử lần lượt từng key.
+- **Nếu chỉ có 1 Gemini key**: điền `GEMINI_API_KEY` là đủ. Có thể để `GEMINI_API_KEYS` trống.
+- **Ưu tiên**: `GEMINI_API_KEYS` sẽ được dùng trước. Nếu `GEMINI_API_KEYS` rỗng, hệ thống dùng `GEMINI_API_KEY`.
+- **Không cần điền cả hai**. Chọn một trong hai để tránh nhầm lẫn.
+- **Fallback**: Khi tất cả Gemini keys đều thất bại, hệ thống sẽ tự động dùng OpenAI (nếu `OPENAI_API_KEY` có sẵn).
+- **Backup**: Bạn nên có ít nhất 2 Gemini keys để đảm bảo tính sẵn sàng cao.
 
 Biến môi trường cho Speech-to-Text:
 - `WHISPER_MODEL=base`
@@ -379,7 +387,8 @@ Biến môi trường cho Speech-to-Text:
 
 Lưu ý:
 - Nếu bỏ trống `OPENAI_API_KEY`, hệ thống vẫn chạy bằng fallback để demo luồng.
-- Để dùng OpenAI thật, điền API key hợp lệ.
+- Muốn kết quả AI thật, cần điền `OPENAI_API_KEY` hợp lệ.
+- **Hệ thống hỗ trợ nhiều Gemini API keys qua `GEMINI_API_KEYS` (comma-separated)**. Keys sẽ được dùng xoay vòng. Nếu `GEMINI_API_KEYS` không có, hệ thống dùng `GEMINI_API_KEY` đơn (backward compatibility). Khi tất cả Gemini keys fail, sẽ fallback sang OpenAI (nếu có).
 - Nếu password MongoDB có ký tự đặc biệt (ví dụ `@`, `#`, `%`), cần URL-encode trong `MONGO_URI`.
 - Nếu dùng model Groq cho Speech-to-Text, bắt buộc điền `GROQ_API_KEY`.
 

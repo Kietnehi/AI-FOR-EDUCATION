@@ -25,14 +25,22 @@ class LLMClient:
                 settings.openrouter_site_name
             )
 
-        self.gemini_api_key = settings.gemini_api_key
         self.gemini_model = settings.gemini_model
-        # New SDK style: `genai.Client()` reads GEMINI_API_KEY from env.
-        self.gemini_client = (
-            genai.Client(api_key=self.gemini_api_key) if self.gemini_api_key else None
-        )
+        # Initialize multiple Gemini clients from the list of API keys
+        self.gemini_clients: list[tuple[str, genai.Client]] = []
+        for api_key in settings.gemini_api_keys:
+            if api_key and api_key.strip():
+                try:
+                    client = genai.Client(api_key=api_key.strip())
+                    self.gemini_clients.append((api_key.strip()[:10] + "...", client))
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to initialize Gemini client with key {api_key[:10]}...: {e}"
+                    )
+
         self.last_model_used: str | None = None
         self.fallback_used: bool = False
+        self.active_gemini_key_index: int = 0
 
     def json_response(
         self, system_prompt: str, user_prompt: str, fallback: dict
@@ -133,80 +141,107 @@ class LLMClient:
         force_json: bool,
         images: list[str] | None = None,
     ) -> str | None:
-        if not self.gemini_client:
-            logger.error("Gemini client not initialized. Check GEMINI_API_KEY.")
+        if not self.gemini_clients:
+            logger.error("No Gemini clients initialized. Check GEMINI_API_KEYS.")
             return None
 
-        logger.info(
-            "Attempting Gemini generation",
-            extra={
-                "model": self.gemini_model,
-                "temperature": temperature,
-                "force_json": force_json,
-                "has_images": bool(images),
-            },
-        )
+        # Try each Gemini client in order until one succeeds
+        last_exception = None
+        for idx, (key_snippet, client) in enumerate(self.gemini_clients):
+            try:
+                logger.info(
+                    f"Attempting Gemini generation with key {idx + 1}/{len(self.gemini_clients)} (key: {key_snippet})",
+                    extra={
+                        "model": self.gemini_model,
+                        "temperature": temperature,
+                        "force_json": force_json,
+                        "has_images": bool(images),
+                        "gemini_key_index": idx,
+                    },
+                )
 
-        config = {
-            "temperature": temperature,
-        }
-        if force_json:
-            config["response_mime_type"] = "application/json"
+                config = {
+                    "temperature": temperature,
+                }
+                if force_json:
+                    config["response_mime_type"] = "application/json"
 
-        contents_part = []
-        contents_part.append(
-            f"System instruction:\n{system_prompt}\n\nUser request:\n{user_prompt}"
-        )
-        if images:
-            import base64
+                contents_part = []
+                contents_part.append(
+                    f"System instruction:\n{system_prompt}\n\nUser request:\n{user_prompt}"
+                )
+                if images:
+                    import base64
 
-            for img in images:
-                if img.startswith("data:"):
-                    # Extract Data URIs like "data:image/jpeg;base64,...""
-                    comma_idx = img.find(",")
-                    if comma_idx != -1:
-                        mime_type = img[5 : img.find(";")]
-                        b64_data = img[comma_idx + 1 :]
-                        if b64_data:
+                    for img in images:
+                        if img.startswith("data:"):
+                            # Extract Data URIs like "data:image/jpeg;base64,...""
+                            comma_idx = img.find(",")
+                            if comma_idx != -1:
+                                mime_type = img[5 : img.find(";")]
+                                b64_data = img[comma_idx + 1 :]
+                                if b64_data:
+                                    contents_part.append(
+                                        genai.types.Part.from_bytes(
+                                            data=base64.b64decode(b64_data),
+                                            mime_type=mime_type,
+                                        )
+                                    )
+                        else:
                             contents_part.append(
                                 genai.types.Part.from_bytes(
-                                    data=base64.b64decode(b64_data), mime_type=mime_type
+                                    data=base64.b64decode(img), mime_type="image/jpeg"
                                 )
                             )
-                else:
-                    contents_part.append(
-                        genai.types.Part.from_bytes(
-                            data=base64.b64decode(img), mime_type="image/jpeg"
-                        )
-                    )
 
-        try:
-            response = self.gemini_client.models.generate_content(
-                model=self.gemini_model,
-                contents=contents_part,
-                config=config,
-            )
-            text = getattr(response, "text", None)
-            if text:
-                self.last_model_used = self.gemini_model
-                logger.info(
-                    "Gemini generation successful", extra={"model": self.gemini_model}
+                response = client.models.generate_content(
+                    model=self.gemini_model,
+                    contents=contents_part,
+                    config=config,
                 )
-                return text.strip()
-            else:
-                logger.warning("Gemini returned empty response")
-                return None
-        except Exception as exc:
-            logger.error(
-                "Gemini API call failed",
-                extra={
-                    "model": self.gemini_model,
-                    "error_type": type(exc).__name__,
-                    "error_message": str(exc),
-                },
-                exc_info=True,
-            )
-            raise
+                text = getattr(response, "text", None)
+                if text:
+                    self.last_model_used = self.gemini_model
+                    self.active_gemini_key_index = idx
+                    logger.info(
+                        "Gemini generation successful",
+                        extra={
+                            "model": self.gemini_model,
+                            "gemini_key_index": idx,
+                            "key_snippet": key_snippet,
+                        },
+                    )
+                    return text.strip()
+                else:
+                    logger.warning(f"Gemini key {idx + 1} returned empty response")
+                    continue
+
+            except Exception as exc:
+                last_exception = exc
+                logger.warning(
+                    f"Gemini key {idx + 1} failed, trying next key...",
+                    extra={
+                        "model": self.gemini_model,
+                        "gemini_key_index": idx,
+                        "error_type": type(exc).__name__,
+                        "error_message": str(exc),
+                        "key_snippet": key_snippet,
+                    },
+                    exc_info=True,
+                )
+                continue
+
+        # All Gemini keys failed
+        logger.error(
+            "All Gemini API keys failed",
+            extra={
+                "total_keys": len(self.gemini_clients),
+                "last_error": str(last_exception)
+                if last_exception
+                else "Unknown error",
+            },
+        )
+        return None
 
     def _generate_openai(
         self,
