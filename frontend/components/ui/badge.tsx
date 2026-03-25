@@ -1,12 +1,12 @@
 "use client";
 
 type BadgeVariant = "default" | "processed" | "processing" | "uploaded" | "failed" | "generated" | "queued" | "generating";
-
 interface BadgeProps {
   variant?: BadgeVariant;
   status?: string;
   children?: React.ReactNode;
   dot?: boolean;
+  className?: string;
 }
 
 const variantMap: Record<string, { bg: string; text: string; dot: string }> = {
@@ -62,7 +62,7 @@ const labelMap: Record<string, string> = {
   failed: "Thất bại",
 };
 
-export function Badge({ variant, status, children, dot = true }: BadgeProps) {
+export function Badge({ variant, status, children, dot = true, className = "" }: BadgeProps) {
   const key = variant || status || "default";
   const styles = variantMap[key] || variantMap.default;
   const label = children || labelMap[key] || key;
@@ -72,7 +72,7 @@ export function Badge({ variant, status, children, dot = true }: BadgeProps) {
       className={`
         inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
         text-xs font-semibold border capitalize
-        ${styles.bg} ${styles.text}
+        ${styles.bg} ${styles.text} ${className}
       `}
     >
       {dot && <span className={`w-1.5 h-1.5 rounded-full ${styles.dot}`} />}

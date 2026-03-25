@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.ai.generation.minigame_generator import MinigameGenerator
 from app.ai.generation.podcast_generator import PodcastGenerator
 from app.ai.generation.slide_generator import SlideGenerator
+from app.ai.generation.audio_generator import AudioGenerator
 from app.core.config import settings
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.services.material_service import MaterialService
@@ -21,6 +22,7 @@ class GenerationService:
         self.slide_generator = SlideGenerator()
         self.podcast_generator = PodcastGenerator()
         self.minigame_generator = MinigameGenerator()
+        self.audio_generator = AudioGenerator(uploads_dir=str(Path(settings.generated_dir) / "podcasts"))
 
     async def _next_version(self, material_id: str, content_type: str) -> int:
         existing = await self.generated_repo.list_by_material_and_type(material_id, content_type)
@@ -61,14 +63,32 @@ class GenerationService:
         script = self.podcast_generator.generate_script(text, style=style, target_duration_minutes=target_duration_minutes)
         version = await self._next_version(material_id, "podcast")
 
+        # Generate audio file from podcast segments
+        audio_filename = f"podcast_{material_id}_v{version}"
+        segments = script.get("segments", [])
+        audio_file_path = None
+        audio_url = None
+
+        if segments:
+            try:
+                audio_file_path = self.audio_generator.generate_podcast_audio(
+                    segments=segments,
+                    output_filename=audio_filename
+                )
+                # Create URL for serving the audio file
+                audio_url = f"/api/files/podcasts/{audio_filename}.mp3/download"
+            except Exception as e:
+                # Log error but don't fail the entire generation
+                print(f"Warning: Failed to generate audio for podcast: {e}")
+
         now = utc_now()
         doc = {
             "material_id": material_id,
             "content_type": "podcast",
             "version": version,
-            "outline": [segment.get("text", "")[:80] for segment in script.get("segments", [])[:5]],
+            "outline": [segment.get("text", "")[:80] for segment in segments[:5]],
             "json_content": script,
-            "file_url": None,
+            "file_url": audio_url,
             "generation_status": "generated",
             "created_at": now,
             "updated_at": now,

@@ -41,10 +41,16 @@ class FileService:
 
     @staticmethod
     def resolve_file_path(file_name: str) -> Path:
+        # Try paths in order of priority
         candidates = [
             Path(settings.upload_dir) / file_name,
             Path(settings.generated_dir) / file_name,
         ]
+
+        # If file_name doesn't contain subdirectory path, also check common subdirectories
+        if "/" not in file_name and "\\" not in file_name:
+            candidates.append(Path(settings.generated_dir) / "podcasts" / file_name)
+
         for path in candidates:
             if path.exists():
                 return path
