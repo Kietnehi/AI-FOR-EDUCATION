@@ -33,5 +33,7 @@ class GeneratedContentResponse(BaseModel):
     json_content: dict[str, Any] = Field(default_factory=dict)
     file_url: str | None = None
     generation_status: GenerationStatus
+    model_used: str | None = None
+    fallback_applied: bool = False
     created_at: datetime
     updated_at: datetime

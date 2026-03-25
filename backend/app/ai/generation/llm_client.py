@@ -1,4 +1,7 @@
 import json
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 from google import genai
 from openai import OpenAI
@@ -8,39 +11,145 @@ from app.core.logging import logger
 
 
 class LLMClient:
+    _shared_openai_client: OpenAI | None | object = ...
+    _shared_openai_extra_headers: dict[str, str] | None = None
+    _shared_gemini_clients: list[tuple[str, genai.Client]] | None = None
+    _gemini_executor = ThreadPoolExecutor(max_workers=8)
+    _gemini_key_cooldowns: dict[str, float] = {}
+    _gemini_cooldown_lock = threading.Lock()
+
     def __init__(self) -> None:
         self.openai_api_key = settings.openai_api_key
         self.openai_model = settings.openai_model
         self.openai_base_url = settings.openai_base_url
-        self.openai_client = (
-            OpenAI(api_key=self.openai_api_key, base_url=self.openai_base_url)
-            if self.openai_api_key
-            else None
-        )
-        self.openai_extra_headers: dict[str, str] = {}
-        if settings.openrouter_site_url:
-            self.openai_extra_headers["HTTP-Referer"] = settings.openrouter_site_url
-        if settings.openrouter_site_name:
-            self.openai_extra_headers["X-OpenRouter-Title"] = (
-                settings.openrouter_site_name
+        if LLMClient._shared_openai_client is ...:
+            LLMClient._shared_openai_client = (
+                OpenAI(api_key=self.openai_api_key, base_url=self.openai_base_url)
+                if self.openai_api_key
+                else None
             )
+        self.openai_client = (
+            None
+            if LLMClient._shared_openai_client is ...
+            else LLMClient._shared_openai_client
+        )
+        if LLMClient._shared_openai_extra_headers is None:
+            extra_headers: dict[str, str] = {}
+            if settings.openrouter_site_url:
+                extra_headers["HTTP-Referer"] = settings.openrouter_site_url
+            if settings.openrouter_site_name:
+                extra_headers["X-OpenRouter-Title"] = settings.openrouter_site_name
+            LLMClient._shared_openai_extra_headers = extra_headers
+        self.openai_extra_headers = dict(LLMClient._shared_openai_extra_headers)
 
         self.gemini_model = settings.gemini_model
-        # Initialize multiple Gemini clients from the list of API keys
-        self.gemini_clients: list[tuple[str, genai.Client]] = []
-        for api_key in settings.gemini_api_keys:
-            if api_key and api_key.strip():
-                try:
-                    client = genai.Client(api_key=api_key.strip())
-                    self.gemini_clients.append((api_key.strip()[:10] + "...", client))
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to initialize Gemini client with key {api_key[:10]}...: {e}"
-                    )
+        self.gemini_fallback_models = [
+            "gemini-3.1-flash-lite-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+        ]
+        if LLMClient._shared_gemini_clients is None:
+            gemini_clients: list[tuple[str, genai.Client]] = []
+            for api_key in settings.gemini_api_keys:
+                if api_key and api_key.strip():
+                    try:
+                        client = genai.Client(api_key=api_key.strip())
+                        gemini_clients.append((api_key.strip()[:10] + "...", client))
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to initialize Gemini client with key {api_key[:10]}...: {e}"
+                        )
+            LLMClient._shared_gemini_clients = gemini_clients
+        self.gemini_clients = list(LLMClient._shared_gemini_clients)
 
         self.last_model_used: str | None = None
         self.fallback_used: bool = False
         self.active_gemini_key_index: int = 0
+        self.gemini_attempt_timeout_seconds = 12.0
+        self.gemini_key_cooldown_seconds = 20.0
+
+    def _ordered_gemini_models(self) -> list[str]:
+        ordered_models = [self.gemini_model, *self.gemini_fallback_models]
+        deduped_models: list[str] = []
+        for model in ordered_models:
+            if model and model not in deduped_models:
+                deduped_models.append(model)
+        return deduped_models
+
+    def _ordered_gemini_clients(self) -> list[tuple[int, str, genai.Client]]:
+        total_keys = len(self.gemini_clients)
+        if total_keys == 0:
+            return []
+
+        start_index = self.active_gemini_key_index % total_keys
+        rotated_clients = [
+            (original_index, *self.gemini_clients[original_index])
+            for original_index in (
+                list(range(start_index, total_keys)) + list(range(0, start_index))
+            )
+        ]
+        now = time.monotonic()
+        ready_clients: list[tuple[int, str, genai.Client]] = []
+        cooling_clients: list[tuple[int, str, genai.Client]] = []
+
+        with LLMClient._gemini_cooldown_lock:
+            for original_index, key_snippet, client in rotated_clients:
+                retry_after = LLMClient._gemini_key_cooldowns.get(key_snippet, 0.0)
+                if retry_after > now:
+                    cooling_clients.append((original_index, key_snippet, client))
+                else:
+                    ready_clients.append((original_index, key_snippet, client))
+
+        return ready_clients + cooling_clients
+
+    def _set_gemini_key_cooldown(self, key_snippet: str) -> None:
+        with LLMClient._gemini_cooldown_lock:
+            LLMClient._gemini_key_cooldowns[key_snippet] = (
+                time.monotonic() + self.gemini_key_cooldown_seconds
+            )
+
+    def _clear_gemini_key_cooldown(self, key_snippet: str) -> None:
+        with LLMClient._gemini_cooldown_lock:
+            LLMClient._gemini_key_cooldowns.pop(key_snippet, None)
+
+    def _call_gemini_with_timeout(
+        self,
+        client: genai.Client,
+        model_name: str,
+        contents_part: list,
+        config: dict,
+    ):
+        future = LLMClient._gemini_executor.submit(
+            client.models.generate_content,
+            model=model_name,
+            contents=contents_part,
+            config=config,
+        )
+        try:
+            return future.result(timeout=self.gemini_attempt_timeout_seconds)
+        except FutureTimeoutError as exc:
+            future.cancel()
+            raise TimeoutError(
+                f"Gemini call timed out after {self.gemini_attempt_timeout_seconds:.0f}s"
+            ) from exc
+
+    def _looks_like_retryable_gemini_error(self, exc: Exception) -> bool:
+        message = str(exc).lower()
+        retryable_markers = (
+            "timeout",
+            "timed out",
+            "deadline",
+            "temporarily unavailable",
+            "rate limit",
+            "429",
+            "503",
+            "connection",
+            "unavailable",
+            "internal error",
+            "resource exhausted",
+        )
+        return any(marker in message for marker in retryable_markers)
 
     def json_response(
         self, system_prompt: str, user_prompt: str, fallback: dict
@@ -114,24 +223,20 @@ class LLMClient:
     ) -> str | None:
         self.last_model_used = None
         self.fallback_used = False
-        try:
-            result = self._generate_gemini(
-                system_prompt, user_prompt, temperature, force_json, images=images
-            )
-            if result is not None:
-                return result
-            return None
-        except Exception as exc:
-            # Only fallback to OpenAI when Gemini API call fails.
-            logger.warning(
-                "Gemini API failed, fallback to OpenAI model %s: %s",
-                self.openai_model,
-                exc,
-            )
-            self.fallback_used = True
-            return self._generate_openai(
-                system_prompt, user_prompt, temperature, force_json, images=images
-            )
+        result = self._generate_gemini(
+            system_prompt, user_prompt, temperature, force_json, images=images
+        )
+        if result is not None:
+            return result
+
+        logger.warning(
+            "All Gemini models failed, falling back to OpenAI model %s",
+            self.openai_model,
+        )
+        self.fallback_used = True
+        return self._generate_openai(
+            system_prompt, user_prompt, temperature, force_json, images=images
+        )
 
     def _generate_gemini(
         self,
@@ -145,97 +250,159 @@ class LLMClient:
             logger.error("No Gemini clients initialized. Check GEMINI_API_KEYS.")
             return None
 
-        # Try each Gemini client in order until one succeeds
+        gemini_models = self._ordered_gemini_models()
+        primary_model = gemini_models[0]
+        total_models = len(gemini_models)
+        ordered_clients = self._ordered_gemini_clients()
+        total_keys = len(ordered_clients)
         last_exception = None
-        for idx, (key_snippet, client) in enumerate(self.gemini_clients):
-            try:
-                logger.info(
-                    f"Attempting Gemini generation with key {idx + 1}/{len(self.gemini_clients)} (key: {key_snippet})",
-                    extra={
-                        "model": self.gemini_model,
-                        "temperature": temperature,
-                        "force_json": force_json,
-                        "has_images": bool(images),
-                        "gemini_key_index": idx,
-                    },
-                )
 
-                config = {
-                    "temperature": temperature,
-                }
-                if force_json:
-                    config["response_mime_type"] = "application/json"
+        contents_part = [
+            f"System instruction:\n{system_prompt}\n\nUser request:\n{user_prompt}"
+        ]
+        if images:
+            import base64
 
-                contents_part = []
-                contents_part.append(
-                    f"System instruction:\n{system_prompt}\n\nUser request:\n{user_prompt}"
-                )
-                if images:
-                    import base64
-
-                    for img in images:
-                        if img.startswith("data:"):
-                            # Extract Data URIs like "data:image/jpeg;base64,...""
-                            comma_idx = img.find(",")
-                            if comma_idx != -1:
-                                mime_type = img[5 : img.find(";")]
-                                b64_data = img[comma_idx + 1 :]
-                                if b64_data:
-                                    contents_part.append(
-                                        genai.types.Part.from_bytes(
-                                            data=base64.b64decode(b64_data),
-                                            mime_type=mime_type,
-                                        )
-                                    )
-                        else:
+            for img in images:
+                if img.startswith("data:"):
+                    comma_idx = img.find(",")
+                    if comma_idx != -1:
+                        mime_type = img[5 : img.find(";")]
+                        b64_data = img[comma_idx + 1 :]
+                        if b64_data:
                             contents_part.append(
                                 genai.types.Part.from_bytes(
-                                    data=base64.b64decode(img), mime_type="image/jpeg"
+                                    data=base64.b64decode(b64_data),
+                                    mime_type=mime_type,
                                 )
                             )
+                else:
+                    contents_part.append(
+                        genai.types.Part.from_bytes(
+                            data=base64.b64decode(img), mime_type="image/jpeg"
+                        )
+                    )
 
-                response = client.models.generate_content(
-                    model=self.gemini_model,
-                    contents=contents_part,
-                    config=config,
-                )
-                text = getattr(response, "text", None)
-                if text:
-                    self.last_model_used = self.gemini_model
-                    self.active_gemini_key_index = idx
+        for model_index, model_name in enumerate(gemini_models):
+            is_fallback_model = model_name != primary_model
+            logger.info(
+                "Trying Gemini model %s (%s/%s)",
+                model_name,
+                model_index + 1,
+                total_models,
+                extra={
+                    "model": model_name,
+                    "temperature": temperature,
+                    "force_json": force_json,
+                    "has_images": bool(images),
+                    "is_fallback_model": is_fallback_model,
+                },
+            )
+
+            for key_order, (original_key_index, key_snippet, client) in enumerate(
+                ordered_clients
+            ):
+                try:
                     logger.info(
-                        "Gemini generation successful",
+                        "Calling Gemini model %s with key %s/%s",
+                        model_name,
+                        key_order + 1,
+                        total_keys,
                         extra={
-                            "model": self.gemini_model,
-                            "gemini_key_index": idx,
+                            "model": model_name,
+                            "gemini_model_index": model_index,
+                            "gemini_key_index": original_key_index,
                             "key_snippet": key_snippet,
                         },
                     )
-                    return text.strip()
-                else:
-                    logger.warning(f"Gemini key {idx + 1} returned empty response")
-                    continue
 
-            except Exception as exc:
-                last_exception = exc
-                logger.warning(
-                    f"Gemini key {idx + 1} failed, trying next key...",
-                    extra={
-                        "model": self.gemini_model,
-                        "gemini_key_index": idx,
-                        "error_type": type(exc).__name__,
-                        "error_message": str(exc),
-                        "key_snippet": key_snippet,
-                    },
-                    exc_info=True,
-                )
-                continue
+                    config = {
+                        "temperature": temperature,
+                    }
+                    if force_json:
+                        config["response_mime_type"] = "application/json"
 
-        # All Gemini keys failed
+                    response = self._call_gemini_with_timeout(
+                        client=client,
+                        model_name=model_name,
+                        contents_part=contents_part,
+                        config=config,
+                    )
+                    text = getattr(response, "text", None)
+                    if text:
+                        candidate_text = text.strip()
+                        if force_json:
+                            try:
+                                json.loads(candidate_text)
+                            except json.JSONDecodeError as exc:
+                                last_exception = exc
+                                logger.warning(
+                                    "Gemini model %s returned invalid JSON with key %s/%s, trying next option",
+                                    model_name,
+                                    key_order + 1,
+                                    total_keys,
+                                    extra={
+                                        "model": model_name,
+                                        "gemini_model_index": model_index,
+                                        "gemini_key_index": original_key_index,
+                                        "key_snippet": key_snippet,
+                                    },
+                                )
+                                continue
+
+                        self.last_model_used = model_name
+                        self.fallback_used = is_fallback_model
+                        self.active_gemini_key_index = original_key_index
+                        self._clear_gemini_key_cooldown(key_snippet)
+                        logger.info(
+                            "Gemini generation successful with model %s",
+                            model_name,
+                            extra={
+                                "model": model_name,
+                                "gemini_model_index": model_index,
+                                "gemini_key_index": original_key_index,
+                                "key_snippet": key_snippet,
+                                "fallback_applied": self.fallback_used,
+                            },
+                        )
+                        return candidate_text
+
+                    logger.warning(
+                        "Gemini model %s returned empty response with key %s/%s",
+                        model_name,
+                        key_order + 1,
+                        total_keys,
+                        extra={
+                            "model": model_name,
+                            "gemini_model_index": model_index,
+                            "gemini_key_index": original_key_index,
+                            "key_snippet": key_snippet,
+                        },
+                    )
+                except Exception as exc:
+                    last_exception = exc
+                    if self._looks_like_retryable_gemini_error(exc):
+                        self._set_gemini_key_cooldown(key_snippet)
+                    logger.warning(
+                        "Gemini model %s failed with key %s/%s, trying next option",
+                        model_name,
+                        key_order + 1,
+                        total_keys,
+                        extra={
+                            "model": model_name,
+                            "gemini_model_index": model_index,
+                            "gemini_key_index": original_key_index,
+                            "error_type": type(exc).__name__,
+                            "error_message": str(exc),
+                            "key_snippet": key_snippet,
+                        },
+                    )
+
         logger.error(
-            "All Gemini API keys failed",
+            "All Gemini models and keys failed",
             extra={
-                "total_keys": len(self.gemini_clients),
+                "total_models": total_models,
+                "total_keys": total_keys,
                 "last_error": str(last_exception)
                 if last_exception
                 else "Unknown error",

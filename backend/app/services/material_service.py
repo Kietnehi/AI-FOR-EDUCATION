@@ -21,6 +21,13 @@ from app.services.material_guardrail_service import MaterialGuardrailService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
+_SHARED_CHUNKER = TextChunker(
+    chunk_size=settings.chunk_size, overlap=settings.chunk_overlap
+)
+_SHARED_EMBEDDER = OpenAIEmbedder()
+_SHARED_VECTOR_STORE = ChromaVectorStore()
+_SHARED_GUARDRAIL = MaterialGuardrailService()
+
 
 class MaterialService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
@@ -30,12 +37,10 @@ class MaterialService:
         self.chat_repo = ChatRepository(db)
         self.game_repo = GameRepository(db)
         self.generated_repo = GeneratedContentRepository(db)
-        self.chunker = TextChunker(
-            chunk_size=settings.chunk_size, overlap=settings.chunk_overlap
-        )
-        self.embedder = OpenAIEmbedder()
-        self.vector_store = ChromaVectorStore()
-        self.guardrail = MaterialGuardrailService()
+        self.chunker = _SHARED_CHUNKER
+        self.embedder = _SHARED_EMBEDDER
+        self.vector_store = _SHARED_VECTOR_STORE
+        self.guardrail = _SHARED_GUARDRAIL
 
     async def create_material(self, payload: dict) -> dict:
         decision = self.guardrail.assert_allowed(
@@ -88,7 +93,7 @@ class MaterialService:
         destination.write_bytes(content)
 
         try:
-            raw_text = FileParser.parse(str(destination))
+            raw_text = await asyncio.to_thread(FileParser.parse, str(destination))
             decision = self.guardrail.assert_allowed(
                 raw_text=raw_text,
                 title=metadata.get("title") or Path(file.filename or "material").stem,
@@ -135,7 +140,7 @@ class MaterialService:
         destination.write_bytes(content)
 
         try:
-            raw_text = FileParser.parse(str(destination))
+            raw_text = await asyncio.to_thread(FileParser.parse, str(destination))
             decision = self.guardrail.evaluate(
                 raw_text=raw_text,
                 title=metadata.get("title") or Path(file.filename or "material").stem,
@@ -193,7 +198,7 @@ class MaterialService:
             cleaned = TextCleaner.clean(material.get("raw_text", ""))
             chunks = self.chunker.split(cleaned)
             texts = [chunk.chunk_text for chunk in chunks]
-            embeddings = self.embedder.embed_texts(texts)
+            embeddings = await asyncio.to_thread(self.embedder.embed_texts, texts)
 
             chunk_ids = [f"{material_id}:{chunk.chunk_index}" for chunk in chunks]
             metadatas = [
@@ -201,8 +206,9 @@ class MaterialService:
                 for chunk in chunks
             ]
 
-            self.vector_store.delete_material_chunks(material_id)
-            self.vector_store.upsert_chunks(
+            await asyncio.to_thread(self.vector_store.delete_material_chunks, material_id)
+            await asyncio.to_thread(
+                self.vector_store.upsert_chunks,
                 material_id=material_id,
                 chunk_ids=chunk_ids,
                 texts=texts,
@@ -309,7 +315,7 @@ class MaterialService:
 
         # 3. Delete from Vector Store (ChromaDB)
         try:
-            self.vector_store.delete_material_chunks(material_id)
+            await asyncio.to_thread(self.vector_store.delete_material_chunks, material_id)
         except Exception as e:
             logger.warning(
                 "Failed to delete vector embeddings for material %s: %s", material_id, e

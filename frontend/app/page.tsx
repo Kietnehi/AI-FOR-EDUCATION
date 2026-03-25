@@ -71,12 +71,36 @@ export default function DashboardPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showVisualizer, setShowVisualizer] = useState(false);
 
   useEffect(() => {
     listMaterials()
       .then((res) => setMaterials(res.items))
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const enableVisualizer = () => {
+      if (!cancelled) {
+        setShowVisualizer(true);
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(enableVisualizer, { timeout: 1500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timeoutId = globalThis.setTimeout(enableVisualizer, 400);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timeoutId);
+    };
   }, []);
 
   return (
@@ -95,7 +119,7 @@ export default function DashboardPage() {
 
           {/* 3D Visualizer Background */}
           <div className="absolute top-0 right-0 bottom-0 w-full sm:w-2/3 lg:w-1/2 min-h-[300px]">
-             <AIVisualizer />
+             {showVisualizer ? <AIVisualizer /> : null}
           </div>
 
           <div className="relative z-10 max-w-xl pointer-events-none">

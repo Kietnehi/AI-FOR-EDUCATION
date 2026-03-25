@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -12,7 +12,7 @@ interface MarkdownProps {
   className?: string;
 }
 
-const CodeBlock: React.FC<{ language: string; value: string }> = ({ language, value }) => {
+const CodeBlock: React.FC<{ language: string; value: string }> = memo(({ language, value }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -59,9 +59,9 @@ const CodeBlock: React.FC<{ language: string; value: string }> = ({ language, va
       </SyntaxHighlighter>
     </div>
   );
-};
+});
 
-export const Markdown: React.FC<MarkdownProps> = ({ content, className = "" }) => {
+const MarkdownBase: React.FC<MarkdownProps> = ({ content, className = "" }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -161,3 +161,5 @@ export const Markdown: React.FC<MarkdownProps> = ({ content, className = "" }) =
     </div>
   );
 };
+
+export const Markdown = memo(MarkdownBase);

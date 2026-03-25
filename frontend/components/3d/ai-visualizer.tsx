@@ -320,7 +320,7 @@ export function AIVisualizer() {
       <Canvas 
         camera={{ position: [0, 0, 7.5], fov: 45 }} 
         gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
-        dpr={[1, 1.5]}
+        dpr={[1, 1.25]}
         performance={{ min: 0.5 }}
       >
         <ambientLight intensity={1.5} color="#312e81" />
@@ -339,7 +339,7 @@ export function AIVisualizer() {
 
         {/* Dense ambient digital particle field */}
         <Sparkles 
-          count={100} 
+          count={70} 
           scale={14} 
           size={1.5} 
           speed={0.4} 
@@ -347,7 +347,7 @@ export function AIVisualizer() {
           color="#38bdf8" 
         />
         <Sparkles 
-          count={60} 
+          count={36} 
           scale={10} 
           size={2.5} 
           speed={0.2} 
@@ -355,7 +355,7 @@ export function AIVisualizer() {
           color="#f472b6" 
         />
         <Sparkles 
-          count={40} 
+          count={24} 
           scale={12} 
           size={1.2} 
           speed={0.1} 

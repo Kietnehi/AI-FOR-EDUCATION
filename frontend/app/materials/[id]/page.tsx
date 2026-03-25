@@ -52,10 +52,27 @@ export default function MaterialDetailPage() {
 
   useEffect(() => {
     if (!materialId) return;
+    let cancelled = false;
     getMaterial(materialId)
-      .then(setMaterial)
-      .catch((error) => setToast({ message: String(error), type: "error" }))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) {
+          setMaterial(data);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setToast({ message: String(error), type: "error" });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [materialId]);
 
   async function handleProcess() {

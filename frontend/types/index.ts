@@ -28,6 +28,8 @@ export type GeneratedContent = {
   json_content: Record<string, any>;
   file_url?: string;
   generation_status: "queued" | "generating" | "generated" | "failed";
+  model_used?: string | null;
+  fallback_applied?: boolean;
   created_at: string;
   updated_at: string;
 };
