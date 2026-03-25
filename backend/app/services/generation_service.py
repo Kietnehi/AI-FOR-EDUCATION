@@ -25,10 +25,7 @@ class GenerationService:
         self.audio_generator = AudioGenerator(uploads_dir=str(Path(settings.generated_dir) / "podcasts"))
 
     async def _next_version(self, material_id: str, content_type: str) -> int:
-        existing = await self.generated_repo.list_by_material_and_type(material_id, content_type)
-        if not existing:
-            return 1
-        return max(item.get("version", 1) for item in existing) + 1
+        return await self.generated_repo.get_next_version(material_id, content_type)
 
     async def _prepare_material_text(self, material_id: str) -> str:
         material = await self.material_service.get_material(material_id)

@@ -15,8 +15,7 @@ class MaterialRepository:
 
     async def create(self, payload: dict) -> dict:
         result = await self.collection.insert_one(payload)
-        created = await self.collection.find_one({"_id": result.inserted_id})
-        return serialize_document(created) or {}
+        return serialize_document({"_id": result.inserted_id, **payload}) or {}
 
     async def get_by_id(self, material_id: ObjectId) -> dict | None:
         return serialize_document(await self.collection.find_one({"_id": material_id}))
@@ -32,6 +31,7 @@ class MaterialRepository:
     async def update(self, material_id: ObjectId, update_fields: dict) -> dict | None:
         await self.collection.update_one({"_id": material_id}, {"$set": update_fields})
         return await self.get_by_id(material_id)
+
 
     async def replace_chunks(self, material_id: str, chunks: list[dict]) -> None:
         await self.chunk_collection.delete_many({"material_id": material_id})

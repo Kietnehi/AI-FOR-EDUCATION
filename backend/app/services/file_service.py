@@ -8,6 +8,15 @@ from app.core.config import settings
 from app.repositories.file_asset_repository import FileAssetRepository
 from app.utils.time import utc_now
 
+_FILE_RESOLUTION_BASE_DIRS = (
+    Path(settings.upload_dir),
+    Path(settings.generated_dir),
+    Path(settings.generated_dir) / "notebooklm" / "videos",
+    Path(settings.generated_dir) / "notebooklm" / "infographics",
+)
+
+_PODCASTS_DIR = Path(settings.generated_dir) / "podcasts"
+
 
 class FileService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
@@ -41,17 +50,10 @@ class FileService:
 
     @staticmethod
     def resolve_file_path(file_name: str) -> Path:
-        # Try paths in order of priority
-        candidates = [
-            Path(settings.upload_dir) / file_name,
-            Path(settings.generated_dir) / file_name,
-            Path(settings.generated_dir) / "notebooklm" / "videos" / file_name,
-            Path(settings.generated_dir) / "notebooklm" / "infographics" / file_name,
-        ]
+        candidates = [base_dir / file_name for base_dir in _FILE_RESOLUTION_BASE_DIRS]
 
-        # If file_name doesn't contain subdirectory path, also check common subdirectories
         if "/" not in file_name and "\\" not in file_name:
-            candidates.append(Path(settings.generated_dir) / "podcasts" / file_name)
+            candidates.append(_PODCASTS_DIR / file_name)
 
         for path in candidates:
             if path.exists():

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, Suspense } from "react";
+import { memo, Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { 
   Float, 
@@ -14,6 +14,20 @@ import {
   useTexture
 } from "@react-three/drei";
 import * as THREE from "three";
+
+const DATA_PACKET_POSITIONS = Array.from({ length: 15 }, (_, i) => {
+  const angle = (i / 15) * Math.PI * 2;
+  return {
+    key: i,
+    position: [Math.cos(angle) * 2.35, Math.sin(i * 2) * 0.15, Math.sin(angle) * 2.35] as [number, number, number],
+  };
+});
+
+const SPARKLE_LAYERS = [
+  { count: 70, scale: 14, size: 1.5, speed: 0.4, opacity: 0.4, color: "#38bdf8" },
+  { count: 36, scale: 10, size: 2.5, speed: 0.2, opacity: 0.6, color: "#f472b6" },
+  { count: 24, scale: 12, size: 1.2, speed: 0.1, opacity: 0.3, color: "#a78bfa" },
+] as const;
 
 // The sophisticated, high-resolution Digital Planet
 function DigitalPlanet() {
@@ -184,17 +198,14 @@ function OrbitalRings() {
 
       {/* Moving Data Packets */}
       <group ref={dataPacketsRef}>
-        {Array.from({ length: 15 }).map((_, i) => {
-          const angle = (i / 15) * Math.PI * 2;
-          return (
-            <group key={i} position={[Math.cos(angle) * 2.35, Math.sin(i * 2) * 0.15, Math.sin(angle) * 2.35]}>
-              <Sphere args={[0.015, 8, 8]}>
-                <meshBasicMaterial color="#fcd34d" transparent opacity={0.9} blending={THREE.AdditiveBlending} />
-              </Sphere>
-              <pointLight distance={0.5} color="#fcd34d" intensity={0.5} />
-            </group>
-          );
-        })}
+        {DATA_PACKET_POSITIONS.map((packet) => (
+          <group key={packet.key} position={packet.position}>
+            <Sphere args={[0.015, 8, 8]}>
+              <meshBasicMaterial color="#fcd34d" transparent opacity={0.9} blending={THREE.AdditiveBlending} />
+            </Sphere>
+            <pointLight distance={0.5} color="#fcd34d" intensity={0.5} />
+          </group>
+        ))}
       </group>
     </group>
   );
@@ -313,7 +324,7 @@ function SceneModel() {
   );
 }
 
-export function AIVisualizer() {
+export const AIVisualizer = memo(function AIVisualizer() {
   return (
     <div className="absolute inset-0 z-0 flex items-center justify-center">
       {/* Use ACESFilmicToneMapping for a highly cinematic color space and realistic glows */}
@@ -338,31 +349,18 @@ export function AIVisualizer() {
         </Suspense>
 
         {/* Dense ambient digital particle field */}
-        <Sparkles 
-          count={70} 
-          scale={14} 
-          size={1.5} 
-          speed={0.4} 
-          opacity={0.4} 
-          color="#38bdf8" 
-        />
-        <Sparkles 
-          count={36} 
-          scale={10} 
-          size={2.5} 
-          speed={0.2} 
-          opacity={0.6} 
-          color="#f472b6" 
-        />
-        <Sparkles 
-          count={24} 
-          scale={12} 
-          size={1.2} 
-          speed={0.1} 
-          opacity={0.3} 
-          color="#a78bfa" 
-        />
+        {SPARKLE_LAYERS.map((layer) => (
+          <Sparkles
+            key={`${layer.color}-${layer.count}`}
+            count={layer.count}
+            scale={layer.scale}
+            size={layer.size}
+            speed={layer.speed}
+            opacity={layer.opacity}
+            color={layer.color}
+          />
+        ))}
       </Canvas>
     </div>
   );
-}
+});

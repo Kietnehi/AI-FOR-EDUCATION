@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ContentType = Literal["slides", "podcast", "minigame", "chatbot_config", "quiz"]
@@ -72,6 +72,8 @@ class NotebookLMConfirmationResponse(BaseModel):
 
 
 class GeneratedContentResponse(BaseModel):
+    model_config = ConfigDict(cache_strings=True)
+    
     id: str
     material_id: str
     content_type: ContentType

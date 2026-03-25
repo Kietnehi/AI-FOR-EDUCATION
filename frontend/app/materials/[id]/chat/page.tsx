@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, memo, useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -28,6 +28,131 @@ import { Markdown } from "@/components/ui/markdown";
 import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
 import { markdownToPlainText } from "@/lib/tts";
 import { ChatMessage } from "@/types";
+
+const EMPTY_CHAT_SUGGESTIONS = [
+  "Tóm tắt nội dung chính",
+  "Giải thích khái niệm quan trọng",
+  "Cho ví dụ minh họa",
+];
+
+type ChatMessageItemProps = {
+  message: ChatMessage;
+  isSpeaking: boolean;
+  onToggleSpeak: (messageId: string, content: string) => void;
+  onOpenImage: (image: string) => void;
+};
+
+const ChatMessageItem = memo(function ChatMessageItem({
+  message,
+  isSpeaking,
+  onToggleSpeak,
+  onOpenImage,
+}: ChatMessageItemProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
+    >
+      <div className={`
+        w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-1
+        ${message.role === "assistant"
+          ? "bg-gradient-to-br from-brand-500 to-accent-500"
+          : "bg-gradient-to-br from-emerald-500 to-emerald-600"
+        }
+      `}>
+        {message.role === "assistant" ? (
+          <Bot className="w-4 h-4 text-white" />
+        ) : (
+          <User className="w-4 h-4 text-white" />
+        )}
+      </div>
+
+      <div className={`
+        max-w-[85%] rounded-2xl px-4 py-3
+        ${message.role === "user"
+          ? "bg-gradient-to-r from-brand-600 to-accent-500 text-white rounded-tr-sm"
+          : "bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] rounded-tl-sm"
+        }
+      `}>
+        {message.role === "user" ? (
+          <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
+            {message.message}
+          </p>
+        ) : (
+          <Markdown content={message.message} />
+        )}
+
+        {message.images && message.images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {message.images.map((img, index) => (
+              <img
+                key={index}
+                src={img}
+                alt={`upload ${index}`}
+                className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-[var(--border-light)] cursor-pointer hover:opacity-90"
+                loading="lazy"
+                decoding="async"
+                onClick={() => onOpenImage(img)}
+              />
+            ))}
+          </div>
+        )}
+
+        {message.role === "assistant" && (
+          <div className="mt-2 flex items-center justify-end gap-2">
+            {message.fallback_applied && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                <AlertCircle className="w-3 h-3" />
+                {`Đã chuyển sang model dự phòng: ${message.model_used || "không xác định"}`}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onToggleSpeak(message.id, message.message)}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-brand-600 hover:bg-brand-50 transition-colors"
+              aria-label={isSpeaking ? "Dừng đọc nội dung" : "Đọc nội dung"}
+            >
+              {isSpeaking ? (
+                <VolumeX className="w-3.5 h-3.5" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5" />
+              )}
+              {isSpeaking ? "Dừng" : "Nghe"}
+            </button>
+          </div>
+        )}
+
+        {message.citations?.length > 0 && (
+          <div className="mt-3 pt-2 border-t border-white/20 space-y-1.5">
+            <p className="text-xs font-semibold flex items-center gap-1 opacity-80">
+              <FileText className="w-3 h-3" />
+              Nguồn tham khảo
+            </p>
+            {message.citations.map((citation, index) => (
+              <div
+                key={index}
+                className={`
+                  text-xs rounded-lg px-3 py-2
+                  ${message.role === "user"
+                    ? "bg-white/15"
+                    : "bg-[var(--bg-primary)] border border-[var(--border-default)]"
+                  }
+                `}
+              >
+                <span className="font-medium">Chunk {citation.chunk_index + 1}: </span>
+                <span className="opacity-80">{citation.snippet.slice(0, 120)}...</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+});
+
+ChatMessageItem.displayName = "ChatMessageItem";
 
 export default function ChatbotPage() {
   const params = useParams<{ id: string }>();
@@ -59,7 +184,7 @@ export default function ChatbotPage() {
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsUiTickRef = useRef(0);
 
-  const resetTtsState = () => {
+  const resetTtsState = useCallback(() => {
     setSpeakingMessageId(null);
     setTtsCurrentTime(0);
     setTtsDuration(0);
@@ -70,7 +195,7 @@ export default function ChatbotPage() {
       }
       return null;
     });
-  };
+  }, []);
 
   const formatTime = (seconds: number) => {
     if (!Number.isFinite(seconds) || seconds < 0) {
@@ -99,13 +224,23 @@ export default function ChatbotPage() {
     return normalized.slice(start, end);
   };
 
-  const stopCurrentTtsAudio = () => {
+  const stopCurrentTtsAudio = useCallback(() => {
     const audio = ttsAudioRef.current;
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
     }
-  };
+  }, []);
+
+  const handleOpenImage = useCallback((image: string) => {
+    setSelectedImage(image);
+    setIsImageModalOpen(true);
+  }, []);
+
+  const handleCloseImage = useCallback(() => {
+    setIsImageModalOpen(false);
+    setSelectedImage(null);
+  }, []);
 
   useEffect(() => {
     if (!materialId) return;
@@ -181,7 +316,7 @@ export default function ChatbotPage() {
     ttsAudioRef.current.play().catch(() => undefined);
   }, [ttsAudioUrl]);
 
-  async function handleToggleSpeak(messageId: string, content: string) {
+  const handleToggleSpeak = useCallback(async (messageId: string, content: string) => {
     if (speakingMessageId === messageId) {
       if (ttsAudioRef.current) {
         ttsAudioRef.current.pause();
@@ -207,7 +342,7 @@ export default function ChatbotPage() {
       setSpeakingMessageId((prev) => (prev === messageId ? null : prev));
       alert("Không thể tạo âm thanh TTS");
     }
-  }
+  }, [resetTtsState, speakingMessageId, ttsLang]);
 
    async function handleSend(event: FormEvent) {
      event.preventDefault();
@@ -242,7 +377,6 @@ export default function ChatbotPage() {
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
     let addedCount = 0;
-    const newImages: string[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -449,7 +583,7 @@ export default function ChatbotPage() {
           )}
 
           <AnimatePresence>
-            {messages.map((msg, idx) => (
+            {messages.map((msg) => (
               <motion.div
                 key={msg.id}
                 initial={{ opacity: 0, y: 12 }}
@@ -497,10 +631,9 @@ export default function ChatbotPage() {
                            src={img}
                            alt={`upload ${idx}`}
                            className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-[var(--border-light)] cursor-pointer hover:opacity-90"
-                           onClick={() => {
-                             setSelectedImage(img);
-                             setIsImageModalOpen(true);
-                           }}
+                           loading="lazy"
+                           decoding="async"
+                           onClick={() => handleOpenImage(img)}
                          />
                        ))}
                      </div>
@@ -632,10 +765,9 @@ export default function ChatbotPage() {
                        src={img}
                        alt={`preview ${idx}`}
                        className="w-full h-full object-cover cursor-pointer"
-                       onClick={() => {
-                         setSelectedImage(img);
-                         setIsImageModalOpen(true);
-                       }}
+                        loading="lazy"
+                        decoding="async"
+                        onClick={() => handleOpenImage(img)}
                      />
                      <button
                        type="button"
@@ -819,17 +951,11 @@ export default function ChatbotPage() {
       {isImageModalOpen && selectedImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => {
-            setIsImageModalOpen(false);
-            setSelectedImage(null);
-          }}
+          onClick={handleCloseImage}
         >
           <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => {
-                setIsImageModalOpen(false);
-                setSelectedImage(null);
-              }}
+              onClick={handleCloseImage}
               className="absolute -top-10 right-0 text-white hover:text-gray-300 text-4xl font-bold"
               aria-label="Close"
             >
@@ -838,6 +964,8 @@ export default function ChatbotPage() {
             <img
               src={selectedImage}
               alt="Full size preview"
+              loading="lazy"
+              decoding="async"
               className="max-w-full max-h-[90vh] object-contain rounded-lg"
             />
           </div>

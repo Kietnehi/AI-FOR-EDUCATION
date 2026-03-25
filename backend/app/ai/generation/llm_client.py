@@ -3,14 +3,14 @@ import threading
 import time
 
 from google import genai
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.logging import logger
 
 
 class LLMClient:
-    _shared_openai_client: OpenAI | None | object = ...
+    _shared_openai_client: AsyncOpenAI | None | object = ...
     _shared_openai_extra_headers: dict[str, str] | None = None
     _shared_gemini_clients: list[tuple[str, genai.Client]] | None = None
     _gemini_key_cooldowns: dict[str, float] = {}
@@ -25,7 +25,7 @@ class LLMClient:
         self.openai_base_url = settings.openai_base_url
         if LLMClient._shared_openai_client is ...:
             LLMClient._shared_openai_client = (
-                OpenAI(api_key=self.openai_api_key, base_url=self.openai_base_url)
+                AsyncOpenAI(api_key=self.openai_api_key, base_url=self.openai_base_url)
                 if self.openai_api_key
                 else None
             )
