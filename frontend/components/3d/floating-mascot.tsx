@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sphere } from "@react-three/drei";
-import { Bot as BotIcon, Send, X } from "lucide-react";
+import { Bot as BotIcon, Send, X, Mic, Square, Loader2, Settings2 } from "lucide-react";
 import * as THREE from "three";
 
-import { sendMascotChatMessage } from "@/lib/api";
+import { sendMascotChatMessage, transcribeChatAudio } from "@/lib/api";
 
 type MiniChatMessage = {
   role: "user" | "assistant";
@@ -94,6 +94,10 @@ export function FloatingMascot() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
   const [mascotSessionId, setMascotSessionId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<MiniChatMessage[]>([
     {
@@ -105,6 +109,8 @@ export function FloatingMascot() {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
 
   useEffect(() => {
     const setDefaultPosition = () => {
@@ -164,6 +170,11 @@ export function FloatingMascot() {
     if (savedSessionId) {
       setMascotSessionId(savedSessionId);
     }
+    
+    const savedSttModel = localStorage.getItem("mascot-stt-model");
+    if (savedSttModel) {
+      setSttModel(savedSttModel as any);
+    }
   }, []);
 
   useEffect(() => {
@@ -171,6 +182,18 @@ export function FloatingMascot() {
       localStorage.setItem(MASCOT_SESSION_STORAGE_KEY, mascotSessionId);
     }
   }, [mascotSessionId]);
+
+  useEffect(() => {
+    localStorage.setItem("mascot-stt-model", sttModel);
+  }, [sttModel]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true);
@@ -199,6 +222,57 @@ export function FloatingMascot() {
       return;
     }
     setIsChatOpen((prev) => !prev);
+  };
+
+  const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      alert("Trình duyệt không hỗ trợ ghi âm");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (!blob.size) return;
+
+        setIsTranscribing(true);
+        try {
+          const result = await transcribeChatAudio(blob, sttModel);
+          setChatInput((prev) => (prev.trim() ? `${prev.trim()} ${result.text}` : result.text));
+        } catch {
+          alert("Không thể chuyển giọng nói thành văn bản");
+        } finally {
+          setIsTranscribing(false);
+          setIsRecording(false);
+          mediaRecorderRef.current = null;
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      alert("Không thể truy cập microphone");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
   };
 
   const handleSendMessage = async () => {
@@ -248,14 +322,38 @@ export function FloatingMascot() {
               <BotIcon className="w-4 h-4 text-brand-500" />
               Chat Mascot
             </div>
-            <button
-              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"
-              onClick={() => setIsChatOpen(false)}
-              aria-label="Đóng khung chat mascot"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${showSettings ? "bg-brand-100 text-brand-600" : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"}`}
+                onClick={() => setShowSettings(!showSettings)}
+                aria-label="Cài đặt chatbot"
+              >
+                <Settings2 className="w-4 h-4" />
+              </button>
+              <button
+                className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"
+                onClick={() => setIsChatOpen(false)}
+                aria-label="Đóng khung chat mascot"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+
+          {showSettings && (
+            <div className="p-3 bg-[var(--bg-secondary)] border-b border-[var(--border-light)] space-y-2">
+              <label className="text-xs font-medium text-[var(--text-secondary)] block">Model STT</label>
+              <select
+                value={sttModel}
+                onChange={(e) => setSttModel(e.target.value as any)}
+                className="w-full text-xs rounded-lg px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-light)] text-[var(--text-primary)] focus:outline-none focus:border-brand-400"
+              >
+                <option value="local-base">Local - Whisper base</option>
+                <option value="whisper-large-v3">Groq - whisper-large-v3</option>
+                <option value="whisper-large-v3-turbo">Groq - whisper-large-v3-turbo</option>
+              </select>
+            </div>
+          )}
 
           <div ref={messagesRef} className="h-64 overflow-y-auto p-3 space-y-2 bg-[var(--bg-primary)]">
             {messages.map((msg, index) => (
@@ -275,6 +373,12 @@ export function FloatingMascot() {
                 Đang trả lời...
               </div>
             )}
+            {isTranscribing && (
+              <div className="max-w-[88%] rounded-xl px-3 py-2 text-sm border border-[var(--border-light)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Đang chuyển giọng nói...
+              </div>
+            )}
           </div>
 
           <div className="p-3 border-t border-[var(--border-light)] bg-[var(--bg-elevated)]">
@@ -284,11 +388,30 @@ export function FloatingMascot() {
                 onChange={(event) => setChatInput(event.target.value)}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Nhập tin nhắn..."
-                className="flex-1 h-10 px-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-brand-400"
+                disabled={isRecording || isTranscribing}
+                className="flex-1 h-10 px-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-brand-400 disabled:opacity-60"
               />
               <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isSending || isTranscribing}
+                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                  isRecording 
+                    ? "bg-rose-500 text-white hover:bg-rose-600" 
+                    : "bg-emerald-500 text-white hover:bg-emerald-600"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isRecording ? (
+                  <Square className="w-3 h-3" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </button>
+              <button
                 onClick={handleSendMessage}
-                disabled={isSending || !chatInput.trim()}
+                disabled={isSending || isRecording || isTranscribing || !chatInput.trim()}
                 className="w-10 h-10 rounded-lg bg-brand-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Gui tin nhan mascot"
               >
@@ -308,7 +431,11 @@ export function FloatingMascot() {
         aria-label="Mascot AI có thể kéo thả"
         tabIndex={0}
       >
-        <Canvas camera={{ position: [0, 0, 4], fov: 45 }}>
+        <Canvas 
+          camera={{ position: [0, 0, 4], fov: 45 }}
+          dpr={[1, 1.5]}
+          performance={{ min: 0.5 }}
+        >
           <ambientLight intensity={1} />
           <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
           <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />

@@ -275,7 +275,7 @@ export default function MaterialDetailPage() {
               </Button>
             )}
           </div>
-          <div className={`${isFullPreview ? "" : "max-h-64 overflow-auto"} rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] p-4 transition-all duration-300`}>
+          <div className="max-h-96 overflow-auto rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] p-4">
             <pre className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap font-mono leading-relaxed m-0 bg-transparent border-0 p-0">
               {isFullPreview ? fullText : fullText.slice(0, previewLimit) + (hasMore ? "..." : "")}
             </pre>

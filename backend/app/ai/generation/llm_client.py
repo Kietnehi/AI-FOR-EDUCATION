@@ -49,6 +49,21 @@ class LLMClient:
         content = self._generate_openai(system_prompt, user_prompt, temperature=0.3, force_json=False, model=model)
         return content or fallback
 
+    def json_response_openai(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        fallback: dict,
+        model: str | None = None,
+    ) -> dict:
+        content = self._generate_openai(system_prompt, user_prompt, temperature=0.1, force_json=True, model=model)
+        if not content:
+            return fallback
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return fallback
+
     def _generate_text(
         self,
         system_prompt: str,

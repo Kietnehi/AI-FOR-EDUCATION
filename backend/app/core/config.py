@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    openai_guardrail_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
     openai_base_url: str | None = None
     openrouter_site_url: str = ""
@@ -43,6 +44,7 @@ class Settings(BaseSettings):
     chunk_size: int = 2500  # tokens per chunk
     chunk_overlap: int = 500  # tokens overlap
     retrieval_top_k: int = 6
+    material_guardrail_excerpt_chars: int = 12000
 
     # Number of latest chat messages injected as conversation memory for RAG chat.
     chat_memory_turns: int = 8

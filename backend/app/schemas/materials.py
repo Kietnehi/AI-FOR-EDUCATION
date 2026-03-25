@@ -19,8 +19,24 @@ class MaterialCreateRequest(BaseModel):
     raw_text: str
 
 
+class MaterialGuardrailCheckRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    subject: str | None = None
+    education_level: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    source_type: SourceType = "manual_text"
+    raw_text: str
+
+
 class MaterialProcessRequest(BaseModel):
     force_reprocess: bool = False
+
+
+class MaterialGuardrailCheckResponse(BaseModel):
+    is_academic: bool
+    category: str
+    message: str
 
 
 class MaterialResponse(BaseModel):
@@ -35,6 +51,9 @@ class MaterialResponse(BaseModel):
     file_url: str | None = None
     tags: list[str] = Field(default_factory=list)
     processing_status: ProcessingStatus
+    guardrail_status: str | None = None
+    guardrail_category: str | None = None
+    guardrail_reason: str | None = None
     raw_text: str | None = None
     cleaned_text: str | None = None
     created_at: datetime

@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.repositories.job_repository import JobRepository
 from app.repositories.material_repository import MaterialRepository
+from app.services.material_guardrail_service import MaterialGuardrailService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
@@ -26,8 +27,16 @@ class MaterialService:
         self.chunker = TextChunker(chunk_size=settings.chunk_size, overlap=settings.chunk_overlap)
         self.embedder = OpenAIEmbedder()
         self.vector_store = ChromaVectorStore()
+        self.guardrail = MaterialGuardrailService()
 
     async def create_material(self, payload: dict) -> dict:
+        decision = self.guardrail.assert_allowed(
+            raw_text=payload.get("raw_text", ""),
+            title=payload.get("title"),
+            subject=payload.get("subject"),
+            description=payload.get("description"),
+            source_name=payload.get("title"),
+        )
         now = utc_now()
         doc = {
             **payload,
@@ -35,10 +44,28 @@ class MaterialService:
             "file_url": None,
             "cleaned_text": TextCleaner.clean(payload.get("raw_text", "")),
             "processing_status": "uploaded",
+            "guardrail_status": "approved",
+            "guardrail_category": decision.category,
+            "guardrail_reason": decision.reason,
+            "guardrail_checked_at": now,
             "created_at": now,
             "updated_at": now,
         }
         return await self.material_repo.create(doc)
+
+    async def check_material_guardrail(self, payload: dict) -> dict:
+        decision = self.guardrail.evaluate(
+            raw_text=payload.get("raw_text", ""),
+            title=payload.get("title"),
+            subject=payload.get("subject"),
+            description=payload.get("description"),
+            source_name=payload.get("title"),
+        )
+        return {
+            "is_academic": decision.is_academic,
+            "category": decision.category,
+            "message": decision.reason,
+        }
 
     async def upload_material(self, user_id: str, file: UploadFile, metadata: dict) -> dict:
         extension = Path(file.filename or "").suffix.lower()
@@ -50,7 +77,20 @@ class MaterialService:
         content = await file.read()
         destination.write_bytes(content)
 
-        raw_text = FileParser.parse(str(destination))
+        try:
+            raw_text = FileParser.parse(str(destination))
+            decision = self.guardrail.assert_allowed(
+                raw_text=raw_text,
+                title=metadata.get("title") or Path(file.filename or "material").stem,
+                subject=metadata.get("subject"),
+                description=metadata.get("description"),
+                source_name=file.filename,
+            )
+        except Exception:
+            if destination.exists():
+                destination.unlink()
+            raise
+
         now = utc_now()
         doc = {
             "user_id": user_id,
@@ -65,10 +105,43 @@ class MaterialService:
             "cleaned_text": TextCleaner.clean(raw_text),
             "tags": metadata.get("tags", []),
             "processing_status": "uploaded",
+            "guardrail_status": "approved",
+            "guardrail_category": decision.category,
+            "guardrail_reason": decision.reason,
+            "guardrail_checked_at": now,
             "created_at": now,
             "updated_at": now,
         }
         return await self.material_repo.create(doc)
+
+    async def check_upload_guardrail(self, file: UploadFile, metadata: dict) -> dict:
+        extension = Path(file.filename or "").suffix.lower()
+        if extension not in {".pdf", ".docx", ".txt", ".md"}:
+            raise HTTPException(status_code=400, detail="Unsupported file type")
+
+        file_name = f"guardrail-{uuid.uuid4().hex}{extension}"
+        destination = Path(settings.upload_dir) / file_name
+        content = await file.read()
+        destination.write_bytes(content)
+
+        try:
+            raw_text = FileParser.parse(str(destination))
+            decision = self.guardrail.evaluate(
+                raw_text=raw_text,
+                title=metadata.get("title") or Path(file.filename or "material").stem,
+                subject=metadata.get("subject"),
+                description=metadata.get("description"),
+                source_name=file.filename,
+            )
+        finally:
+            if destination.exists():
+                destination.unlink()
+
+        return {
+            "is_academic": decision.is_academic,
+            "category": decision.category,
+            "message": decision.reason,
+        }
 
     async def get_material(self, material_id: str) -> dict:
         material = await self.material_repo.get_by_id(parse_object_id(material_id))
@@ -93,6 +166,7 @@ class MaterialService:
 
         try:
             material = await self.get_material(material_id)
+            await self._ensure_guardrail_approved(material_id, material)
             if material["processing_status"] == "processed" and not force_reprocess:
                 await self.job_repo.update_status(job_id, "skipped", {"reason": "already processed"})
                 return
@@ -156,3 +230,25 @@ class MaterialService:
 
     async def enqueue_process(self, material_id: str, force_reprocess: bool = False) -> None:
         asyncio.create_task(self.process_material(material_id, force_reprocess=force_reprocess))
+
+    async def _ensure_guardrail_approved(self, material_id: str, material: dict) -> None:
+        if material.get("guardrail_status") == "approved":
+            return
+
+        decision = self.guardrail.assert_allowed(
+            raw_text=material.get("raw_text", ""),
+            title=material.get("title"),
+            subject=material.get("subject"),
+            description=material.get("description"),
+            source_name=material.get("file_name") or material.get("title"),
+        )
+        await self.material_repo.update(
+            parse_object_id(material_id),
+            {
+                "guardrail_status": "approved",
+                "guardrail_category": decision.category,
+                "guardrail_reason": decision.reason,
+                "guardrail_checked_at": utc_now(),
+                "updated_at": utc_now(),
+            },
+        )

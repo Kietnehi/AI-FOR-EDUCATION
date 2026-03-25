@@ -10,6 +10,9 @@ export type Material = {
   file_url?: string;
   tags: string[];
   processing_status: "uploaded" | "queued" | "processing" | "processed" | "failed";
+  guardrail_status?: string;
+  guardrail_category?: string;
+  guardrail_reason?: string;
   raw_text?: string;
   cleaned_text?: string;
   created_at: string;

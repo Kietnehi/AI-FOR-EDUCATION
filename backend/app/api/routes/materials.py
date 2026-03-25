@@ -4,6 +4,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.api.dependencies import get_database
 from app.schemas.materials import (
     MaterialCreateRequest,
+    MaterialGuardrailCheckRequest,
+    MaterialGuardrailCheckResponse,
     MaterialListResponse,
     MaterialProcessRequest,
     MaterialProcessResponse,
@@ -22,6 +24,40 @@ async def create_material(
     service = MaterialService(db)
     material = await service.create_material(payload.model_dump())
     return MaterialResponse(**material)
+
+
+@router.post("/materials/guardrail-check", response_model=MaterialGuardrailCheckResponse)
+async def check_material_guardrail(
+    payload: MaterialGuardrailCheckRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> MaterialGuardrailCheckResponse:
+    service = MaterialService(db)
+    result = await service.check_material_guardrail(payload.model_dump())
+    return MaterialGuardrailCheckResponse(**result)
+
+
+@router.post("/materials/guardrail-check-upload", response_model=MaterialGuardrailCheckResponse)
+async def check_upload_guardrail(
+    file: UploadFile = File(...),
+    title: str | None = Form(None),
+    description: str | None = Form(None),
+    subject: str | None = Form(None),
+    education_level: str | None = Form(None),
+    tags: str | None = Form(None),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> MaterialGuardrailCheckResponse:
+    service = MaterialService(db)
+    result = await service.check_upload_guardrail(
+        file=file,
+        metadata={
+            "title": title,
+            "description": description,
+            "subject": subject,
+            "education_level": education_level,
+            "tags": [item.strip() for item in tags.split(",")] if tags else [],
+        },
+    )
+    return MaterialGuardrailCheckResponse(**result)
 
 
 @router.post("/materials/upload", response_model=MaterialResponse)
