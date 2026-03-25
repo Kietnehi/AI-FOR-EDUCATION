@@ -5,8 +5,10 @@ backend/.pytest_cache/
 backend/storage/chroma/
 backend/storage/uploads/*
 backend/storage/generated/*
+backend/storage/images/*
 !backend/storage/uploads/.gitkeep
 !backend/storage/generated/.gitkeep
+!backend/storage/images/.gitkeep
 
 # Node
 frontend/node_modules/

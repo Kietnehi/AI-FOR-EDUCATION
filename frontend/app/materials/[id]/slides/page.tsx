@@ -8,9 +8,10 @@ import {
   Presentation,
   Download,
   ArrowLeft,
-  FileText,
   ChevronLeft,
   ChevronRight,
+  Star,
+  Image as ImageIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,22 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { apiDownloadUrl, getGeneratedContent } from "@/lib/api";
 import { GeneratedContent } from "@/types";
+
+/* ──────────────── Types for new slide structure ──────────────── */
+
+interface SlideElement {
+  type: "bullet" | "image" | "highlight";
+  content?: string | string[];
+  query?: string;
+}
+
+interface SlideData {
+  title: string;
+  layout: "title_only" | "text_only" | "text_image";
+  elements: SlideElement[];
+}
+
+/* ──────────────── Component ──────────────── */
 
 export default function SlidesPage() {
   const searchParams = useSearchParams();
@@ -44,7 +61,152 @@ export default function SlidesPage() {
       .finally(() => setLoading(false));
   }, [contentId]);
 
-  const slides = content?.json_content?.slides || content?.outline || [];
+  // Support both old format (string[]) and new format (SlideData[])
+  const rawSlides: (string | SlideData)[] =
+    content?.json_content?.slides || content?.outline || [];
+
+  const slides: SlideData[] = rawSlides.map((s, i) => {
+    if (typeof s === "string") {
+      return {
+        title: s,
+        layout: i === 0 ? "title_only" : "text_only",
+        elements: [],
+      } as SlideData;
+    }
+    // Legacy format with type/bullets
+    if ("bullets" in (s as any) && !("elements" in (s as any))) {
+      const legacy = s as any;
+      const elems: SlideElement[] = [];
+      if (legacy.bullets?.length) {
+        elems.push({ type: "bullet", content: legacy.bullets });
+      }
+      return {
+        title: legacy.title || `Slide ${i + 1}`,
+        layout: legacy.type === "title" ? "title_only" : "text_only",
+        elements: elems,
+      } as SlideData;
+    }
+    return s as SlideData;
+  });
+
+  const current = slides[currentSlide];
+
+  /* ── Element renderers ── */
+
+  const renderBullet = (el: SlideElement, idx: number) => {
+    const items = Array.isArray(el.content) ? el.content : [];
+    return (
+      <ul key={idx} className="space-y-2 m-0 pl-0 list-none">
+        {items.map((item, j) => (
+          <motion.li
+            key={j}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: j * 0.08 }}
+            className="flex items-start gap-2.5 text-[15px] text-[var(--text-secondary)]"
+          >
+            <span className="text-brand-500 mt-0.5 text-sm shrink-0">▸</span>
+            <span>{item}</span>
+          </motion.li>
+        ))}
+      </ul>
+    );
+  };
+
+  const renderHighlight = (el: SlideElement, idx: number) => {
+    const text = typeof el.content === "string" ? el.content : "";
+    if (!text) return null;
+    return (
+      <motion.div
+        key={idx}
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2 }}
+        className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50"
+      >
+        <Star className="w-4 h-4 text-amber-500 shrink-0 fill-amber-400" />
+        <span className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+          {text}
+        </span>
+      </motion.div>
+    );
+  };
+
+  const renderImage = (el: SlideElement, idx: number) => {
+    const query = el.query || "";
+    if (!query) return null;
+    return (
+      <motion.div
+        key={idx}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="flex flex-col items-center justify-center gap-2 px-6 py-8 rounded-xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100 dark:border-brand-900/30"
+      >
+        <ImageIcon className="w-8 h-8 text-brand-300 dark:text-brand-700" />
+        <span className="text-xs text-[var(--text-tertiary)] text-center italic">
+          🖼 {query}
+        </span>
+      </motion.div>
+    );
+  };
+
+  /* ── Layout renderers ── */
+
+  const layoutClass =
+    current?.layout === "text_image"
+      ? "grid grid-cols-1 md:grid-cols-2 gap-6"
+      : "space-y-4";
+
+  const renderElements = () => {
+    if (!current) return null;
+    const elems = current.elements || [];
+    const bullets = elems.filter((e) => e.type === "bullet");
+    const images = elems.filter((e) => e.type === "image");
+    const highlights = elems.filter((e) => e.type === "highlight");
+
+    if (current.layout === "title_only") {
+      return (
+        <div className="flex flex-col items-center justify-center text-center space-y-4 py-4">
+          {bullets.map(renderBullet)}
+          {highlights.map(renderHighlight)}
+        </div>
+      );
+    }
+
+    if (current.layout === "text_image") {
+      return (
+        <div className={layoutClass}>
+          <div className="space-y-4">
+            {bullets.map(renderBullet)}
+            {highlights.map(renderHighlight)}
+          </div>
+          <div className="space-y-3">
+            {images.map(renderImage)}
+          </div>
+        </div>
+      );
+    }
+
+    // text_only
+    return (
+      <div className="space-y-4">
+        {elems.map((el, i) => {
+          if (el.type === "bullet") return renderBullet(el, i);
+          if (el.type === "highlight") return renderHighlight(el, i);
+          if (el.type === "image") return renderImage(el, i);
+          return null;
+        })}
+      </div>
+    );
+  };
+
+  /* ── Layout badge labels ── */
+  const layoutLabels: Record<string, string> = {
+    title_only: "Trang bìa",
+    text_only: "Nội dung",
+    text_image: "Nội dung + Hình",
+  };
 
   return (
     <motion.div
@@ -103,6 +265,11 @@ export default function SlidesPage() {
                 <span className="text-sm text-[var(--text-tertiary)]">
                   Phiên bản v{content.version}
                 </span>
+                {content.json_content?.tone && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400 font-medium">
+                    {content.json_content.tone}
+                  </span>
+                )}
               </div>
               <span className="text-sm text-[var(--text-tertiary)]">
                 {slides.length} slides
@@ -110,34 +277,62 @@ export default function SlidesPage() {
             </div>
           </Card>
 
-          {/* Slide Preview Cards */}
-          {Array.isArray(slides) && slides.length > 0 ? (
+          {/* Slide Preview */}
+          {slides.length > 0 ? (
             <>
-              {/* Current slide display */}
-              <Card padding="lg" className="relative">
+              <Card padding="lg" className="relative overflow-hidden">
                 <motion.div
                   key={currentSlide}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="min-h-[180px] flex items-center justify-center"
+                  transition={{ duration: 0.25 }}
+                  className="min-h-[220px]"
                 >
-                  <div className="text-center max-w-lg">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-600 text-xs font-semibold mb-4">
-                      <Presentation className="w-3 h-3" />
-                      Slide {currentSlide + 1} / {slides.length}
+                  {/* Slide header */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400 text-xs font-semibold">
+                        <Presentation className="w-3 h-3" />
+                        Slide {currentSlide + 1} / {slides.length}
+                      </div>
+                      {current && (
+                        <span className="text-[10px] uppercase tracking-wider font-medium text-[var(--text-tertiary)] px-2 py-0.5 rounded bg-[var(--bg-tertiary)]">
+                          {layoutLabels[current.layout] || current.layout}
+                        </span>
+                      )}
                     </div>
-                    <h3 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-                      {typeof slides[currentSlide] === "string"
-                        ? slides[currentSlide]
-                        : slides[currentSlide]?.title || `Slide ${currentSlide + 1}`}
-                    </h3>
-                    {typeof slides[currentSlide] !== "string" && slides[currentSlide]?.content && (
-                      <p className="text-sm text-[var(--text-secondary)] mt-3">
-                        {slides[currentSlide].content}
-                      </p>
-                    )}
                   </div>
+
+                  {/* Slide title */}
+                  {current && (
+                    <>
+                      {current.layout === "title_only" ? (
+                        <div className="text-center py-6">
+                          <h2
+                            className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2"
+                            style={{ fontFamily: "var(--font-display)" }}
+                          >
+                            {current.title}
+                          </h2>
+                          {content.json_content?.title && current.title !== content.json_content.title && (
+                            <p className="text-sm text-[var(--text-tertiary)]">
+                              {content.json_content.title}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <h3
+                          className="text-xl font-bold text-[var(--text-primary)] mb-4"
+                          style={{ fontFamily: "var(--font-display)" }}
+                        >
+                          {current.title}
+                        </h3>
+                      )}
+                    </>
+                  )}
+
+                  {/* Slide body */}
+                  {renderElements()}
                 </motion.div>
 
                 {/* Navigation */}
@@ -180,7 +375,7 @@ export default function SlidesPage() {
 
               {/* Slide thumbnails */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {slides.map((slide: any, idx: number) => (
+                {slides.map((slide: SlideData, idx: number) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -190,15 +385,29 @@ export default function SlidesPage() {
                     <Card
                       hover
                       padding="sm"
-                      className={`!cursor-pointer ${idx === currentSlide ? "!border-brand-400 !bg-brand-50/50" : ""}`}
+                      className={`!cursor-pointer ${idx === currentSlide ? "!border-brand-400 !bg-brand-50/50 dark:!bg-brand-950/20" : ""}`}
                       onClick={() => setCurrentSlide(idx)}
                     >
-                      <div className="text-xs font-medium text-brand-500 mb-1">
-                        Slide {idx + 1}
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-brand-500">
+                          Slide {idx + 1}
+                        </span>
+                        <span className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">
+                          {layoutLabels[slide.layout] || ""}
+                        </span>
                       </div>
-                      <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
-                        {typeof slide === "string" ? slide : slide?.title || `Nội dung slide ${idx + 1}`}
+                      <p className="text-xs text-[var(--text-secondary)] line-clamp-2 font-medium">
+                        {slide.title}
                       </p>
+                      {/* Preview highlight if exists */}
+                      {slide.elements?.find((e) => e.type === "highlight") && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 line-clamp-1 flex items-center gap-1">
+                          <Star className="w-2.5 h-2.5 fill-amber-400" />
+                          {typeof slide.elements.find((e) => e.type === "highlight")?.content === "string"
+                            ? (slide.elements.find((e) => e.type === "highlight")?.content as string)
+                            : ""}
+                        </p>
+                      )}
                     </Card>
                   </motion.div>
                 ))}

@@ -27,8 +27,11 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
 
+    pexels_api_key: str = ""
+
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
+    image_cache_dir: str = "./storage/images"
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
@@ -36,7 +39,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 120
     retrieval_top_k: int = 5
 
-    @field_validator("upload_dir", "generated_dir", "chroma_persist_dir")
+    @field_validator("upload_dir", "generated_dir", "chroma_persist_dir", "image_cache_dir")
     @classmethod
     def ensure_dirs(cls, value: str) -> str:
         Path(value).mkdir(parents=True, exist_ok=True)
