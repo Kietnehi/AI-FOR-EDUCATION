@@ -79,17 +79,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           onToggleMascot={handleToggleMascot}
         />
 
-        <motion.main
+        <main
           id="main-content"
-          initial={false}
-          animate={{ paddingLeft: sidebarCollapsed ? 72 : 260 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          style={{ 
+            paddingLeft: sidebarCollapsed ? 72 : 260,
+            transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+          }}
           className="pt-16 min-h-screen"
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
             {children}
           </div>
-        </motion.main>
+        </main>
         
         {/* Floating AI Mascot */}
         {mascotEnabled && shouldRenderMascot && <FloatingMascot />}

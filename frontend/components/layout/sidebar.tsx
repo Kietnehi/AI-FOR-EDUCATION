@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,7 +29,7 @@ const navItems = [
   { href: "/generated", label: "Nội dung AI", icon: Sparkles },
 ];
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -137,4 +138,4 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
     </motion.aside>
   );
-}
+});

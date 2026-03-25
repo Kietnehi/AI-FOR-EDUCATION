@@ -60,6 +60,8 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN");
+
 const statCards = [
   { label: "Học liệu", icon: BookOpen, color: "from-brand-500 to-brand-600" },
   { label: "Slide đã tạo", icon: FileText, color: "from-accent-500 to-accent-600" },
@@ -257,7 +259,7 @@ export default function DashboardPage() {
                         </span>
                       )}
                       <span className="ml-auto">
-                        {new Date(material.updated_at).toLocaleDateString("vi-VN")}
+                        {DATE_FORMATTER.format(new Date(material.updated_at))}
                       </span>
                     </div>
                   </Card>
@@ -316,7 +318,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Geography Location */}
-      <motion.div variants={item}>
+      <motion.div variants={item} className="content-auto">
         <div className="flex items-center gap-2 mb-4">
           <MapPin className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -345,7 +347,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Cooperation Contact */}
-      <motion.div variants={item}>
+      <motion.div variants={item} className="content-auto">
         <div className="flex items-center gap-2 mb-4">
           <GithubIcon className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -381,6 +383,8 @@ export default function DashboardPage() {
                   <img 
                     src={`https://github.com/${contact.username}.png`} 
                     alt={contact.username} 
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-900"
                   />
                   <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -401,12 +405,16 @@ export default function DashboardPage() {
                   <img 
                     src={`https://img.shields.io/github/followers/${contact.username}?style=social`} 
                     alt="Followers" 
+                    loading="lazy"
+                    decoding="async"
                     className="h-6 object-contain"
                   />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
                     src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`} 
                     alt="Stars" 
+                    loading="lazy"
+                    decoding="async"
                     className="h-6 object-contain"
                   />
                 </div>

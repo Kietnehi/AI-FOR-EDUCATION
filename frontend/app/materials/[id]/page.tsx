@@ -46,6 +46,8 @@ import {
   NotebookLMSavedResult,
 } from "@/types";
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN");
+
 export default function MaterialDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -353,7 +355,7 @@ export default function MaterialDetailPage() {
                 )}
                 <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
                   <Clock className="w-3 h-3" />
-                  {new Date(material.updated_at).toLocaleDateString("vi-VN")}
+                  {DATE_FORMATTER.format(new Date(material.updated_at))}
                 </span>
               </div>
             </div>
@@ -517,7 +519,7 @@ export default function MaterialDetailPage() {
               )}
               {notebookSaved.videos.map((item) => (
                 <div key={item.file_name} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)]">
-                  <video controls className="w-full rounded-lg mb-2" src={apiDownloadUrl(item.file_url)} />
+                  <video controls preload="metadata" className="w-full rounded-lg mb-2" src={apiDownloadUrl(item.file_url)} />
                   <div className="flex flex-col gap-2 mt-3">
                     <span className="text-xs font-medium text-[var(--text-tertiary)] truncate px-1" title={item.file_name}>
                       {item.file_name}
@@ -552,6 +554,8 @@ export default function MaterialDetailPage() {
                     <img
                       src={apiDownloadUrl(item.file_url)}
                       alt={item.file_name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full rounded-lg mb-2 transition-transform duration-300 group-hover:scale-[1.01]"
                     />
                   </button>
@@ -604,6 +608,8 @@ export default function MaterialDetailPage() {
               <img
                 src={apiDownloadUrl(selectedInfographic.file_url)}
                 alt={selectedInfographic.file_name}
+                loading="lazy"
+                decoding="async"
                 className="mx-auto h-auto max-w-full rounded-xl"
               />
             </div>

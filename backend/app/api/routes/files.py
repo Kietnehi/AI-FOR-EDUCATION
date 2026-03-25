@@ -9,7 +9,11 @@ router = APIRouter()
 @router.get("/files/{file_path:path}/download")
 async def download_file(file_path: str) -> FileResponse:
     file_path_resolved = FileService.resolve_file_path(file_path)
-    return FileResponse(path=file_path_resolved, filename=file_path_resolved.name)
+    return FileResponse(
+        path=file_path_resolved, 
+        filename=file_path_resolved.name,
+        headers={"Cache-Control": "public, max-age=3600"} # Cache for 1 hour
+    )
 
 
 @router.get("/files/notebooklm/temp/{session_id}/{file_type}/{file_name}/preview")

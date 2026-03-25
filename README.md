@@ -66,6 +66,7 @@ Dự án được chia thành 2 luồng xử lý chính:
 - 🎤 **Speech-to-Text cho Chatbot**: ghi âm bằng mic và chuyển giọng nói thành chữ
   - Local: `openai-whisper` model `base`
   - Cloud: Groq `whisper-large-v3` hoặc `whisper-large-v3-turbo`
+- 🔊 **Text-to-Speech**: chuyển văn bản thành giọng nói tiếng Việt
 - 🌙 **Dark mode** hoàn chỉnh
 - 📱 **Responsive** trên mọi kích thước màn hình
 
@@ -97,6 +98,7 @@ Dự án được chia thành 2 luồng xử lý chính:
 | OpenAI Whisper (local) | Speech-to-Text local model `base` |
 | Groq API | Speech-to-Text cloud (`whisper-large-v3`, `whisper-large-v3-turbo`) |
 | FFmpeg | Tiền xử lý audio cho Whisper |
+| python-pptx | Tạo file PowerPoint tự động |
 
 ---
 
@@ -141,7 +143,7 @@ flowchart LR
 ## 3. Cấu trúc thư mục
 
 ```text
-DACN/
+AI-FOR-EDUCATION/
 ├─ backend/
 │  ├─ app/
 │  │  ├─ ai/
@@ -163,9 +165,10 @@ DACN/
 │  │  ├─ services/
 │  │  ├─ utils/
 │  │  └─ main.py
-│  ├─ scripts/seed.py
 │  ├─ storage/
+│  │  ├─ chroma/
 │  │  ├─ generated/
+│  │  ├─ notebooklm/
 │  │  └─ uploads/
 │  ├─ requirements.txt
 │  └─ .env.example
@@ -191,23 +194,29 @@ DACN/
 │  ├─ components/
 │  │  ├─ app-shell.tsx             ← Layout shell (Sidebar + Topbar)
 │  │  ├─ theme-provider.tsx        ← Dark/Light mode context
+│  │  ├─ 3d/
 │  │  ├─ layout/
-│  │  │  ├─ sidebar.tsx            ← Collapsible sidebar
-│  │  │  └─ topbar.tsx             ← Search + theme + user
+│  │  │  ├─ sidebar.tsx           ← Collapsible sidebar
+│  │  │  └─ topbar.tsx            ← Search + theme + user
 │  │  └─ ui/
+│  │     ├─ audio-player.tsx       ← Audio playback
 │  │     ├─ badge.tsx              ← Status badges
 │  │     ├─ button.tsx             ← Button variants
 │  │     ├─ card.tsx               ← Glass/hover cards
 │  │     ├─ empty-state.tsx        ← Empty state illustration
+│  │     ├─ markdown.tsx           ← Markdown renderer
 │  │     ├─ skeleton.tsx           ← Loading skeletons
 │  │     ├─ tabs.tsx               ← Animated tabs
+│  │     ├─ tilt-card.tsx          ← 3D tilt effect card
 │  │     └─ toast.tsx              ← Toast notifications
 │  ├─ lib/
-│  │  └─ api.ts                    ← API client
+│  │  ├─ api.ts                    ← API client
+│  │  ├─ diacritize.ts             ← Vietnamese diacritics
+│  │  └─ tts.ts                    ← Text-to-speech
 │  ├─ types/
 │  │  └─ index.ts                  ← TypeScript types
-│  ├─ postcss.config.mjs
 │  ├─ next.config.mjs
+│  ├─ postcss.config.mjs
 │  ├─ tsconfig.json
 │  ├─ package.json
 │  └─ .env.example
@@ -217,110 +226,42 @@ DACN/
 
 ---
 
-## 4. Frontend — Design System & UI
+## 4. API chính (MVP)
 
-### 4.1 Concept thiết kế
+> **API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
 
-Giao diện theo concept **"AI Learning Studio"** — kết hợp phong cách Notion + Duolingo + Khan Academy:
-
-- **Gradient** xanh dương → tím cho brand identity
-- **Glassmorphism** nhẹ trên sidebar và topbar
-- **Card UI** bo góc lớn (`rounded-2xl`) với hover scale animation
-- **Icon outline** từ Lucide React
-- **Micro-interactions** bằng Framer Motion (hover, fade, stagger, spring)
-
-### 4.2 Component System
-
-| Component | Mô tả |
-|-----------|-------|
-| `Button` | 5 variants (primary, secondary, ghost, danger, success) × 3 sizes, loading state |
-| `Card` | Glass morphism, hover animation, padding variants |
-| `Badge` | Status-based với nhãn tiếng Việt, animated dot |
-| `Tabs` | Sliding indicator animation (layoutId) |
-| `Skeleton` | Loading skeleton (card, chat variants) |
-| `EmptyState` | Floating icon animation, illustration dễ thương |
-| `Toast` | Success/error/info với icons, close button |
-
-### 4.3 Các trang chính
-
-| Trang | URL | Mô tả |
-|-------|-----|-------|
-| Dashboard | `/` | Hero gradient, stat cards, recent materials grid, quick actions |
-| Học liệu | `/materials` | Card grid + search + filter + staggered animation |
-| Tải lên | `/materials/upload` | Drag & Drop (Notion-style) + mode switcher (File/Text) |
-| Chi tiết | `/materials/[id]` | AI generation cards, chat CTA, content preview |
-| Slides | `/materials/[id]/slides` | Slide carousel + dot pagination + thumbnail grid |
-| Podcast | `/materials/[id]/podcast` | Timeline visualization + speaker avatars |
-| Minigame | `/materials/[id]/minigame` | Quiz UI + score banner + correct/wrong feedback |
-| Chatbot | `/materials/[id]/chat` | ChatGPT-style bubbles + typing indicator + citations |
-| Chatbot Index | `/chatbot` | Chọn học liệu để chat |
-| Nội dung AI | `/generated` | Xem tất cả nội dung đã tạo theo loại |
-
-### 4.4 Layout
-
-- **Sidebar trái** (co giãn được): Dashboard, Học liệu, Tải lên, Chatbot, Nội dung AI
-- **Topbar**: Thanh tìm kiếm, nút chuyển Dark/Light mode, thông báo, user avatar
-- **Main content**: Dạng card + grid, responsive, max-width 6xl
-
-### 4.5 Dark Mode
-
-Hỗ trợ dark mode đầy đủ:
-- Toggle bằng nút trên topbar
-- Lưu preference vào `localStorage`
-- Tự động nhận diện system preference
-- Tất cả component đều hỗ trợ dark theme
-
----
-
-## 5. Thiết kế dữ liệu MongoDB
-
-Các collection chính:
-- `users`
-- `learning_materials`
-- `material_chunks`
-- `generated_contents`
-- `chatbot_sessions`
-- `chatbot_messages`
-- `game_attempts`
-
-Collection mở rộng:
-- `processing_jobs`
-- `file_assets`
-- `audio_assets`
-- `slide_assets`
-- `analytics_events`
-
-Index quan trọng đã được tạo trong backend tại `app/db/mongo.py`.
-
----
-
-## 6. API chính (MVP)
-
-### 6.1 Materials
-- `POST /api/materials` — Tạo từ text
-- `POST /api/materials/upload` — Tạo từ file
-- `GET /api/materials` — Danh sách
-- `GET /api/materials/{id}` — Chi tiết
-- `POST /api/materials/{id}/process` — Xử lý tài liệu
+### 4.1 Materials
+- `POST /api/materials` — Tạo học liệu từ text
+- `POST /api/materials/upload` — Tạo học liệu từ file upload
+- `GET /api/materials` — Danh sách học liệu (có pagination)
+- `GET /api/materials/{material_id}` — Chi tiết học liệu
+- `POST /api/materials/{material_id}/process` — Xử lý tài liệu (extract, chunk, embedding)
+- `DELETE /api/materials/{material_id}` — Xóa học liệu
+- `POST /api/materials/guardrail-check` — Kiểm tra nội dung học liệu (guardrail)
+- `POST /api/materials/guardrail-check-upload` — Kiểm tra nội dung từ file upload
 
 ### 6.2 Generation
-- `POST /api/materials/{id}/generate/slides` — Tạo slides
-- `POST /api/materials/{id}/generate/podcast` — Tạo podcast
-- `POST /api/materials/{id}/generate/minigame` — Tạo minigame
-- `GET /api/generated-contents/{id}` — Lấy nội dung đã tạo
+- `POST /api/materials/{material_id}/generate/slides` — Tạo slides `.pptx`
+- `POST /api/materials/{material_id}/generate/podcast` — Tạo podcast script
+- `POST /api/materials/{material_id}/generate/minigame` — Tạo minigame/quiz
+- `GET /api/generated-contents/{content_id}` — Lấy nội dung đã tạo
+- `POST /api/notebooklm/generate-media` — Tạo video + infographic với NotebookLM (2 bước: confirm → download)
 
 ### 6.3 Files
-- `GET /api/files/{file_name}/download` — Download file
+- `GET /api/files/{file_path}/download` — Download file (hỗ trợ đường dẫn tuyệt đối)
+- `GET /api/files/notebooklm/temp/{session_id}/{file_type}/{file_name}/preview` — Xem trước file tạm từ NotebookLM (video/infographic)
 
 ### 6.4 Chat
-- `POST /api/chat/{material_id}/session` — Tạo session
-- `GET /api/chat/sessions/{session_id}` — Lấy session + messages
-- `POST /api/chat/sessions/{session_id}/message` — Gửi tin nhắn
+- `POST /api/chat/{material_id}/session` — Tạo session chat mới
+- `GET /api/chat/sessions/{session_id}` — Lấy session + tin nhắn
+- `POST /api/chat/sessions/{session_id}/message` — Gửi tin nhắn (có hỗ trợ ảnh)
+- `POST /api/chat/mascot/message` — Chat với mascot (không dùng RAG)
 - `POST /api/chat/transcribe` — Chuyển audio thành text (hỗ trợ `local-base`, `whisper-large-v3`, `whisper-large-v3-turbo`)
+- `POST /api/chat/tts` — Chuyển text thành audio (Text-to-Speech)
 
 ### 6.5 Games
-- `POST /api/games/{generated_content_id}/submit` — Nộp bài
-- `GET /api/games/attempts/{id}` — Xem kết quả
+- `POST /api/games/{generated_content_id}/submit` — Nộp bài làm minigame
+- `GET /api/games/attempts/{attempt_id}` — Xem kết quả bài làm
 
 ---
 
@@ -448,26 +389,7 @@ npm run dev
 
 Frontend chạy tại: `http://localhost:3000`
 
-### 7.6 Bước 5: Seed dữ liệu mẫu (tuỳ chọn)
-
-```powershell
-cd d:\DACN\backend
-py -m scripts.seed
-```
-
-### 7.7 Quy trình test thủ công nhanh
-
-1. Vào `http://localhost:3000`.
-2. Nhấn **Tải lên** trên sidebar hoặc nút "Tải lên học liệu" ở hero section.
-3. Chọn mode **Tải file lên** (kéo thả hoặc chọn file) hoặc **Nhập văn bản**.
-4. Điền thông tin học liệu và bấm **Tạo học liệu**.
-5. Tại trang chi tiết, bấm **Xử lý tài liệu** để process.
-6. Sử dụng 3 card AI Generation để tạo **Slides**, **Podcast**, **Minigame**.
-7. Bấm **Mở Chatbot** để hỏi đáp với AI về nội dung tài liệu.
-8. Ở trang chat, chọn **Model STT** (Local base hoặc Groq) rồi nhấn **Mic** để ghi âm.
-9. Thử toggle **Dark mode** bằng nút 🌙 trên topbar.
-
-### 7.8 Tóm tắt chạy nhanh (copy-paste)
+### 7.6 Tóm tắt chạy nhanh (copy-paste)
 
 Terminal 1 (backend) - **Cách 1 (đơn giản):**
 
@@ -498,67 +420,7 @@ npm run dev
 
 ---
 
-## 8. Ví dụ gọi API bằng PowerShell
-
-### 8.1 Tạo material từ text
-
-```powershell
-$body = @{
-  title = "Bài học Sinh học"
-  description = "Giới thiệu ADN"
-  subject = "Biology"
-  education_level = "High School"
-  tags = @("biology", "dna")
-  source_type = "manual_text"
-  raw_text = "ADN là vật chất di truyền..."
-} | ConvertTo-Json -Depth 10
-
-Invoke-RestMethod -Uri "http://localhost:8000/api/materials" -Method Post -ContentType "application/json" -Body $body
-```
-
-### 8.2 Process material
-
-```powershell
-$processBody = @{ force_reprocess = $false } | ConvertTo-Json
-Invoke-RestMethod -Uri "http://localhost:8000/api/materials/{material_id}/process" -Method Post -ContentType "application/json" -Body $processBody
-```
-
-### 8.3 Tạo slides
-
-```powershell
-$slidesBody = @{ tone = "teacher"; max_slides = 8 } | ConvertTo-Json
-Invoke-RestMethod -Uri "http://localhost:8000/api/materials/{material_id}/generate/slides" -Method Post -ContentType "application/json" -Body $slidesBody
-```
-
----
-
-## 9. Trạng thái MVP hiện tại
-
-### Đã hoàn thành
-
-- ✅ Upload/nhập học liệu (file drag & drop + text input)
-- ✅ Xử lý tài liệu và lưu MongoDB + ChromaDB
-- ✅ Tạo file slides `.pptx` với preview interactive
-- ✅ Tạo podcast script với timeline visualization
-- ✅ Tạo minigame JSON và render quiz interactive trên frontend
-- ✅ Chatbot RAG theo học liệu với citations
-- ✅ Speech-to-Text cho chatbot (Local Whisper base + Groq whisper-large-v3/turbo)
-- ✅ UI/UX redesign hoàn chỉnh (EdTech premium)
-- ✅ Dark mode
-- ✅ Reusable component system (Button, Card, Badge, Tabs, Skeleton, Toast, EmptyState)
-- ✅ Micro-interactions & animations (Framer Motion)
-- ✅ Responsive design
-
-### Chưa triển khai đầy đủ production
-
-- ❌ Xác thực/ủy quyền người dùng
-- ❌ Hàng đợi tác vụ chuyên dụng (Celery/RQ)
-- ❌ Giám sát nâng cao (metrics/tracing)
-- ❌ Theme theo môn học (education-specific theming)
-
----
-
-## 10. Troubleshooting
+## 8. Troubleshooting
 
 ### Lỗi không có lệnh `python`
 Trên Windows, dùng `py` thay cho `python`.
@@ -592,17 +454,34 @@ Trên Windows, dùng `py` thay cho `python`.
 
 ---
 
-## 11. Tài liệu liên quan trong dự án
+## Phụ lục: Chức năng tạo Video + Infographic với NotebookLM
 
-| File | Mô tả |
-|------|-------|
-| `backend/.env.example` | Mẫu biến môi trường backend |
-| `frontend/.env.example` | Mẫu biến môi trường frontend |
-| `backend/scripts/seed.py` | Script seed dữ liệu mẫu |
-| `backend/app/main.py` | Entrypoint FastAPI |
-| `frontend/app/globals.css` | Design system & tokens |
-| `frontend/components/ui/` | Reusable component library |
-| `frontend/postcss.config.mjs` | PostCSS config cho TailwindCSS v4 |
+Chức năng này dùng NotebookLM để tạo **video tóm tắt** và **infographic** từ học liệu đã có trong hệ thống.
+
+Luồng hiện tại gồm 3 bước:
+
+1. Nhấn **Tạo Video + Infographic** để upload học liệu lên NotebookLM.
+2. Nhấn **Xác nhận và bắt đầu tạo Video + Infographic** để hệ thống bấm tạo media.
+3. Khi NotebookLM render xong, nhấn **Tải xuống** để backend kéo file về lưu trữ.
+
+Trải nghiệm hiện tại:
+
+- Thông báo hiển thị ở phía trên, tự ẩn sau `6 giây` và hỗ trợ cả chế độ sáng lẫn tối.
+- Infographic có thể bấm xem trực tiếp ngay trên web, không mở tab mới.
+- Nếu NotebookLM chưa render xong, backend sẽ trả lỗi rõ ràng thay vì báo thành công giả.
+
+API chính:
+
+- `POST /api/materials/{id}/generate/notebooklm-media`
+- `POST /api/notebooklm/sessions/{session_id}/confirm-artifacts`
+- `POST /api/notebooklm/sessions/{session_id}/confirm`
+- `POST /api/notebooklm/sessions/{session_id}/cancel`
+
+Lưu ý vận hành:
+
+- Tài khoản Google dùng cho NotebookLM phải đăng nhập sẵn trong Chrome profile của backend.
+- Cần cấu hình đúng `NOTEBOOKLM_DOCUMENTS_DIR`, `NOTEBOOKLM_USER_DATA_DIR`, `NOTEBOOKLM_GENERATE_WAIT_SECONDS`, `NOTEBOOKLM_HEADLESS`.
+- Chức năng này hiện phù hợp hơn cho môi trường demo hoặc nội bộ; nếu chạy nhiều người dùng đồng thời thì cần hoàn thiện thêm phần session và concurrency.
 
 ---
 
