@@ -240,18 +240,18 @@ AI-FOR-EDUCATION/
 - `POST /api/materials/guardrail-check` — Kiểm tra nội dung học liệu (guardrail)
 - `POST /api/materials/guardrail-check-upload` — Kiểm tra nội dung từ file upload
 
-### 6.2 Generation
+### 4.2 Generation
 - `POST /api/materials/{material_id}/generate/slides` — Tạo slides `.pptx`
 - `POST /api/materials/{material_id}/generate/podcast` — Tạo podcast script
 - `POST /api/materials/{material_id}/generate/minigame` — Tạo minigame/quiz
 - `GET /api/generated-contents/{content_id}` — Lấy nội dung đã tạo
 - `POST /api/notebooklm/generate-media` — Tạo video + infographic với NotebookLM (2 bước: confirm → download)
 
-### 6.3 Files
+### 4.3 Files
 - `GET /api/files/{file_path}/download` — Download file (hỗ trợ đường dẫn tuyệt đối)
 - `GET /api/files/notebooklm/temp/{session_id}/{file_type}/{file_name}/preview` — Xem trước file tạm từ NotebookLM (video/infographic)
 
-### 6.4 Chat
+### 4.4 Chat
 - `POST /api/chat/{material_id}/session` — Tạo session chat mới
 - `GET /api/chat/sessions/{session_id}` — Lấy session + tin nhắn
 - `POST /api/chat/sessions/{session_id}/message` — Gửi tin nhắn (có hỗ trợ ảnh)
@@ -259,15 +259,15 @@ AI-FOR-EDUCATION/
 - `POST /api/chat/transcribe` — Chuyển audio thành text (hỗ trợ `local-base`, `whisper-large-v3`, `whisper-large-v3-turbo`)
 - `POST /api/chat/tts` — Chuyển text thành audio (Text-to-Speech)
 
-### 6.5 Games
+### 4.5 Games
 - `POST /api/games/{generated_content_id}/submit` — Nộp bài làm minigame
 - `GET /api/games/attempts/{attempt_id}` — Xem kết quả bài làm
 
 ---
 
-## 7. Hướng dẫn chạy local chi tiết
+## 5. Hướng dẫn chạy local chi tiết
 
-### 7.1 Yêu cầu trước khi chạy
+### 5.1 Yêu cầu trước khi chạy
 
 - Windows 10/11 hoặc Linux/macOS
 - Tài khoản MongoDB Atlas (cluster đã tạo sẵn)
@@ -283,7 +283,7 @@ node -v
 npm -v
 ```
 
-### 7.2 Bước 1: Chuẩn bị MongoDB Atlas
+### 5.2 Bước 1: Chuẩn bị MongoDB Atlas
 
 Tạo và cấu hình trên Atlas:
 
@@ -298,7 +298,7 @@ Ví dụ:
 mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>
 ```
 
-### 7.3 Bước 2: Cấu hình biến môi trường
+### 5.3 Bước 2: Cấu hình biến môi trường
 
 #### Backend
 
@@ -344,7 +344,7 @@ Mặc định đã đúng local:
 - `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api`
 - `NEXT_PUBLIC_API_HOST=http://localhost:8000`
 
-### 7.4 Bước 3: Cài dependencies và chạy backend
+### 5.4 Bước 3: Cài dependencies và chạy backend
 
 **Cách 1 (khuyên dùng - đơn giản):**
 ```powershell
@@ -377,7 +377,7 @@ Kiểm tra backend bằng PowerShell:
 Invoke-RestMethod -Uri "http://localhost:8000/health" -Method Get
 ```
 
-### 7.5 Bước 4: Cài dependencies và chạy frontend
+### 5.5 Bước 4: Cài dependencies và chạy frontend
 
 Mở terminal mới:
 
@@ -389,7 +389,7 @@ npm run dev
 
 Frontend chạy tại: `http://localhost:3000`
 
-### 7.6 Tóm tắt chạy nhanh (copy-paste)
+### 5.6 Tóm tắt chạy nhanh (copy-paste)
 
 Terminal 1 (backend) - **Cách 1 (đơn giản):**
 
@@ -420,7 +420,7 @@ npm run dev
 
 ---
 
-## 8. Troubleshooting
+## 6. Troubleshooting
 
 ### Lỗi không có lệnh `python`
 Trên Windows, dùng `py` thay cho `python`.
