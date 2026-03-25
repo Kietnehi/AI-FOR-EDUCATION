@@ -41,7 +41,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       "
     >
       {/* Brand */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-[var(--border-light)]">
+      <Link href="/" className="flex items-center gap-3 px-4 h-16 border-b border-[var(--border-light)] no-underline hover:opacity-80 transition-opacity">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center flex-shrink-0 shadow-md">
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
@@ -58,15 +58,22 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </motion.span>
           )}
         </AnimatePresence>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          // Find the most specific match to avoid highlighting parent when child is active
+          const isBestMatch = navItems.reduce((best, navItem) => {
+            if (pathname === navItem.href || pathname.startsWith(navItem.href + "/")) {
+              if (!best || navItem.href.length > best.length) {
+                return navItem.href;
+              }
+            }
+            return best;
+          }, "") === item.href;
+
+          const isActive = item.href === "/" ? pathname === "/" : isBestMatch;
           const Icon = item.icon;
 
           return (

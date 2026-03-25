@@ -10,14 +10,21 @@ import {
   Send,
   Bot,
   User,
-  Sparkles,
+  Mic,
+  Square,
   FileText,
   Loader2,
+  Volume2,
+  VolumeX,
+  Image as ImageIcon,
+  X,
+  AlertCircle,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { ChatSkeleton } from "@/components/ui/skeleton";
-import { createChatSession, getChatSession, sendChatMessage } from "@/lib/api";
+import { Markdown } from "@/components/ui/markdown";
+import { createChatSession, getChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
 import { ChatMessage } from "@/types";
 
 export default function ChatbotPage() {
@@ -27,10 +34,74 @@ export default function ChatbotPage() {
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [initializing, setInitializing] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [ttsLang, setTtsLang] = useState("vi");
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsCurrentTime, setTtsCurrentTime] = useState(0);
+  const [ttsDuration, setTtsDuration] = useState(0);
+  const [ttsActiveText, setTtsActiveText] = useState("");
+   const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
+   const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
+   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+   const [initializing, setInitializing] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const resetTtsState = () => {
+    setSpeakingMessageId(null);
+    setTtsCurrentTime(0);
+    setTtsDuration(0);
+    setTtsActiveText("");
+    setTtsAudioUrl((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      return "00:00";
+    }
+    const total = Math.floor(seconds);
+    const mins = Math.floor(total / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = (total % 60).toString().padStart(2, "0");
+    return `${mins}:${secs}`;
+  };
+
+  const getApproxReadingSegment = (text: string, progress: number) => {
+    if (!text) {
+      return "";
+    }
+    const normalized = text.replace(/\s+/g, " ").trim();
+    if (!normalized) {
+      return "";
+    }
+    const ratio = Math.min(Math.max(progress, 0), 1);
+    const index = Math.floor(normalized.length * ratio);
+    const start = Math.max(0, index - 18);
+    const end = Math.min(normalized.length, index + 42);
+    return normalized.slice(start, end);
+  };
+
+  const stopCurrentTtsAudio = () => {
+    const audio = ttsAudioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  };
 
   useEffect(() => {
     if (!materialId) return;
@@ -48,38 +119,201 @@ export default function ChatbotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend(event: FormEvent) {
-    event.preventDefault();
-    if (!sessionId || !input.trim()) return;
-
-    const userMessage: ChatMessage = {
-      id: `tmp-${Date.now()}`,
-      role: "user",
-      session_id: sessionId,
-      message: input,
-      citations: [],
-      created_at: new Date().toISOString(),
+  useEffect(() => {
+    return () => {
+      stopCurrentTtsAudio();
+      if (ttsAudioUrl) {
+        URL.revokeObjectURL(ttsAudioUrl);
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
     };
+  }, [ttsAudioUrl]);
 
-    setMessages((prev) => [...prev, userMessage]);
-    const question = input;
-    setInput("");
-    setLoading(true);
+  useEffect(() => {
+    if (!ttsAudioUrl || !ttsAudioRef.current) {
+      return;
+    }
+    ttsAudioRef.current.play().catch(() => undefined);
+  }, [ttsAudioUrl]);
+
+  async function handleToggleSpeak(messageId: string, content: string) {
+    if (speakingMessageId === messageId) {
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.pause();
+      }
+      resetTtsState();
+      return;
+    }
 
     try {
-      const assistantMessage = await sendChatMessage(sessionId, question);
-      setMessages((prev) => [...prev, assistantMessage]);
-    } finally {
-      setLoading(false);
-      inputRef.current?.focus();
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.pause();
+      }
+      resetTtsState();
+      setSpeakingMessageId(messageId);
+      setTtsActiveText(content);
+      setIsTtsPanelCollapsed(true);
+      const audioBlob = await synthesizeChatSpeech(content, ttsLang);
+      const audioUrl = URL.createObjectURL(audioBlob);
+      setTtsAudioUrl(audioUrl);
+    } catch {
+      setSpeakingMessageId((prev) => (prev === messageId ? null : prev));
+      alert("Không thể tạo âm thanh TTS");
     }
   }
+
+   async function handleSend(event: FormEvent) {
+     event.preventDefault();
+     if (!sessionId || (!input.trim() && images.length === 0)) return;
+
+     const currentImages = [...images];
+     const userMessage: ChatMessage = {
+       id: `tmp-${Date.now()}`,
+       role: "user",
+       session_id: sessionId,
+       message: input || "[Hình ảnh]",
+       citations: [],
+       created_at: new Date().toISOString(),
+       images: currentImages,
+     };
+
+     setMessages((prev) => [...prev, userMessage]);
+     const question = input;
+     setInput("");
+     setImages([]);
+     setLoading(true);
+
+     try {
+       const assistantMessage = await sendChatMessage(sessionId, question, currentImages);
+       setMessages((prev) => [...prev, assistantMessage]);
+     } finally {
+       setLoading(false);
+       inputRef.current?.focus();
+     }
+   }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    let addedCount = 0;
+    const newImages: string[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf("image") !== -1) {
+        if (images.length + addedCount >= 5) {
+          alert("Không thể tải lên quá 5 hình ảnh!");
+          break;
+        }
+        addedCount++;
+        const blob = item.getAsFile();
+        if (blob) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              setImages((prev) => {
+                if (prev.length >= 5) return prev;
+                return [...prev, event.target!.result as string];
+              });
+            }
+          };
+          reader.readAsDataURL(blob);
+        }
+      }
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    let addedCount = 0;
+    
+    for (let i = 0; i < files.length; i++) {
+      if (images.length + addedCount >= 5) {
+        alert("Không thể tải lên quá 5 hình ảnh!");
+        break;
+      }
+      addedCount++;
+      const file = files[i];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setImages((prev) => {
+            if (prev.length >= 5) return prev;
+            return [...prev, event.target!.result as string];
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = "";
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend(e);
     }
+  }
+
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      alert("Trình duyệt không hỗ trợ ghi âm");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (!blob.size) {
+          return;
+        }
+
+        setIsTranscribing(true);
+        try {
+          const result = await transcribeChatAudio(blob, sttModel);
+          setInput((prev) => (prev.trim() ? `${prev.trim()} ${result.text}` : result.text));
+          inputRef.current?.focus();
+        } catch {
+          alert("Không thể chuyển giọng nói thành văn bản");
+        } finally {
+          setIsTranscribing(false);
+          setIsRecording(false);
+          mediaRecorderRef.current = null;
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      alert("Không thể truy cập microphone");
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
   }
 
   return (
@@ -180,15 +414,61 @@ export default function ChatbotPage() {
 
                 {/* Message bubble */}
                 <div className={`
-                  max-w-[75%] rounded-2xl px-4 py-3
+                  max-w-[85%] rounded-2xl px-4 py-3
                   ${msg.role === "user"
                     ? "bg-gradient-to-r from-brand-600 to-accent-500 text-white rounded-tr-sm"
                     : "bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] rounded-tl-sm"
                   }
                 `}>
-                  <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
-                    {msg.message}
-                  </p>
+                   {msg.role === "user" ? (
+                     <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
+                       {msg.message}
+                     </p>
+                   ) : (
+                     <Markdown content={msg.message} />
+                   )}
+
+                   {/* Image preview */}
+                   {msg.images && msg.images.length > 0 && (
+                     <div className="flex flex-wrap gap-2 mt-2">
+                       {msg.images.map((img, idx) => (
+                         <img
+                           key={idx}
+                           src={img}
+                           alt={`upload ${idx}`}
+                           className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-[var(--border-light)] cursor-pointer hover:opacity-90"
+                           onClick={() => {
+                             setSelectedImage(img);
+                             setIsImageModalOpen(true);
+                           }}
+                         />
+                       ))}
+                     </div>
+                   )}
+
+                    {msg.role === "assistant" && (
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        {msg.fallback_applied && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                            <AlertCircle className="w-3 h-3" />
+                            Đã chuyển sang model dự phòng
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSpeak(msg.id, msg.message)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                          aria-label={speakingMessageId === msg.id ? "Dừng đọc nội dung" : "Đọc nội dung"}
+                        >
+                          {speakingMessageId === msg.id ? (
+                            <VolumeX className="w-3.5 h-3.5" />
+                          ) : (
+                            <Volume2 className="w-3.5 h-3.5" />
+                          )}
+                          {speakingMessageId === msg.id ? "Dừng" : "Nghe"}
+                        </button>
+                      </div>
+                    )}
 
                   {/* Citations */}
                   {msg.citations?.length > 0 && (
@@ -204,7 +484,7 @@ export default function ChatbotPage() {
                             text-xs rounded-lg px-3 py-2
                             ${msg.role === "user"
                               ? "bg-white/15"
-                              : "bg-brand-50 border border-brand-100"
+                              : "bg-[var(--bg-primary)] border border-[var(--border-default)]"
                             }
                           `}
                         >
@@ -244,13 +524,95 @@ export default function ChatbotPage() {
 
         {/* Input Area */}
         <div className="border-t border-[var(--border-light)] p-4 bg-[var(--bg-elevated)]">
-          <form onSubmit={handleSend} className="flex items-end gap-3">
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
+          <div className="mb-3 flex items-center justify-end gap-3 flex-wrap">
+            <div className="flex items-center">
+              <label className="text-xs text-[var(--text-tertiary)] mr-2">Ngôn ngữ TTS</label>
+              <select
+                value={ttsLang}
+                onChange={(e) => setTtsLang(e.target.value)}
+                className="text-xs rounded-lg px-2.5 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] focus:outline-none focus:border-brand-400"
+              >
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+                <option value="ja">Japanese</option>
+                <option value="ko">Korean</option>
+                <option value="zh-CN">Chinese (CN)</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="es">Spanish</option>
+              </select>
+            </div>
+            <div className="flex items-center">
+              <label className="text-xs text-[var(--text-tertiary)] mr-2">Model STT</label>
+            <select
+              value={sttModel}
+              onChange={(e) => setSttModel(e.target.value as "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo")}
+              disabled={isRecording || isTranscribing}
+              className="
+                text-xs rounded-lg px-2.5 py-1.5
+                bg-[var(--bg-secondary)] border border-[var(--border-light)]
+                text-[var(--text-primary)]
+                focus:outline-none focus:border-brand-400
+                disabled:opacity-60
+              "
+            >
+              <option value="local-base">Local - Whisper base</option>
+              <option value="whisper-large-v3">Groq - whisper-large-v3</option>
+              <option value="whisper-large-v3-turbo">Groq - whisper-large-v3-turbo</option>
+            </select>
+            </div>
+          </div>
+          <form onSubmit={handleSend} className="flex flex-col gap-3">
+             {images.length > 0 && (
+               <div className="flex items-center gap-2 flex-wrap">
+                 {images.map((img, idx) => (
+                   <div key={idx} className="relative group w-16 h-16 rounded-lg border border-[var(--border-light)] overflow-hidden">
+                     {/* eslint-disable-next-line @next/next/no-img-element */}
+                     <img
+                       src={img}
+                       alt={`preview ${idx}`}
+                       className="w-full h-full object-cover cursor-pointer"
+                       onClick={() => {
+                         setSelectedImage(img);
+                         setIsImageModalOpen(true);
+                       }}
+                     />
+                     <button
+                       type="button"
+                       onClick={() => removeImage(idx)}
+                       className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                     >
+                       <X className="w-3 h-3" />
+                     </button>
+                   </div>
+                 ))}
+               </div>
+             )}
+            <div className="flex flex-1 items-end gap-3 w-full">
+              <label className="mb-0 cursor-pointer flex-shrink-0">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={loading || isTranscribing || images.length >= 5}
+                />
+                <div className={`
+                  w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0
+                  transition-all duration-200 border border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]
+                  ${(images.length >= 5 || loading) ? "opacity-50 cursor-not-allowed" : "hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50"}
+                `}>
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+              </label>
+              <div className="flex-1 min-w-0 relative">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                 rows={1}
                 placeholder="Nhập câu hỏi về tài liệu..."
                 className="
@@ -271,8 +633,32 @@ export default function ChatbotPage() {
               />
             </div>
             <motion.button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={loading || isTranscribing}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`
+                w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0
+                text-white transition-all duration-200 shadow-md cursor-pointer border-0
+                ${isRecording
+                  ? "bg-gradient-to-r from-rose-500 to-red-500 hover:shadow-rose-500/30"
+                  : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-emerald-500/30"
+                }
+                disabled:opacity-40 disabled:cursor-not-allowed
+              `}
+            >
+              {isTranscribing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : isRecording ? (
+                <Square className="w-4 h-4" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </motion.button>
+            <motion.button
               type="submit"
-              disabled={loading || !input.trim()}
+              disabled={loading || isTranscribing || (!input.trim() && images.length === 0)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="
@@ -290,12 +676,107 @@ export default function ChatbotPage() {
                 <Send className="w-5 h-5" />
               )}
             </motion.button>
+            </div>
           </form>
-          <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
-            Trợ lý AI trả lời dựa trên nội dung học liệu. Nhấn Enter để gửi, Shift+Enter để xuống dòng.
+          {ttsAudioUrl && speakingMessageId && (
+            <div className="mt-3 rounded-2xl border border-brand-200/60 bg-gradient-to-br from-brand-50/80 to-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                    <Volume2 className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="font-medium">Đang phát TTS: {Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTtsPanelCollapsed((prev) => !prev)}
+                  className="rounded-full border border-brand-200 bg-white px-3 py-1 font-medium hover:bg-brand-50 hover:text-brand-700 transition-colors"
+                >
+                  {isTtsPanelCollapsed ? "Hiện trình phát" : "Ẩn trình phát"}
+                </button>
+              </div>
+              <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-brand-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500 transition-all"
+                  style={{ width: `${Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%` }}
+                />
+              </div>
+              <audio
+                ref={ttsAudioRef}
+                src={ttsAudioUrl}
+                controls={!isTtsPanelCollapsed}
+                className={isTtsPanelCollapsed ? "hidden" : "w-full"}
+                onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
+                onTimeUpdate={(e) => {
+                  const audio = e.target as HTMLAudioElement;
+                  setTtsCurrentTime(audio.currentTime || 0);
+                  setTtsDuration(audio.duration || 0);
+                }}
+                onEnded={() => resetTtsState()}
+                onError={() => resetTtsState()}
+              />
+              <div className="text-xs text-[var(--text-secondary)]">
+                {formatTime(ttsCurrentTime)} / {formatTime(ttsDuration)}
+              </div>
+              {!isTtsPanelCollapsed && (
+                <>
+                  <input
+                    type="range"
+                    min={0}
+                    max={ttsDuration || 0}
+                    step={0.1}
+                    value={Math.min(ttsCurrentTime, ttsDuration || 0)}
+                    onChange={(e) => {
+                      const nextTime = Number(e.target.value);
+                      if (ttsAudioRef.current) {
+                        ttsAudioRef.current.currentTime = nextTime;
+                      }
+                      setTtsCurrentTime(nextTime);
+                    }}
+                    className="mt-2 w-full accent-brand-600"
+                    aria-label="Thanh tua audio"
+                  />
+                  <p className="mt-2 text-xs text-[var(--text-tertiary)] line-clamp-2">
+                    Đoạn đang đọc: {getApproxReadingSegment(ttsActiveText, ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0)}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+           <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
+            Trợ lý AI trả lời dựa trên nội dung học liệu. Nhấn Mic để ghi âm, Enter để gửi, Shift+Enter để xuống dòng.
           </p>
         </div>
       </Card>
+
+      {/* Image Modal */}
+      {isImageModalOpen && selectedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => {
+            setIsImageModalOpen(false);
+            setSelectedImage(null);
+          }}
+        >
+          <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => {
+                setIsImageModalOpen(false);
+                setSelectedImage(null);
+              }}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 text-4xl font-bold"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <img
+              src={selectedImage}
+              alt="Full size preview"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

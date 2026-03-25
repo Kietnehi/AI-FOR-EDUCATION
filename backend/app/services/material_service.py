@@ -12,8 +12,12 @@ from app.ai.parsing.file_parser import FileParser
 from app.ai.vector_store.chroma_store import ChromaVectorStore
 from app.core.config import settings
 from app.core.logging import logger
+from app.repositories.chat_repository import ChatRepository
+from app.repositories.game_repository import GameRepository
+from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.material_repository import MaterialRepository
+from app.services.material_guardrail_service import MaterialGuardrailService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
@@ -23,11 +27,24 @@ class MaterialService:
         self.db = db
         self.material_repo = MaterialRepository(db)
         self.job_repo = JobRepository(db)
-        self.chunker = TextChunker(chunk_size=settings.chunk_size, overlap=settings.chunk_overlap)
+        self.chat_repo = ChatRepository(db)
+        self.game_repo = GameRepository(db)
+        self.generated_repo = GeneratedContentRepository(db)
+        self.chunker = TextChunker(
+            chunk_size=settings.chunk_size, overlap=settings.chunk_overlap
+        )
         self.embedder = OpenAIEmbedder()
         self.vector_store = ChromaVectorStore()
+        self.guardrail = MaterialGuardrailService()
 
     async def create_material(self, payload: dict) -> dict:
+        decision = self.guardrail.assert_allowed(
+            raw_text=payload.get("raw_text", ""),
+            title=payload.get("title"),
+            subject=payload.get("subject"),
+            description=payload.get("description"),
+            source_name=payload.get("title"),
+        )
         now = utc_now()
         doc = {
             **payload,
@@ -35,12 +52,32 @@ class MaterialService:
             "file_url": None,
             "cleaned_text": TextCleaner.clean(payload.get("raw_text", "")),
             "processing_status": "uploaded",
+            "guardrail_status": "approved",
+            "guardrail_category": decision.category,
+            "guardrail_reason": decision.reason,
+            "guardrail_checked_at": now,
             "created_at": now,
             "updated_at": now,
         }
         return await self.material_repo.create(doc)
 
-    async def upload_material(self, user_id: str, file: UploadFile, metadata: dict) -> dict:
+    async def check_material_guardrail(self, payload: dict) -> dict:
+        decision = self.guardrail.evaluate(
+            raw_text=payload.get("raw_text", ""),
+            title=payload.get("title"),
+            subject=payload.get("subject"),
+            description=payload.get("description"),
+            source_name=payload.get("title"),
+        )
+        return {
+            "is_academic": decision.is_academic,
+            "category": decision.category,
+            "message": decision.reason,
+        }
+
+    async def upload_material(
+        self, user_id: str, file: UploadFile, metadata: dict
+    ) -> dict:
         extension = Path(file.filename or "").suffix.lower()
         if extension not in {".pdf", ".docx", ".txt", ".md"}:
             raise HTTPException(status_code=400, detail="Unsupported file type")
@@ -50,7 +87,20 @@ class MaterialService:
         content = await file.read()
         destination.write_bytes(content)
 
-        raw_text = FileParser.parse(str(destination))
+        try:
+            raw_text = FileParser.parse(str(destination))
+            decision = self.guardrail.assert_allowed(
+                raw_text=raw_text,
+                title=metadata.get("title") or Path(file.filename or "material").stem,
+                subject=metadata.get("subject"),
+                description=metadata.get("description"),
+                source_name=file.filename,
+            )
+        except Exception:
+            if destination.exists():
+                destination.unlink()
+            raise
+
         now = utc_now()
         doc = {
             "user_id": user_id,
@@ -65,10 +115,43 @@ class MaterialService:
             "cleaned_text": TextCleaner.clean(raw_text),
             "tags": metadata.get("tags", []),
             "processing_status": "uploaded",
+            "guardrail_status": "approved",
+            "guardrail_category": decision.category,
+            "guardrail_reason": decision.reason,
+            "guardrail_checked_at": now,
             "created_at": now,
             "updated_at": now,
         }
         return await self.material_repo.create(doc)
+
+    async def check_upload_guardrail(self, file: UploadFile, metadata: dict) -> dict:
+        extension = Path(file.filename or "").suffix.lower()
+        if extension not in {".pdf", ".docx", ".txt", ".md"}:
+            raise HTTPException(status_code=400, detail="Unsupported file type")
+
+        file_name = f"guardrail-{uuid.uuid4().hex}{extension}"
+        destination = Path(settings.upload_dir) / file_name
+        content = await file.read()
+        destination.write_bytes(content)
+
+        try:
+            raw_text = FileParser.parse(str(destination))
+            decision = self.guardrail.evaluate(
+                raw_text=raw_text,
+                title=metadata.get("title") or Path(file.filename or "material").stem,
+                subject=metadata.get("subject"),
+                description=metadata.get("description"),
+                source_name=file.filename,
+            )
+        finally:
+            if destination.exists():
+                destination.unlink()
+
+        return {
+            "is_academic": decision.is_academic,
+            "category": decision.category,
+            "message": decision.reason,
+        }
 
     async def get_material(self, material_id: str) -> dict:
         material = await self.material_repo.get_by_id(parse_object_id(material_id))
@@ -79,7 +162,9 @@ class MaterialService:
     async def list_materials(self, skip: int, limit: int) -> tuple[list[dict], int]:
         return await self.material_repo.list(skip=skip, limit=limit)
 
-    async def process_material(self, material_id: str, force_reprocess: bool = False) -> None:
+    async def process_material(
+        self, material_id: str, force_reprocess: bool = False
+    ) -> None:
         job_id = uuid.uuid4().hex
         await self.job_repo.create(
             {
@@ -93,8 +178,11 @@ class MaterialService:
 
         try:
             material = await self.get_material(material_id)
+            await self._ensure_guardrail_approved(material_id, material)
             if material["processing_status"] == "processed" and not force_reprocess:
-                await self.job_repo.update_status(job_id, "skipped", {"reason": "already processed"})
+                await self.job_repo.update_status(
+                    job_id, "skipped", {"reason": "already processed"}
+                )
                 return
 
             await self.material_repo.update(
@@ -143,8 +231,12 @@ class MaterialService:
                     "updated_at": utc_now(),
                 },
             )
-            await self.job_repo.update_status(job_id, "completed", {"chunk_count": len(chunks)})
-            logger.info("Processed material %s with %s chunks", material_id, len(chunks))
+            await self.job_repo.update_status(
+                job_id, "completed", {"chunk_count": len(chunks)}
+            )
+            logger.info(
+                "Processed material %s with %s chunks", material_id, len(chunks)
+            )
         except Exception as exc:  # noqa: BLE001
             await self.material_repo.update(
                 parse_object_id(material_id),
@@ -154,5 +246,80 @@ class MaterialService:
             logger.exception("Failed processing material %s", material_id)
             raise
 
-    async def enqueue_process(self, material_id: str, force_reprocess: bool = False) -> None:
-        asyncio.create_task(self.process_material(material_id, force_reprocess=force_reprocess))
+    async def enqueue_process(
+        self, material_id: str, force_reprocess: bool = False
+    ) -> None:
+        asyncio.create_task(
+            self.process_material(material_id, force_reprocess=force_reprocess)
+        )
+
+    async def _ensure_guardrail_approved(
+        self, material_id: str, material: dict
+    ) -> None:
+        if material.get("guardrail_status") == "approved":
+            return
+
+        decision = self.guardrail.assert_allowed(
+            raw_text=material.get("raw_text", ""),
+            title=material.get("title"),
+            subject=material.get("subject"),
+            description=material.get("description"),
+            source_name=material.get("file_name") or material.get("title"),
+        )
+        await self.material_repo.update(
+            parse_object_id(material_id),
+            {
+                "guardrail_status": "approved",
+                "guardrail_category": decision.category,
+                "guardrail_reason": decision.reason,
+                "guardrail_checked_at": utc_now(),
+                "updated_at": utc_now(),
+            },
+        )
+
+    async def delete_material(self, material_id: str) -> bool:
+        material = await self.get_material(material_id)
+
+        # 1. Delete Source File
+        if material.get("file_url"):
+            try:
+                file_name = material["file_url"].split("/")[-1]
+                file_path = Path(settings.upload_dir) / file_name
+                if file_path.exists():
+                    file_path.unlink()
+            except Exception as e:
+                logger.warning(
+                    "Failed to delete source file for material %s: %s", material_id, e
+                )
+
+        # 2. Delete Generated Content Files
+        try:
+            generated_items = await self.generated_repo.list_by_material_id(material_id)
+            for item in generated_items:
+                if item.get("file_url"):
+                    # Extract filename from /api/files/{filename}/download
+                    file_name = item["file_url"].split("/")[3]
+                    file_path = Path(settings.generated_dir) / file_name
+                    if file_path.exists():
+                        file_path.unlink()
+        except Exception as e:
+            logger.warning(
+                "Failed to delete generated files for material %s: %s", material_id, e
+            )
+
+        # 3. Delete from Vector Store (ChromaDB)
+        try:
+            self.vector_store.delete_material_chunks(material_id)
+        except Exception as e:
+            logger.warning(
+                "Failed to delete vector embeddings for material %s: %s", material_id, e
+            )
+
+        # 4. Delete from MongoDB Collections
+        await self.material_repo.delete(parse_object_id(material_id))
+        await self.chat_repo.delete_by_material_id(material_id)
+        await self.generated_repo.delete_by_material_id(material_id)
+        await self.game_repo.delete_by_material_id(material_id)
+        await self.job_repo.delete_many({"material_id": material_id})
+
+        return True

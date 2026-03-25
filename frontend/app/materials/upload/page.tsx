@@ -1,17 +1,17 @@
 "use client";
 
-import { FormEvent, useCallback, useState, useRef } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Upload,
-  FileText,
-  X,
-  CloudUpload,
-  CheckCircle2,
-  Loader2,
-  PenLine,
   ArrowRight,
+  CheckCircle2,
+  CircleHelp,
+  CloudUpload,
+  PenLine,
+  ShieldAlert,
+  ShieldCheck,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,27 @@ import { Toast } from "@/components/ui/toast";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
 type UploadMode = "file" | "text";
+
+type GuardrailResult = {
+  is_academic: boolean;
+  category: string;
+  message: string;
+};
+
+async function extractApiError(response: Response) {
+  const raw = await response.text();
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.detail === "string") return parsed.detail;
+    if (parsed?.detail?.message) return parsed.detail.message;
+    if (parsed?.message) return parsed.message;
+  } catch {
+    return raw;
+  }
+
+  return raw;
+}
 
 export default function UploadMaterialPage() {
   const router = useRouter();
@@ -35,11 +56,24 @@ export default function UploadMaterialPage() {
   const [rawText, setRawText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [guardrailResult, setGuardrailResult] = useState<GuardrailResult | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
     message: "",
     type: "success",
   });
+
+  const canCheck = useMemo(() => {
+    if (mode === "file") return Boolean(file && title.trim());
+    return Boolean(title.trim() && rawText.trim());
+  }, [file, mode, rawText, title]);
+
+  const canCreate = Boolean(guardrailResult?.is_academic);
+
+  useEffect(() => {
+    setGuardrailResult(null);
+  }, [mode, title, description, subject, educationLevel, tags, rawText, file]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -58,8 +92,84 @@ export default function UploadMaterialPage() {
 
   const handleDragLeave = useCallback(() => setDragOver(false), []);
 
+  async function handleGuardrailCheck() {
+    if (!canCheck) {
+      setToast({
+        message:
+          mode === "file"
+            ? "Hãy chọn file và nhập tiêu đề trước khi kiểm tra."
+            : "Hãy nhập tiêu đề và nội dung trước khi kiểm tra.",
+        type: "info",
+      });
+      return;
+    }
+
+    setChecking(true);
+    setToast({ message: "", type: "success" });
+
+    try {
+      let response: Response;
+
+      if (mode === "file" && file) {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("title", title);
+        form.append("description", description);
+        form.append("subject", subject);
+        form.append("education_level", educationLevel);
+        form.append("tags", tags);
+        response = await fetch(`${API_BASE}/materials/guardrail-check-upload`, {
+          method: "POST",
+          body: form,
+        });
+      } else {
+        response = await fetch(`${API_BASE}/materials/guardrail-check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            subject,
+            education_level: educationLevel,
+            tags: tags
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            raw_text: rawText,
+            source_type: "manual_text",
+          }),
+        });
+      }
+
+      if (!response.ok) throw new Error(await extractApiError(response));
+
+      const data: GuardrailResult = await response.json();
+      setGuardrailResult(data);
+      setToast({
+        message: data.is_academic
+          ? "Tài liệu đã được xác minh là học thuật. Bạn có thể tạo học liệu."
+          : "Tài liệu chưa đạt yêu cầu học thuật. Hãy chỉnh lại nội dung hoặc chọn tài liệu khác.",
+        type: data.is_academic ? "success" : "error",
+      });
+    } catch (error) {
+      setGuardrailResult(null);
+      setToast({ message: `Lỗi: ${String(error)}`, type: "error" });
+    } finally {
+      setChecking(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+
+    if (!canCreate) {
+      setToast({
+        message: "Bạn cần kiểm tra và được xác nhận là tài liệu học thuật trước khi tạo học liệu.",
+        type: "info",
+      });
+      return;
+    }
+
     setLoading(true);
     setToast({ message: "", type: "success" });
 
@@ -96,10 +206,10 @@ export default function UploadMaterialPage() {
         });
       }
 
-      if (!response.ok) throw new Error(await response.text());
+      if (!response.ok) throw new Error(await extractApiError(response));
 
       const data = await response.json();
-      setToast({ message: "Tạo học liệu thành công! Đang chuyển hướng...", type: "success" });
+      setToast({ message: "Tạo học liệu thành công. Đang chuyển hướng...", type: "success" });
       setTimeout(() => router.push(`/materials/${data.id}`), 800);
     } catch (error) {
       setToast({ message: `Lỗi: ${String(error)}`, type: "error" });
@@ -112,52 +222,47 @@ export default function UploadMaterialPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl mx-auto space-y-6"
+      className="mx-auto max-w-3xl space-y-6"
     >
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
           Tải lên học liệu
         </h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Upload file hoặc nhập nội dung trực tiếp để bắt đầu tạo nội dung AI
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          Tải file hoặc nhập nội dung trực tiếp. Tài liệu phải qua bước kiểm tra học thuật trước khi tạo học liệu.
         </p>
       </div>
 
-      {/* Mode Switcher */}
-      <div className="flex gap-2 p-1.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+      <div className="flex gap-2 rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-1.5">
         <button
+          type="button"
           onClick={() => setMode("file")}
           className={`
-            flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
-            text-sm font-semibold transition-all duration-200 cursor-pointer border-0
+            flex flex-1 items-center justify-center gap-2 rounded-xl border-0 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer
             ${mode === "file"
               ? "bg-[var(--bg-elevated)] text-brand-600 shadow-[var(--shadow-sm)]"
-              : "bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-            }
+              : "bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}
           `}
         >
-          <CloudUpload className="w-5 h-5" />
+          <CloudUpload className="h-5 w-5" />
           Tải file lên
         </button>
         <button
+          type="button"
           onClick={() => setMode("text")}
           className={`
-            flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
-            text-sm font-semibold transition-all duration-200 cursor-pointer border-0
+            flex flex-1 items-center justify-center gap-2 rounded-xl border-0 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer
             ${mode === "text"
               ? "bg-[var(--bg-elevated)] text-brand-600 shadow-[var(--shadow-sm)]"
-              : "bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-            }
+              : "bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}
           `}
         >
-          <PenLine className="w-5 h-5" />
+          <PenLine className="h-5 w-5" />
           Nhập văn bản
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* File Upload Zone */}
         <AnimatePresence mode="wait">
           {mode === "file" && (
             <motion.div
@@ -172,15 +277,12 @@ export default function UploadMaterialPage() {
                 onDragLeave={handleDragLeave}
                 onClick={() => fileInputRef.current?.click()}
                 className={`
-                  relative flex flex-col items-center justify-center
-                  p-10 rounded-2xl border-2 border-dashed cursor-pointer
-                  transition-all duration-300
+                  relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 transition-all duration-300
                   ${dragOver
-                    ? "border-brand-400 bg-brand-50 scale-[1.02]"
+                    ? "scale-[1.02] border-brand-400 bg-brand-50"
                     : file
                       ? "border-emerald-400 bg-emerald-50"
-                      : "border-[var(--border-default)] bg-[var(--bg-secondary)] hover:border-brand-300 hover:bg-brand-50/50"
-                  }
+                      : "border-[var(--border-default)] bg-[var(--bg-secondary)] hover:border-brand-300 hover:bg-brand-50/50"}
                 `}
               >
                 <input
@@ -196,25 +298,22 @@ export default function UploadMaterialPage() {
                     animate={{ scale: 1, opacity: 1 }}
                     className="flex flex-col items-center gap-3"
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
-                      <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100">
+                      <CheckCircle2 className="h-7 w-7 text-emerald-600" />
                     </div>
                     <div className="text-center">
                       <p className="font-semibold text-[var(--text-primary)]">{file.name}</p>
-                      <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">{(file.size / 1024).toFixed(1)} KB</p>
                     </div>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                      className="
-                        flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                        text-xs font-medium text-rose-600 bg-rose-50
-                        hover:bg-rose-100 transition-colors cursor-pointer border-0
-                      "
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFile(null);
+                      }}
+                      className="flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="h-3 w-3" />
                       Xóa file
                     </button>
                   </motion.div>
@@ -223,17 +322,13 @@ export default function UploadMaterialPage() {
                     <motion.div
                       animate={{ y: [0, -4, 0] }}
                       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-14 h-14 rounded-2xl bg-brand-100 flex items-center justify-center"
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100"
                     >
-                      <CloudUpload className="w-7 h-7 text-brand-600" />
+                      <CloudUpload className="h-7 w-7 text-brand-600" />
                     </motion.div>
                     <div className="text-center">
-                      <p className="font-semibold text-[var(--text-primary)]">
-                        Kéo thả file vào đây
-                      </p>
-                      <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                        hoặc nhấn để chọn file • PDF, DOCX, TXT, MD
-                      </p>
+                      <p className="font-semibold text-[var(--text-primary)]">Kéo thả file vào đây</p>
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">Hoặc nhấn để chọn file • PDF, DOCX, TXT, MD</p>
                     </div>
                   </div>
                 )}
@@ -250,24 +345,14 @@ export default function UploadMaterialPage() {
             >
               <Card>
                 <label className="block">
-                  <span className="text-sm font-semibold text-[var(--text-primary)] mb-2 block">
-                    Nội dung văn bản
-                  </span>
+                  <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">Nội dung văn bản</span>
                   <textarea
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
                     rows={10}
                     required={mode === "text"}
                     placeholder="Dán hoặc nhập nội dung học liệu tại đây..."
-                    className="
-                      w-full px-4 py-3 rounded-xl resize-y
-                      bg-[var(--bg-secondary)] border border-[var(--border-light)]
-                      text-sm text-[var(--text-primary)]
-                      placeholder:text-[var(--text-tertiary)]
-                      focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100
-                      transition-all duration-200
-                      min-h-[200px]
-                    "
+                    className="min-h-[200px] w-full resize-y rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
                   />
                 </label>
               </Card>
@@ -275,114 +360,122 @@ export default function UploadMaterialPage() {
           )}
         </AnimatePresence>
 
-        {/* Metadata */}
         <Card>
-          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-4">
-            Thông tin học liệu
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-4">
+          <h3 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Thông tin học liệu</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">
-                Tiêu đề *
-              </span>
+              <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Tiêu đề *</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                placeholder="VD: Bài giảng Sinh học lớp 10"
-                className="
-                  w-full h-10 px-4 rounded-xl
-                  bg-[var(--bg-secondary)] border border-[var(--border-light)]
-                  text-sm text-[var(--text-primary)]
-                  placeholder:text-[var(--text-tertiary)]
-                  focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100
-                  transition-all duration-200
-                "
+                placeholder="Ví dụ: Bài giảng Sinh học lớp 10"
+                className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">
-                Môn học
-              </span>
+              <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Môn học</span>
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="VD: Sinh học"
-                className="
-                  w-full h-10 px-4 rounded-xl
-                  bg-[var(--bg-secondary)] border border-[var(--border-light)]
-                  text-sm text-[var(--text-primary)]
-                  placeholder:text-[var(--text-tertiary)]
-                  focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100
-                  transition-all duration-200
-                "
+                placeholder="Ví dụ: Sinh học"
+                className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">
-                Cấp học
-              </span>
+              <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Cấp học</span>
               <input
                 value={educationLevel}
                 onChange={(e) => setEducationLevel(e.target.value)}
-                placeholder="VD: THPT, Đại học"
-                className="
-                  w-full h-10 px-4 rounded-xl
-                  bg-[var(--bg-secondary)] border border-[var(--border-light)]
-                  text-sm text-[var(--text-primary)]
-                  placeholder:text-[var(--text-tertiary)]
-                  focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100
-                  transition-all duration-200
-                "
+                placeholder="Ví dụ: THPT, Đại học"
+                className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">
-                Tags (phân cách bằng dấu phẩy)
-              </span>
+              <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Từ khóa</span>
               <input
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                placeholder="VD: biology, dna, genetics"
-                className="
-                  w-full h-10 px-4 rounded-xl
-                  bg-[var(--bg-secondary)] border border-[var(--border-light)]
-                  text-sm text-[var(--text-primary)]
-                  placeholder:text-[var(--text-tertiary)]
-                  focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100
-                  transition-all duration-200
-                "
+                placeholder="Ví dụ: biology, dna, genetics"
+                className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
               />
             </label>
           </div>
-          <label className="block mt-4">
-            <span className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">
-              Mô tả
-            </span>
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Mô tả</span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Mô tả ngắn gọn về nội dung tài liệu..."
-              className="
-                w-full px-4 py-3 rounded-xl resize-y
-                bg-[var(--bg-secondary)] border border-[var(--border-light)]
-                text-sm text-[var(--text-primary)]
-                placeholder:text-[var(--text-tertiary)]
-                focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100
-                transition-all duration-200
-              "
+              className="w-full resize-y rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
           </label>
         </Card>
 
-        {/* Submit */}
+        <Card>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">Kiểm tra học thuật</h3>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                Hệ thống sẽ kiểm tra xem tài liệu này có phải là tài liệu học thuật phù hợp hay không.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleGuardrailCheck}
+              loading={checking}
+              disabled={!canCheck}
+              icon={checking ? undefined : <ShieldCheck className="h-4 w-4" />}
+            >
+              {checking ? "Đang kiểm tra..." : "Kiểm tra tài liệu"}
+            </Button>
+          </div>
+
+          <div
+            className={`
+              mt-4 rounded-2xl border px-4 py-3
+              ${guardrailResult
+                ? guardrailResult.is_academic
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-rose-200 bg-rose-50"
+                : "border-[var(--border-light)] bg-[var(--bg-secondary)]"}
+            `}
+          >
+            {guardrailResult ? (
+              <div className="flex items-start gap-3">
+                <div className={guardrailResult.is_academic ? "text-emerald-600" : "text-rose-600"}>
+                  {guardrailResult.is_academic ? <ShieldCheck className="mt-0.5 h-5 w-5" /> : <ShieldAlert className="mt-0.5 h-5 w-5" />}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                    {guardrailResult.is_academic ? "Đây là tài liệu học thuật" : "Tài liệu này chưa đạt chuẩn học thuật"}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">{guardrailResult.message}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-3">
+                <CircleHelp className="mt-0.5 h-5 w-5 text-[var(--text-tertiary)]" />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Chưa có kết quả kiểm tra</p>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                    Bấm nút kiểm tra để biết tài liệu có phải là tài liệu học thuật hay không.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+
         <div className="flex justify-end">
           <Button
             type="submit"
             size="lg"
             loading={loading}
-            icon={loading ? undefined : <ArrowRight className="w-5 h-5" />}
+            disabled={!canCreate}
+            icon={loading ? undefined : <ArrowRight className="h-5 w-5" />}
           >
             {loading ? "Đang tạo..." : "Tạo học liệu"}
           </Button>

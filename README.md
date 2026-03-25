@@ -1,13 +1,71 @@
+<div align="center">
+
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=150&section=header&text=AI%20Learning%20Studio&fontSize=40&fontAlignY=35&animation=twinkling&fontColor=ffffff" width="100%" alt="Header"/>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
+    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=22&pause=1000&color=3B82F6&center=true&vCenter=true&width=600&lines=🚀+Nền+tảng+AI+Tạo+Học+Liệu+Số;🤖+Multimodal+RAG+%7C+FastAPI+%7C+Next.js;🎓+Dự+án+AI+For+Education+-+SGU" alt="Typing SVG" />
+  </a>
+
+  <br/><br/>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/stargazers">
+    <img src="https://img.shields.io/github/stars/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FFD700&logo=github&logoColor=black&label=Stars" alt="Stars"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/network/members">
+    <img src="https://img.shields.io/github/forks/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FF8C00&logo=github&logoColor=white&label=Forks" alt="Forks"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/issues">
+    <img src="https://img.shields.io/github/issues/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FF4D4D&logo=github&logoColor=white&label=Issues" alt="Issues"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/pulls">
+    <img src="https://img.shields.io/github/issues-pr/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=00E676&logo=github&logoColor=white&label=Pull%20Requests" alt="Pull Requests"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=0088FF&logo=github&logoColor=white&label=License" alt="License"/>
+  </a>
+
+  <br/><br/>
+
+  <a href="https://skillicons.dev">
+    <img src="https://skillicons.dev/icons?i=nextjs,react,tailwind,ts,python,fastapi,mongodb,docker" alt="Tech Stack"/>
+  </a>
+
+  <br/><br/>
+
+  <img src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/openai.svg" alt="OpenAI" height="48"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Google-gemini-icon.png" alt="Gemini" height="48"/>
+
+  <br/><br/>
+
+</div>
+
+![AI Learning Studio Pipeline](image/pipeline.png)
+
 # 🎓 AI Learning Studio — Nền tảng AI Tạo Học Liệu Số
 
-Nền tảng MVP production-ready giúp giáo viên và học sinh tạo nội dung học tập thông minh bằng AI. Upload tài liệu, tự động tạo slide, podcast, minigame và chatbot hỏi đáp trong vài phút.
+**Nền tảng MVP production-ready giúp giáo viên và học sinh tạo nội dung học tập thông minh bằng AI. Chỉ cần tải tài liệu lên, hệ thống sẽ tự động tạo slide, podcast, minigame và chatbot hỏi đáp trong vài phút.**
 
+Đây là hệ thống AI Agent đa phương thức (Multimodal RAG) toàn diện, được thiết kế theo kiến trúc vi dịch vụ (microservices) và triển khai hoàn toàn bằng **Docker**.
+
+Dự án được chia thành 2 luồng xử lý chính:
+
+  * **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống tự động trích xuất tri thức từ tài liệu (PDF, Word, Excel) và sử dụng các LLM (OpenAI, Gemini) để giải đáp thắc mắc của học sinh một cách chính xác.
+  * **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (nhận diện giọng nói bằng Whisper, đọc ảnh bằng OCR), kết hợp tìm kiếm web (Tavily) để tự động hóa việc tạo ra các học liệu trực quan như: Slide bài giảng, Video, Infographic, âm thanh (TTS) và tự động chấm điểm (SCORE).
+
+**🛠 Công nghệ cốt lõi:** FastAPI, Node.js, MongoDB, Hệ sinh thái Vector DB (Chroma, Pinecone, Milvus), và đa dạng mô hình AI (LLM, Hugging Face).
 ## Tính năng chính
 
 - 📊 **Tạo slide bài giảng** `.pptx` tự động bằng `python-pptx`
 - 🎙️ **Tạo podcast script** với cấu trúc speaker/timeline (có placeholder cho TTS)
 - 🎮 **Tạo minigame/quiz** tương tác (trắc nghiệm, điền từ, flashcard, ghép cặp)
 - 🤖 **Chatbot RAG** hỏi đáp theo học liệu với citations từ nguồn gốc
+- 🎤 **Speech-to-Text cho Chatbot**: ghi âm bằng mic và chuyển giọng nói thành chữ
+  - Local: `openai-whisper` model `base`
+  - Cloud: Groq `whisper-large-v3` hoặc `whisper-large-v3-turbo`
 - 🌙 **Dark mode** hoàn chỉnh
 - 📱 **Responsive** trên mọi kích thước màn hình
 
@@ -36,6 +94,9 @@ Nền tảng MVP production-ready giúp giáo viên và học sinh tạo nội d
 | MongoDB Atlas | Cơ sở dữ liệu nghiệp vụ |
 | ChromaDB | Vector database (persistent local) |
 | OpenAI API | Embedding (`text-embedding-3-small`) & generation |
+| OpenAI Whisper (local) | Speech-to-Text local model `base` |
+| Groq API | Speech-to-Text cloud (`whisper-large-v3`, `whisper-large-v3-turbo`) |
+| FFmpeg | Tiền xử lý audio cho Whisper |
 
 ---
 
@@ -48,6 +109,7 @@ Nền tảng MVP production-ready giúp giáo viên và học sinh tạo nội d
 - MongoDB — Lưu metadata tài liệu, chunks, nội dung tạo sinh, session chat, attempt game
 - ChromaDB — Lưu vector embeddings để truy vấn ngữ nghĩa
 - OpenAI — Dùng cho embedding và generation (nếu có API key)
+- Whisper/Groq — Dùng cho Speech-to-Text khi người dùng ghi âm trong chatbot
 
 ### 2.2 Luồng xử lý chính
 
@@ -254,6 +316,7 @@ Index quan trọng đã được tạo trong backend tại `app/db/mongo.py`.
 - `POST /api/chat/{material_id}/session` — Tạo session
 - `GET /api/chat/sessions/{session_id}` — Lấy session + messages
 - `POST /api/chat/sessions/{session_id}/message` — Gửi tin nhắn
+- `POST /api/chat/transcribe` — Chuyển audio thành text (hỗ trợ `local-base`, `whisper-large-v3`, `whisper-large-v3-turbo`)
 
 ### 6.5 Games
 - `POST /api/games/{generated_content_id}/submit` — Nộp bài
@@ -269,6 +332,7 @@ Index quan trọng đã được tạo trong backend tại `app/db/mongo.py`.
 - Tài khoản MongoDB Atlas (cluster đã tạo sẵn)
 - Python 3.11+
 - Node.js 20+ và npm
+- FFmpeg (bắt buộc cho local Whisper)
 
 Kiểm tra nhanh:
 
@@ -305,12 +369,28 @@ copy .env.example .env
 Mở file `.env` và cập nhật tối thiểu:
 - `MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>`
 - `MONGO_DB_NAME=ai_learning_platform`
-- `OPENAI_API_KEY=`
+- `OPENAI_API_KEY=` (có thể để trống nếu chỉ dùng Gemini, nhưng cần để fallback)
+
+**Lưu ý về Gemini API keys:**
+- **Nếu muốn dùng nhiều Gemini keys** (để tránh rate limit): điền `GEMINI_API_KEYS` với các keys phân cách bằng dấu phẩy (ví dụ: `key1,key2,key3`). Hệ thống sẽ thử lần lượt từng key.
+- **Nếu chỉ có 1 Gemini key**: điền `GEMINI_API_KEY` là đủ. Có thể để `GEMINI_API_KEYS` trống.
+- **Ưu tiên**: `GEMINI_API_KEYS` sẽ được dùng trước. Nếu `GEMINI_API_KEYS` rỗng, hệ thống dùng `GEMINI_API_KEY`.
+- **Không cần điền cả hai**. Chọn một trong hai để tránh nhầm lẫn.
+- **Fallback**: Khi tất cả Gemini keys đều thất bại, hệ thống sẽ tự động dùng OpenAI (nếu `OPENAI_API_KEY` có sẵn).
+- **Backup**: Bạn nên có ít nhất 2 Gemini keys để đảm bảo tính sẵn sàng cao.
+
+Biến môi trường cho Speech-to-Text:
+- `WHISPER_MODEL=base`
+- `WHISPER_LANGUAGE=` (để trống để auto detect)
+- `GROQ_API_KEY=` (điền khi dùng Groq model)
+- `GROQ_BASE_URL=https://api.groq.com`
 
 Lưu ý:
 - Nếu bỏ trống `OPENAI_API_KEY`, hệ thống vẫn chạy bằng fallback để demo luồng.
-- Để dùng OpenAI thật, điền API key hợp lệ.
+- Muốn kết quả AI thật, cần điền `OPENAI_API_KEY` hợp lệ.
+- **Hệ thống hỗ trợ nhiều Gemini API keys qua `GEMINI_API_KEYS` (comma-separated)**. Keys sẽ được dùng xoay vòng. Nếu `GEMINI_API_KEYS` không có, hệ thống dùng `GEMINI_API_KEY` đơn (backward compatibility). Khi tất cả Gemini keys fail, sẽ fallback sang OpenAI (nếu có).
 - Nếu password MongoDB có ký tự đặc biệt (ví dụ `@`, `#`, `%`), cần URL-encode trong `MONGO_URI`.
+- Nếu dùng model Groq cho Speech-to-Text, bắt buộc điền `GROQ_API_KEY`.
 
 #### Frontend
 
@@ -325,10 +405,24 @@ Mặc định đã đúng local:
 
 ### 7.4 Bước 3: Cài dependencies và chạy backend
 
+**Cách 1 (khuyên dùng - đơn giản):**
+```powershell
+cd ..\backend
+pip install -r requirements.txt
+python run.py
+```
+
+**Cách 2 (lệnh đầy đủ):**
 ```powershell
 cd ..\backend
 pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --port 8000
+```
+
+Cài FFmpeg (Windows) nếu chưa có:
+
+```powershell
+choco install ffmpeg
 ```
 
 Khi backend chạy thành công:
@@ -370,11 +464,21 @@ py -m scripts.seed
 5. Tại trang chi tiết, bấm **Xử lý tài liệu** để process.
 6. Sử dụng 3 card AI Generation để tạo **Slides**, **Podcast**, **Minigame**.
 7. Bấm **Mở Chatbot** để hỏi đáp với AI về nội dung tài liệu.
-8. Thử toggle **Dark mode** bằng nút 🌙 trên topbar.
+8. Ở trang chat, chọn **Model STT** (Local base hoặc Groq) rồi nhấn **Mic** để ghi âm.
+9. Thử toggle **Dark mode** bằng nút 🌙 trên topbar.
 
 ### 7.8 Tóm tắt chạy nhanh (copy-paste)
 
-Terminal 1 (backend):
+Terminal 1 (backend) - **Cách 1 (đơn giản):**
+
+```powershell
+cd d:\DACN\backend
+copy .env.example .env
+pip install -r requirements.txt
+python run.py
+```
+
+Hoặc **Cách 2 (lệnh đầy đủ):**
 
 ```powershell
 cd d:\DACN\backend
@@ -438,6 +542,7 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/materials/{material_id}/genera
 - ✅ Tạo podcast script với timeline visualization
 - ✅ Tạo minigame JSON và render quiz interactive trên frontend
 - ✅ Chatbot RAG theo học liệu với citations
+- ✅ Speech-to-Text cho chatbot (Local Whisper base + Groq whisper-large-v3/turbo)
 - ✅ UI/UX redesign hoàn chỉnh (EdTech premium)
 - ✅ Dark mode
 - ✅ Reusable component system (Button, Card, Badge, Tabs, Skeleton, Toast, EmptyState)
@@ -471,6 +576,16 @@ Trên Windows, dùng `py` thay cho `python`.
 - Hệ thống vẫn chạy demo với fallback.
 - Muốn kết quả AI thật, cần điền `OPENAI_API_KEY` hợp lệ.
 
+### Lỗi Speech-to-Text Groq trả 500
+- Kiểm tra đã cài package `groq`: `pip install groq`.
+- Kiểm tra `GROQ_API_KEY` trong `backend/.env`.
+- Đảm bảo `GROQ_BASE_URL=https://api.groq.com`.
+- Nếu đổi model STT sang `local-base`, kiểm tra FFmpeg có sẵn bằng lệnh `ffmpeg -version`.
+
+### Lỗi 404 với đường dẫn `/openai/v1/openai/v1/audio/transcriptions`
+- Nguyên nhân: base URL Groq bị lặp path.
+- Cách đúng: dùng `GROQ_BASE_URL=https://api.groq.com`.
+
 ### Lỗi CSS/TailwindCSS
 - Đảm bảo đã cài đầy đủ: `npm install tailwindcss @tailwindcss/postcss postcss`
 - File `postcss.config.mjs` phải tồn tại trong `frontend/`.
@@ -488,3 +603,60 @@ Trên Windows, dùng `py` thay cho `python`.
 | `frontend/app/globals.css` | Design system & tokens |
 | `frontend/components/ui/` | Reusable component library |
 | `frontend/postcss.config.mjs` | PostCSS config cho TailwindCSS v4 |
+
+---
+
+## 🔗 Các tác giả & Tài khoản Github
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header" alt="header" />
+</p>
+
+| | | |
+| :---: | :---: | :---: |
+| <a href="https://github.com/Kietnehi"><img src="https://github-readme-stats.vercel.app/api?username=Kietnehi&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/ductoanoxo"><img src="https://github-readme-stats.vercel.app/api?username=ductoanoxo&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/phatle224"><img src="https://github-readme-stats.vercel.app/api?username=phatle224&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> |
+| <img src="https://github.com/Kietnehi.png" width="80"/> | <img src="https://github.com/ductoanoxo.png" width="80"/> | <img src="https://github.com/phatle224.png" width="80"/> |
+| <b><a href="https://github.com/Kietnehi">Trương Phú Kiệt</a></b> | <b><a href="https://github.com/ductoanoxo">Đức Toàn</a></b> | <b><a href="https://github.com/phatle224">Phát Lê</a></b> |
+| Fullstack Dev & AI Researcher | Developer | Developer |
+| <p align="center"><img src="https://img.shields.io/github/followers/Kietnehi?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2FKietnehi&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/Kietnehi"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/ductoanoxo?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fductoanoxo&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/ductoanoxo"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/phatle224?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fphatle224&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/phatle224"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> |
+
+<p align="center">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
+    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=1000&color=236AD3&center=true&vCenter=true&width=500&lines=AI+for+Education+Project;SGU26+Seminar+Chuyen+De" alt="Typing SVG" />
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/SGU-Sai_Gon_University-0056D2?style=flat-square" alt="SGU" />
+  <img src="https://img.shields.io/badge/Base-Ho_Chi_Minh_City-FF4B4B?style=flat-square" alt="HCMC" />
+</p>
+
+### 🛠 Tech Stack
+
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=docker,python,react,nodejs,mongodb,git,fastapi,pytorch" alt="Tech Stack" />
+</p>
+
+### 📘 AI FOR EDUCATION
+
+<p align="center">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
+    <img src="https://img.shields.io/github/stars/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=yellow" alt="Stars" />
+    <img src="https://img.shields.io/github/forks/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=orange" alt="Forks" />
+    <img src="https://img.shields.io/github/issues/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=red" alt="Issues" />
+  </a>
+</p>
+
+
+<!-- Quote động -->
+  <p align="center">
+    <img src="https://quotes-github-readme.vercel.app/api?type=horizontal&theme=dark" alt="Daily Quote"/>
+  </p>
+
+  <p align="center">
+  <i>Thank you for stopping by! Don’t forget to give this repo a <b>⭐️ Star</b> if you find it useful.</i>
+  </p>
+
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=80&section=footer"/>
+
+  </div>

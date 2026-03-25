@@ -7,19 +7,19 @@ class PodcastGenerator:
 
     def generate_script(self, context: str, style: str, target_duration_minutes: int) -> dict:
         fallback = {
-            "title": "Podcast bai giang",
+            "title": "Podcast bài giảng",
             "style": style,
             "segments": [
-                {"speaker": "Host", "text": "Chao mung den voi buoi hoc hom nay."},
-                {"speaker": "Host", "text": "Noi dung chinh gom ba y quan trong..."},
-                {"speaker": "Host", "text": "Tong ket va goi y tu hoc."},
+                {"speaker": "Host", "text": "Chào mừng đến với buổi học hôm nay."},
+                {"speaker": "Host", "text": "Nội dung chính gồm ba ý quan trọng..."},
+                {"speaker": "Host", "text": "Tổng kết và gợi ý tự học."},
             ],
             "tts_placeholder": {"provider": "pending", "status": "not_implemented"},
         }
 
-        system_prompt = "You create educational podcast scripts in Vietnamese and return JSON only."
+        system_prompt = "Bạn là AI tạo nội dung podcast giáo dục. Bắt buộc trả về tiếng Việt có dấu chuẩn xác (Vietnamese with diacritics) and return JSON only."
         user_prompt = (
-            f"Tao podcast style={style}, duration={target_duration_minutes} phut dua tren noi dung sau. "
-            "Tra ve JSON gom title,style,segments[{speaker,text}],tts_placeholder." + f"\n\n{context[:12000]}"
+            f"Tạo podcast style={style}, duration={target_duration_minutes} phút dựa trên nội dung sau. Bắt buộc dùng tiếng Việt có dấu. "
+            "Trả về JSON gồm title, style, segments[{speaker,text}], tts_placeholder." + f"\n\n{context[:12000]}"
         )
         return self.llm.json_response(system_prompt, user_prompt, fallback)

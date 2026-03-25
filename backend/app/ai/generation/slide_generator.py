@@ -124,6 +124,7 @@ class SlideGenerator:
     def generate_outline(self, context: str, max_slides: int = 8, tone: str = "teacher") -> dict:
         fallback = {
             "title": "Bài giảng tổng hợp",
+            "title": "Bài giảng tổng hợp",
             "slides": [
                 {
                     "title": "Giới thiệu",

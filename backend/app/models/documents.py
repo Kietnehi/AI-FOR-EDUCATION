@@ -20,6 +20,10 @@ class LearningMaterialDoc(TypedDict, total=False):
     cleaned_text: str
     tags: list[str]
     processing_status: str
+    guardrail_status: str | None
+    guardrail_category: str | None
+    guardrail_reason: str | None
+    guardrail_checked_at: datetime
     created_at: datetime
     updated_at: datetime
 

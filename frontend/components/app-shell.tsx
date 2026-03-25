@@ -1,13 +1,33 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { ThemeProvider } from "@/components/theme-provider";
 
+// Load 3D component correctly
+const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").then(mod => mod.FloatingMascot), {
+  ssr: false
+});
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mascotEnabled, setMascotEnabled] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("mascot-enabled");
+    if (saved === "false") {
+      setMascotEnabled(false);
+    }
+  }, []);
+
+  const handleToggleMascot = () => {
+    const next = !mascotEnabled;
+    setMascotEnabled(next);
+    localStorage.setItem("mascot-enabled", String(next));
+  };
 
   return (
     <ThemeProvider>
@@ -24,7 +44,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </a>
 
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <Topbar sidebarCollapsed={sidebarCollapsed} />
+        <Topbar
+          sidebarCollapsed={sidebarCollapsed}
+          mascotEnabled={mascotEnabled}
+          onToggleMascot={handleToggleMascot}
+        />
 
         <motion.main
           id="main-content"
@@ -33,10 +57,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="pt-16 min-h-screen"
         >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
             {children}
           </div>
         </motion.main>
+        
+        {/* Floating AI Mascot */}
+        {mascotEnabled && <FloatingMascot />}
       </div>
     </ThemeProvider>
   );

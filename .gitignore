@@ -1,5 +1,4 @@
 # Python
-backend/.venv/
 backend/__pycache__/
 backend/.pytest_cache/
 backend/storage/chroma/
@@ -9,6 +8,7 @@ backend/storage/images/*
 !backend/storage/uploads/.gitkeep
 !backend/storage/generated/.gitkeep
 !backend/storage/images/.gitkeep
+
 
 # Node
 frontend/node_modules/
@@ -22,3 +22,6 @@ backend/.env
 # OS
 .DS_Store
 Thumbs.db
+
+# Github
+.github/copilot-instructions.md

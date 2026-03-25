@@ -1,6 +1,19 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 export const metadata = {
   title: "AI Learning Studio - Nền tảng AI tạo học liệu số",
@@ -11,8 +24,8 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="vi" suppressHydrationWarning>
-      <body className="antialiased">
+    <html lang="vi" suppressHydrationWarning className={`${inter.variable} ${plusJakartaSans.variable}`}>
+      <body className="antialiased font-sans">
         <AppShell>{children}</AppShell>
       </body>
     </html>
