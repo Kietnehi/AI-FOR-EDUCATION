@@ -10,6 +10,7 @@ backend/storage/images/*
 !backend/storage/images/.gitkeep
 
 
+
 # Node
 frontend/node_modules/
 frontend/.next/
