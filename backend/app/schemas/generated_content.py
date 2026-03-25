@@ -19,15 +19,14 @@ class GeneratePodcastRequest(BaseModel):
 
 
 class GenerateMinigameRequest(BaseModel):
-    game_types: list[Literal["mcq", "fill_blank", "matching", "flashcard"]] = Field(
-        default_factory=lambda: ["mcq", "fill_blank", "matching", "flashcard"]
-    )
+    game_type: Literal["quiz_mixed", "flashcard", "scenario_branching"] = "quiz_mixed"
 
 
 class GeneratedContentResponse(BaseModel):
     id: str
     material_id: str
     content_type: ContentType
+    game_type: str | None = None
     version: int
     outline: list[str] = Field(default_factory=list)
     json_content: dict[str, Any] = Field(default_factory=dict)

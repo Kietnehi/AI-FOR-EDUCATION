@@ -46,7 +46,7 @@ async def generate_minigame(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
-    result = await service.generate_minigame(material_id, game_types=payload.game_types)
+    result = await service.generate_minigame(material_id, game_type=payload.game_type)
     return GeneratedContentResponse(**result)
 
 
