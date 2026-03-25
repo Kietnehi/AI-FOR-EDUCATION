@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sphere } from "@react-three/drei";
-import { Bot as BotIcon, Loader2, Mic, Send, Settings2, Square, Volume2, VolumeX, X, Image as ImageIcon } from "lucide-react";
+import { Bot as BotIcon, Loader2, Mic, Plus, Send, Settings2, Square, Volume2, VolumeX, X, Image as ImageIcon } from "lucide-react";
 import * as THREE from "three";
 
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
@@ -523,6 +523,28 @@ export function FloatingMascot() {
     }
   };
 
+  const handleNewChat = () => {
+    stopCurrentTtsAudio();
+    resetTtsState();
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+
+    setIsRecording(false);
+    setIsTranscribing(false);
+    setChatInput("");
+    setChatImages([]);
+    setMascotSessionId(undefined);
+    localStorage.removeItem(MASCOT_SESSION_STORAGE_KEY);
+    setMessages([
+      {
+        role: "assistant",
+        content: "Xin chào. Mình là AI Agent phục vụ cho giáo dục, bạn cần hỗ trợ gì hôm nay?",
+      },
+    ]);
+  };
+
 
   return (
     <div
@@ -551,6 +573,15 @@ export function FloatingMascot() {
                 Chat Mascot
               </div>
               <div className="flex items-center gap-1">
+                <button
+                  className="h-7 rounded-md px-2 inline-flex items-center justify-center gap-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"
+                  onClick={handleNewChat}
+                  disabled={isSending}
+                  aria-label="Tạo cuộc trò chuyện mới"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New chat
+                </button>
                 <button
                   className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${showSettings ? "bg-brand-100 text-brand-600" : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"}`}
                   onClick={() => setShowSettings(!showSettings)}

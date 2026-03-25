@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   MessageSquareText,
+  Plus,
   Send,
   Bot,
   User,
@@ -50,6 +51,7 @@ export default function ChatbotPage() {
    const [selectedImage, setSelectedImage] = useState<string | null>(null);
    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
    const [initializing, setInitializing] = useState(true);
+  const [isStartingNewChat, setIsStartingNewChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -141,6 +143,36 @@ export default function ChatbotPage() {
       }
     };
   }, [ttsAudioUrl]);
+
+  async function handleNewChat() {
+    if (!materialId || isStartingNewChat) {
+      return;
+    }
+
+    setIsStartingNewChat(true);
+    stopCurrentTtsAudio();
+    resetTtsState();
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+
+    setIsRecording(false);
+    setIsTranscribing(false);
+
+    try {
+      const session = await createChatSession(materialId);
+      setSessionId(session.id);
+      setMessages([]);
+      setInput("");
+      setImages([]);
+      inputRef.current?.focus();
+    } catch {
+      alert("Không thể tạo đoạn chat mới");
+    } finally {
+      setIsStartingNewChat(false);
+    }
+  }
 
   useEffect(() => {
     if (!ttsAudioUrl || !ttsAudioRef.current) {
@@ -350,9 +382,24 @@ export default function ChatbotPage() {
             Chatbot AI
           </span>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-medium text-emerald-700">Online</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleNewChat}
+            disabled={initializing || isStartingNewChat || loading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isStartingNewChat ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            New chat
+          </button>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-medium text-emerald-700">Online</span>
+          </div>
         </div>
       </div>
 

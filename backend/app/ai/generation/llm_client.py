@@ -1,7 +1,6 @@
 import json
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 from google import genai
 from openai import OpenAI
@@ -14,9 +13,11 @@ class LLMClient:
     _shared_openai_client: OpenAI | None | object = ...
     _shared_openai_extra_headers: dict[str, str] | None = None
     _shared_gemini_clients: list[tuple[str, genai.Client]] | None = None
-    _gemini_executor = ThreadPoolExecutor(max_workers=8)
     _gemini_key_cooldowns: dict[str, float] = {}
     _gemini_cooldown_lock = threading.Lock()
+    _gemini_attempt_timeout_ms = 10000
+    _gemini_key_cooldown_seconds = 20.0
+    _gemini_fast_pass_key_count = 1
 
     def __init__(self) -> None:
         self.openai_api_key = settings.openai_api_key
@@ -54,7 +55,12 @@ class LLMClient:
             for api_key in settings.gemini_api_keys:
                 if api_key and api_key.strip():
                     try:
-                        client = genai.Client(api_key=api_key.strip())
+                        client = genai.Client(
+                            api_key=api_key.strip(),
+                            http_options=genai.types.HttpOptions(
+                                timeout=LLMClient._gemini_attempt_timeout_ms
+                            ),
+                        )
                         gemini_clients.append((api_key.strip()[:10] + "...", client))
                     except Exception as e:
                         logger.warning(
@@ -66,8 +72,8 @@ class LLMClient:
         self.last_model_used: str | None = None
         self.fallback_used: bool = False
         self.active_gemini_key_index: int = 0
-        self.gemini_attempt_timeout_seconds = 12.0
-        self.gemini_key_cooldown_seconds = 20.0
+        self.gemini_attempt_timeout_ms = LLMClient._gemini_attempt_timeout_ms
+        self.gemini_key_cooldown_seconds = LLMClient._gemini_key_cooldown_seconds
 
     def _ordered_gemini_models(self) -> list[str]:
         ordered_models = [self.gemini_model, *self.gemini_fallback_models]
@@ -113,27 +119,6 @@ class LLMClient:
         with LLMClient._gemini_cooldown_lock:
             LLMClient._gemini_key_cooldowns.pop(key_snippet, None)
 
-    def _call_gemini_with_timeout(
-        self,
-        client: genai.Client,
-        model_name: str,
-        contents_part: list,
-        config: dict,
-    ):
-        future = LLMClient._gemini_executor.submit(
-            client.models.generate_content,
-            model=model_name,
-            contents=contents_part,
-            config=config,
-        )
-        try:
-            return future.result(timeout=self.gemini_attempt_timeout_seconds)
-        except FutureTimeoutError as exc:
-            future.cancel()
-            raise TimeoutError(
-                f"Gemini call timed out after {self.gemini_attempt_timeout_seconds:.0f}s"
-            ) from exc
-
     def _looks_like_retryable_gemini_error(self, exc: Exception) -> bool:
         message = str(exc).lower()
         retryable_markers = (
@@ -150,6 +135,178 @@ class LLMClient:
             "resource exhausted",
         )
         return any(marker in message for marker in retryable_markers)
+
+    def _looks_like_permanent_gemini_error(self, exc: Exception) -> bool:
+        message = str(exc).lower()
+        permanent_markers = (
+            "400",
+            "bad request",
+            "invalid argument",
+            "unsupported",
+            "malformed",
+            "unknown field",
+            "invalid value",
+        )
+        return any(marker in message for marker in permanent_markers)
+
+    def _build_gemini_config(self, temperature: float, force_json: bool) -> dict:
+        config: dict = {
+            "temperature": temperature,
+        }
+        if force_json:
+            config["response_mime_type"] = "application/json"
+        return config
+
+    def _call_gemini_generate_content(
+        self,
+        *,
+        client: genai.Client,
+        model_name: str,
+        contents_part: list,
+        config: dict,
+    ):
+        models_api = client.models
+        direct_generate = getattr(models_api, "_generate_content", None)
+        if callable(direct_generate):
+            return direct_generate(
+                model=model_name,
+                contents=contents_part,
+                config=config,
+            )
+        return models_api.generate_content(
+            model=model_name,
+            contents=contents_part,
+            config=config,
+        )
+
+    def _try_gemini_candidate(
+        self,
+        *,
+        model_name: str,
+        model_index: int,
+        primary_model: str,
+        key_position: int,
+        total_keys: int,
+        original_key_index: int,
+        key_snippet: str,
+        client: genai.Client,
+        contents_part: list,
+        config: dict,
+    ) -> str | None:
+        started_at = time.perf_counter()
+        try:
+            logger.info(
+                "Calling Gemini model %s with key %s/%s",
+                model_name,
+                key_position,
+                total_keys,
+                extra={
+                    "model": model_name,
+                    "gemini_model_index": model_index,
+                    "gemini_key_index": original_key_index,
+                    "key_snippet": key_snippet,
+                },
+            )
+            response = self._call_gemini_generate_content(
+                client=client,
+                model_name=model_name,
+                contents_part=contents_part,
+                config=config,
+            )
+            text = getattr(response, "text", None)
+            if not text:
+                elapsed_ms = round((time.perf_counter() - started_at) * 1000)
+                logger.warning(
+                    "Gemini model %s returned empty response with key %s/%s after %sms",
+                    model_name,
+                    key_position,
+                    total_keys,
+                    elapsed_ms,
+                    extra={
+                        "model": model_name,
+                        "gemini_model_index": model_index,
+                        "gemini_key_index": original_key_index,
+                        "key_snippet": key_snippet,
+                    },
+                )
+                return None
+
+            candidate_text = text.strip()
+            if config.get("response_mime_type") == "application/json":
+                try:
+                    json.loads(candidate_text)
+                except json.JSONDecodeError:
+                    elapsed_ms = round((time.perf_counter() - started_at) * 1000)
+                    logger.warning(
+                        "Gemini model %s returned invalid JSON with key %s/%s after %sms, trying next option",
+                        model_name,
+                        key_position,
+                        total_keys,
+                        elapsed_ms,
+                        extra={
+                            "model": model_name,
+                            "gemini_model_index": model_index,
+                            "gemini_key_index": original_key_index,
+                            "key_snippet": key_snippet,
+                        },
+                    )
+                    return None
+
+            self.last_model_used = model_name
+            self.fallback_used = model_name != primary_model
+            self.active_gemini_key_index = original_key_index
+            self._clear_gemini_key_cooldown(key_snippet)
+            elapsed_ms = round((time.perf_counter() - started_at) * 1000)
+            logger.info(
+                "Gemini generation successful with model %s after %sms",
+                model_name,
+                elapsed_ms,
+                extra={
+                    "model": model_name,
+                    "gemini_model_index": model_index,
+                    "gemini_key_index": original_key_index,
+                    "key_snippet": key_snippet,
+                    "fallback_applied": self.fallback_used,
+                },
+            )
+            return candidate_text
+        except Exception as exc:
+            elapsed_ms = round((time.perf_counter() - started_at) * 1000)
+            if self._looks_like_retryable_gemini_error(exc):
+                self._set_gemini_key_cooldown(key_snippet)
+            if self._looks_like_permanent_gemini_error(exc):
+                logger.error(
+                    "Gemini request is invalid for model %s after %sms: %s",
+                    model_name,
+                    elapsed_ms,
+                    str(exc),
+                    extra={
+                        "model": model_name,
+                        "gemini_model_index": model_index,
+                        "gemini_key_index": original_key_index,
+                        "error_type": type(exc).__name__,
+                        "error_message": str(exc),
+                        "key_snippet": key_snippet,
+                    },
+                )
+                raise
+            logger.warning(
+                "Gemini model %s failed with key %s/%s after %sms: %s",
+                model_name,
+                key_position,
+                total_keys,
+                elapsed_ms,
+                str(exc),
+                extra={
+                    "model": model_name,
+                    "gemini_model_index": model_index,
+                    "gemini_key_index": original_key_index,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                    "key_snippet": key_snippet,
+                },
+            )
+            return None
 
     def json_response(
         self, system_prompt: str, user_prompt: str, fallback: dict
@@ -255,7 +412,9 @@ class LLMClient:
         total_models = len(gemini_models)
         ordered_clients = self._ordered_gemini_clients()
         total_keys = len(ordered_clients)
-        last_exception = None
+        if total_keys == 0:
+            logger.error("No Gemini clients available. Check GEMINI_API_KEYS.")
+            return None
 
         contents_part = [
             f"System instruction:\n{system_prompt}\n\nUser request:\n{user_prompt}"
@@ -283,129 +442,123 @@ class LLMClient:
                         )
                     )
 
-        for model_index, model_name in enumerate(gemini_models):
-            is_fallback_model = model_name != primary_model
-            logger.info(
-                "Trying Gemini model %s (%s/%s)",
-                model_name,
-                model_index + 1,
-                total_models,
-                extra={
-                    "model": model_name,
-                    "temperature": temperature,
-                    "force_json": force_json,
-                    "has_images": bool(images),
-                    "is_fallback_model": is_fallback_model,
-                },
-            )
+        config = self._build_gemini_config(temperature, force_json)
+        fast_pass_clients = ordered_clients[: LLMClient._gemini_fast_pass_key_count]
+        exhaustive_pass_clients = ordered_clients[
+            LLMClient._gemini_fast_pass_key_count :
+        ]
 
-            for key_order, (original_key_index, key_snippet, client) in enumerate(
-                ordered_clients
-            ):
-                try:
-                    logger.info(
-                        "Calling Gemini model %s with key %s/%s",
-                        model_name,
-                        key_order + 1,
-                        total_keys,
-                        extra={
-                            "model": model_name,
-                            "gemini_model_index": model_index,
-                            "gemini_key_index": original_key_index,
-                            "key_snippet": key_snippet,
-                        },
-                    )
+        logger.info(
+            "Starting Gemini fast pass",
+            extra={
+                "models": gemini_models,
+                "fast_pass_keys": len(fast_pass_clients),
+                "remaining_keys": len(exhaustive_pass_clients),
+                "timeout_ms": self.gemini_attempt_timeout_ms,
+            },
+        )
 
-                    config = {
+        try:
+            for model_index, model_name in enumerate(gemini_models):
+                logger.info(
+                    "Trying Gemini model %s (%s/%s)",
+                    model_name,
+                    model_index + 1,
+                    total_models,
+                    extra={
+                        "model": model_name,
                         "temperature": temperature,
-                    }
-                    if force_json:
-                        config["response_mime_type"] = "application/json"
+                        "force_json": force_json,
+                        "has_images": bool(images),
+                        "is_fallback_model": model_name != primary_model,
+                        "attempt_phase": "fast-pass",
+                    },
+                )
 
-                    response = self._call_gemini_with_timeout(
-                        client=client,
+                for key_order, (original_key_index, key_snippet, client) in enumerate(
+                    fast_pass_clients,
+                    start=1,
+                ):
+                    result = self._try_gemini_candidate(
                         model_name=model_name,
+                        model_index=model_index,
+                        primary_model=primary_model,
+                        key_position=key_order,
+                        total_keys=total_keys,
+                        original_key_index=original_key_index,
+                        key_snippet=key_snippet,
+                        client=client,
                         contents_part=contents_part,
                         config=config,
                     )
-                    text = getattr(response, "text", None)
-                    if text:
-                        candidate_text = text.strip()
-                        if force_json:
-                            try:
-                                json.loads(candidate_text)
-                            except json.JSONDecodeError as exc:
-                                last_exception = exc
-                                logger.warning(
-                                    "Gemini model %s returned invalid JSON with key %s/%s, trying next option",
-                                    model_name,
-                                    key_order + 1,
-                                    total_keys,
-                                    extra={
-                                        "model": model_name,
-                                        "gemini_model_index": model_index,
-                                        "gemini_key_index": original_key_index,
-                                        "key_snippet": key_snippet,
-                                    },
-                                )
-                                continue
+                    if result is not None:
+                        return result
 
-                        self.last_model_used = model_name
-                        self.fallback_used = is_fallback_model
-                        self.active_gemini_key_index = original_key_index
-                        self._clear_gemini_key_cooldown(key_snippet)
-                        logger.info(
-                            "Gemini generation successful with model %s",
-                            model_name,
-                            extra={
-                                "model": model_name,
-                                "gemini_model_index": model_index,
-                                "gemini_key_index": original_key_index,
-                                "key_snippet": key_snippet,
-                                "fallback_applied": self.fallback_used,
-                            },
-                        )
-                        return candidate_text
+            if exhaustive_pass_clients:
+                logger.info(
+                    "Starting Gemini exhaustive pass",
+                    extra={
+                        "models": gemini_models,
+                        "remaining_keys": len(exhaustive_pass_clients),
+                        "timeout_ms": self.gemini_attempt_timeout_ms,
+                    },
+                )
 
-                    logger.warning(
-                        "Gemini model %s returned empty response with key %s/%s",
-                        model_name,
-                        key_order + 1,
-                        total_keys,
-                        extra={
-                            "model": model_name,
-                            "gemini_model_index": model_index,
-                            "gemini_key_index": original_key_index,
-                            "key_snippet": key_snippet,
-                        },
+            for model_index, model_name in enumerate(gemini_models):
+                if not exhaustive_pass_clients:
+                    break
+                logger.info(
+                    "Exhaustive retry for Gemini model %s (%s/%s)",
+                    model_name,
+                    model_index + 1,
+                    total_models,
+                    extra={
+                        "model": model_name,
+                        "temperature": temperature,
+                        "force_json": force_json,
+                        "has_images": bool(images),
+                        "is_fallback_model": model_name != primary_model,
+                        "attempt_phase": "exhaustive-pass",
+                    },
+                )
+
+                for key_order, (original_key_index, key_snippet, client) in enumerate(
+                    exhaustive_pass_clients,
+                    start=LLMClient._gemini_fast_pass_key_count + 1,
+                ):
+                    result = self._try_gemini_candidate(
+                        model_name=model_name,
+                        model_index=model_index,
+                        primary_model=primary_model,
+                        key_position=key_order,
+                        total_keys=total_keys,
+                        original_key_index=original_key_index,
+                        key_snippet=key_snippet,
+                        client=client,
+                        contents_part=contents_part,
+                        config=config,
                     )
-                except Exception as exc:
-                    last_exception = exc
-                    if self._looks_like_retryable_gemini_error(exc):
-                        self._set_gemini_key_cooldown(key_snippet)
-                    logger.warning(
-                        "Gemini model %s failed with key %s/%s, trying next option",
-                        model_name,
-                        key_order + 1,
-                        total_keys,
-                        extra={
-                            "model": model_name,
-                            "gemini_model_index": model_index,
-                            "gemini_key_index": original_key_index,
-                            "error_type": type(exc).__name__,
-                            "error_message": str(exc),
-                            "key_snippet": key_snippet,
-                        },
-                    )
+                    if result is not None:
+                        return result
+        except Exception as exc:
+            if self._looks_like_permanent_gemini_error(exc):
+                logger.error(
+                    "Gemini sweep aborted due to permanent request error",
+                    extra={
+                        "error_type": type(exc).__name__,
+                        "error_message": str(exc),
+                        "timeout_ms": self.gemini_attempt_timeout_ms,
+                    },
+                )
+                return None
+            raise
 
         logger.error(
             "All Gemini models and keys failed",
             extra={
                 "total_models": total_models,
                 "total_keys": total_keys,
-                "last_error": str(last_exception)
-                if last_exception
-                else "Unknown error",
+                "timeout_ms": self.gemini_attempt_timeout_ms,
             },
         )
         return None
