@@ -16,3 +16,4 @@ httpx
 tiktoken
 openai-whisper
 groq
+gTTS

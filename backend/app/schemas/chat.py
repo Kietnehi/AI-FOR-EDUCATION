@@ -21,11 +21,13 @@ class ChatSessionResponse(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     message: str
+    images: list[str] = Field(default_factory=list, description="Base64 encoded images")
 
 
 class MascotChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+    images: list[str] = Field(default_factory=list, description="Base64 encoded images")
 
 
 class ChatMessageResponse(BaseModel):
@@ -35,6 +37,12 @@ class ChatMessageResponse(BaseModel):
     message: str
     citations: list[Citation] = Field(default_factory=list)
     created_at: datetime
+    model_used: str | None = Field(
+        default=None, description="Model đã sử dụng để tạo response"
+    )
+    fallback_applied: bool = Field(
+        default=False, description="Có phải fallback từ model khác không"
+    )
 
 
 class ChatSessionDetailResponse(BaseModel):
@@ -46,7 +54,14 @@ class TranscriptionResponse(BaseModel):
     text: str
 
 
+class TextToSpeechRequest(BaseModel):
+    text: str
+    lang: str = "vi"
+
+
 class MascotChatResponse(BaseModel):
     message: str
     model: str
     session_id: str
+    model_used: str | None = None
+    fallback_applied: bool = False

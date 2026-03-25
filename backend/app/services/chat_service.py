@@ -17,7 +17,9 @@ class ChatService:
         self.orchestrator = ChatbotOrchestrator()
         self.llm_client = LLMClient()
 
-    async def create_session(self, material_id: str, user_id: str, session_title: str | None) -> dict:
+    async def create_session(
+        self, material_id: str, user_id: str, session_title: str | None
+    ) -> dict:
         material = await self.material_service.get_material(material_id)
         title = session_title or f"Chat ve {material['title']}"
         now = utc_now()
@@ -37,7 +39,9 @@ class ChatService:
         messages = await self.chat_repo.list_messages(session_id)
         return {"session": session, "messages": messages}
 
-    async def add_user_message_and_answer(self, session_id: str, message: str) -> dict:
+    async def add_user_message_and_answer(
+        self, session_id: str, message: str, images: list[str] | None = None
+    ) -> dict:
         session = await self.chat_repo.get_session(parse_object_id(session_id))
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -61,7 +65,15 @@ class ChatService:
             session["material_id"],
             message,
             conversation_history=memory_messages,
+            images=images,
         )
+
+        # Lấy metadata về model đã dùng
+        llm_metadata = {
+            "model_used": self.orchestrator.llm.last_model_used,
+            "fallback_applied": self.orchestrator.llm.fallback_used,
+        }
+
         assistant_msg = await self.chat_repo.create_message(
             {
                 "session_id": session_id,
@@ -69,17 +81,27 @@ class ChatService:
                 "message": result["answer"],
                 "citations": result["citations"],
                 "created_at": utc_now(),
+                **llm_metadata,
             }
         )
 
-        await self.chat_repo.update_session(parse_object_id(session_id), {"updated_at": utc_now()})
+        await self.chat_repo.update_session(
+            parse_object_id(session_id), {"updated_at": utc_now()}
+        )
         return assistant_msg
 
-    async def answer_mascot_no_rag(self, message: str, session_id: str | None = None) -> dict:
+    async def answer_mascot_no_rag(
+        self,
+        message: str,
+        session_id: str | None = None,
+        images: list[str] | None = None,
+    ) -> dict:
         mascot_session: dict | None = None
         if session_id:
             try:
-                mascot_session = await self.chat_repo.get_mascot_session(parse_object_id(session_id))
+                mascot_session = await self.chat_repo.get_mascot_session(
+                    parse_object_id(session_id)
+                )
             except HTTPException:
                 mascot_session = None
 
@@ -116,7 +138,7 @@ class ChatService:
 
         system_prompt = (
             "Bạn là mascot trợ lý học tập thân thiện. "
-            "Trả lời ngắn gọn, dễ hiểu, bằng tiếng Việt có dấu. "
+            "Trả lời ngắn gọn, dễ hiểu, BẮT BUỘC bằng tiếng Việt có dấu đầy đủ và tự nhiên. "
             "Không cần truy xuất tài liệu và không đưa ra citation."
         )
         fallback = "Mình đang gặp lỗi tạm thời. Bạn thử lại sau ít giây nhé."
@@ -129,7 +151,14 @@ class ChatService:
             user_prompt=user_prompt,
             fallback=fallback,
             model=settings.mascot_chat_model,
+            images=images,
         )
+
+        # Lấy metadata (mascot không dùng fallback, nhưng vẫn lấy model_used)
+        llm_metadata = {
+            "model_used": self.llm_client.last_model_used,
+            "fallback_applied": False,  # mascot luôn dùng OpenAI trực tiếp
+        }
 
         await self.chat_repo.create_mascot_message(
             {
@@ -137,6 +166,7 @@ class ChatService:
                 "role": "assistant",
                 "message": answer,
                 "created_at": utc_now(),
+                **llm_metadata,
             }
         )
         await self.chat_repo.update_mascot_session(
@@ -147,4 +177,5 @@ class ChatService:
             "message": answer,
             "model": settings.mascot_chat_model,
             "session_id": mascot_session_id,
+            **llm_metadata,
         }

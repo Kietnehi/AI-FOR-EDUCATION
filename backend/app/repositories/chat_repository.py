@@ -54,3 +54,15 @@ class ChatRepository:
         cursor = self.mascot_message_collection.find({"session_id": session_id}).sort("created_at", 1)
         items = [serialize_document(doc) async for doc in cursor]
         return [item for item in items if item]
+
+    async def delete_by_material_id(self, material_id: str) -> None:
+        # Find all sessions for this material
+        cursor = self.session_collection.find({"material_id": material_id})
+        session_ids = [str(doc["_id"]) async for doc in cursor]
+
+        if session_ids:
+            # Delete messages for those sessions
+            await self.message_collection.delete_many({"session_id": {"$in": session_ids}})
+
+        # Delete the sessions themselves
+        await self.session_collection.delete_many({"material_id": material_id})

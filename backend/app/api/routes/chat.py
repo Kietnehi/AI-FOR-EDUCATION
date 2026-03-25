@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.api.dependencies import get_database
@@ -15,11 +15,13 @@ from app.schemas.chat import (
     CreateChatSessionRequest,
     MascotChatRequest,
     MascotChatResponse,
+    TextToSpeechRequest,
     TranscriptionResponse,
 )
 from app.services.chat_service import ChatService
 from app.services.groq_speech_service import GroqSpeechToTextService
 from app.services.speech_service import SpeechToTextService
+from app.services.tts_service import TextToSpeechService
 
 router = APIRouter()
 
@@ -55,7 +57,7 @@ async def send_message(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> ChatMessageResponse:
     service = ChatService(db)
-    assistant_message = await service.add_user_message_and_answer(session_id, payload.message)
+    assistant_message = await service.add_user_message_and_answer(session_id, payload.message, payload.images)
     return ChatMessageResponse(**assistant_message)
 
 
@@ -65,7 +67,7 @@ async def send_mascot_message(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MascotChatResponse:
     service = ChatService(db)
-    response = await service.answer_mascot_no_rag(payload.message, payload.session_id)
+    response = await service.answer_mascot_no_rag(payload.message, payload.session_id, payload.images)
     return MascotChatResponse(**response)
 
 
@@ -120,3 +122,20 @@ async def transcribe_audio(
         raise HTTPException(status_code=422, detail="No speech detected")
 
     return TranscriptionResponse(text=text)
+
+
+@router.post("/chat/tts")
+async def text_to_speech(payload: TextToSpeechRequest) -> Response:
+    service = TextToSpeechService()
+    try:
+        audio_bytes = await asyncio.to_thread(service.synthesize, payload.text, payload.lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TTS failed: {exc}") from exc
+
+    return Response(
+        content=audio_bytes,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "no-store"},
+    )

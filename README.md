@@ -396,6 +396,14 @@ Mặc định đã đúng local:
 
 ### 7.4 Bước 3: Cài dependencies và chạy backend
 
+**Cách 1 (khuyên dùng - đơn giản):**
+```powershell
+cd ..\backend
+pip install -r requirements.txt
+python run.py
+```
+
+**Cách 2 (lệnh đầy đủ):**
 ```powershell
 cd ..\backend
 pip install -r requirements.txt
@@ -452,7 +460,16 @@ py -m scripts.seed
 
 ### 7.8 Tóm tắt chạy nhanh (copy-paste)
 
-Terminal 1 (backend):
+Terminal 1 (backend) - **Cách 1 (đơn giản):**
+
+```powershell
+cd d:\DACN\backend
+copy .env.example .env
+pip install -r requirements.txt
+python run.py
+```
+
+Hoặc **Cách 2 (lệnh đầy đủ):**
 
 ```powershell
 cd d:\DACN\backend

@@ -1,16 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Search, Filter, Upload, ArrowRight } from "lucide-react";
+import { BookOpen, Search, Filter, Upload, ArrowRight, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { listMaterials } from "@/lib/api";
+import { listMaterials, deleteMaterial } from "@/lib/api";
 import { Material } from "@/types";
 
 const container = {
@@ -23,19 +23,48 @@ export default function MaterialsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa học liệu này không?")) {
+      return;
+    }
+
+    setDeletingId(id);
+    try {
+      await deleteMaterial(id);
+      setMaterials((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      alert(`Lỗi khi xóa: ${err}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const reloadMaterials = async () => {
+    setLoading(true);
+    try {
+      const res = await listMaterials();
+      setMaterials(res.items);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    listMaterials()
-      .then((res) => setMaterials(res.items))
-      .catch((err) => setError(String(err)))
-      .finally(() => setLoading(false));
+    reloadMaterials();
   }, []);
 
-  const filtered = materials.filter(
-    (m) =>
-      m.title.toLowerCase().includes(search.toLowerCase()) ||
-      (m.subject || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase();
+    return materials.filter(
+      (m) =>
+        m.title.toLowerCase().includes(s) ||
+        (m.subject || "").toLowerCase().includes(s)
+    );
+  }, [materials, search]);
 
   return (
     <motion.div
@@ -137,14 +166,32 @@ export default function MaterialsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
             >
-              <Link href={`/materials/${material.id}`} className="block no-underline">
-                <Card hover className="h-full">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-accent-100 flex items-center justify-center flex-shrink-0">
-                      <BookOpen className="w-5 h-5 text-brand-600" />
-                    </div>
-                    <Badge status={material.processing_status} />
+              <Card hover className="h-full relative">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-accent-100 flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-5 h-5 text-brand-600" />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Badge status={material.processing_status} />
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDelete(material.id);
+                      }}
+                      disabled={deletingId === material.id}
+                      className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Xóa học liệu"
+                    >
+                      {deletingId === material.id ? (
+                        <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <Link href={`/materials/${material.id}`} className="block no-underline">
                   <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1 line-clamp-2">
                     {material.title}
                   </h3>
@@ -166,8 +213,8 @@ export default function MaterialsPage() {
                     </div>
                     <ArrowRight className="w-4 h-4 text-brand-400" />
                   </div>
-                </Card>
-              </Link>
+                </Link>
+              </Card>
             </motion.div>
           ))}
         </motion.div>

@@ -7,7 +7,7 @@ class ChatbotOrchestrator:
         self.retriever = Retriever()
         self.llm = LLMClient()
 
-    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None) -> dict:
+    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None) -> dict:
         contexts = self.retriever.retrieve(material_id=material_id, query=question)
 
         if not contexts:
@@ -20,7 +20,7 @@ class ChatbotOrchestrator:
             f"[Chunk {item['chunk_index']}] {item['chunk_text']}" for item in contexts
         )
         system_prompt = (
-            "Bạn là trợ lý dạy học. Chỉ trả lời dựa trên context được cung cấp bằng tiếng Việt có dấu chuẩn xác. "
+            "Bạn là trợ lý dạy học. Chỉ trả lời dựa trên context được cung cấp, BẮT BUỘC bằng tiếng Việt có dấu đầy đủ, chuẩn xác. "
             "Nếu thiếu dữ liệu, phải nói rõ là không chắc chắn. "
             "Luôn ưu tiên bám theo mạch hội thoại gần đây nếu có."
         )
@@ -39,7 +39,7 @@ class ChatbotOrchestrator:
         user_prompt = f"Câu hỏi hiện tại: {question}{history_text}\n\nContext:\n{context_text}"
 
         fallback_answer = "Dữ liệu cho thấy: " + contexts[0]["chunk_text"][:300]
-        answer = self.llm.text_response(system_prompt, user_prompt, fallback_answer)
+        answer = self.llm.text_response(system_prompt, user_prompt, fallback_answer, images=images)
 
         citations = [
             {

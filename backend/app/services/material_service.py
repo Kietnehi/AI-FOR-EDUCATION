@@ -12,6 +12,9 @@ from app.ai.parsing.file_parser import FileParser
 from app.ai.vector_store.chroma_store import ChromaVectorStore
 from app.core.config import settings
 from app.core.logging import logger
+from app.repositories.chat_repository import ChatRepository
+from app.repositories.game_repository import GameRepository
+from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.material_repository import MaterialRepository
 from app.services.material_guardrail_service import MaterialGuardrailService
@@ -24,7 +27,12 @@ class MaterialService:
         self.db = db
         self.material_repo = MaterialRepository(db)
         self.job_repo = JobRepository(db)
-        self.chunker = TextChunker(chunk_size=settings.chunk_size, overlap=settings.chunk_overlap)
+        self.chat_repo = ChatRepository(db)
+        self.game_repo = GameRepository(db)
+        self.generated_repo = GeneratedContentRepository(db)
+        self.chunker = TextChunker(
+            chunk_size=settings.chunk_size, overlap=settings.chunk_overlap
+        )
         self.embedder = OpenAIEmbedder()
         self.vector_store = ChromaVectorStore()
         self.guardrail = MaterialGuardrailService()
@@ -67,7 +75,9 @@ class MaterialService:
             "message": decision.reason,
         }
 
-    async def upload_material(self, user_id: str, file: UploadFile, metadata: dict) -> dict:
+    async def upload_material(
+        self, user_id: str, file: UploadFile, metadata: dict
+    ) -> dict:
         extension = Path(file.filename or "").suffix.lower()
         if extension not in {".pdf", ".docx", ".txt", ".md"}:
             raise HTTPException(status_code=400, detail="Unsupported file type")
@@ -152,7 +162,9 @@ class MaterialService:
     async def list_materials(self, skip: int, limit: int) -> tuple[list[dict], int]:
         return await self.material_repo.list(skip=skip, limit=limit)
 
-    async def process_material(self, material_id: str, force_reprocess: bool = False) -> None:
+    async def process_material(
+        self, material_id: str, force_reprocess: bool = False
+    ) -> None:
         job_id = uuid.uuid4().hex
         await self.job_repo.create(
             {
@@ -168,7 +180,9 @@ class MaterialService:
             material = await self.get_material(material_id)
             await self._ensure_guardrail_approved(material_id, material)
             if material["processing_status"] == "processed" and not force_reprocess:
-                await self.job_repo.update_status(job_id, "skipped", {"reason": "already processed"})
+                await self.job_repo.update_status(
+                    job_id, "skipped", {"reason": "already processed"}
+                )
                 return
 
             await self.material_repo.update(
@@ -217,8 +231,12 @@ class MaterialService:
                     "updated_at": utc_now(),
                 },
             )
-            await self.job_repo.update_status(job_id, "completed", {"chunk_count": len(chunks)})
-            logger.info("Processed material %s with %s chunks", material_id, len(chunks))
+            await self.job_repo.update_status(
+                job_id, "completed", {"chunk_count": len(chunks)}
+            )
+            logger.info(
+                "Processed material %s with %s chunks", material_id, len(chunks)
+            )
         except Exception as exc:  # noqa: BLE001
             await self.material_repo.update(
                 parse_object_id(material_id),
@@ -228,10 +246,16 @@ class MaterialService:
             logger.exception("Failed processing material %s", material_id)
             raise
 
-    async def enqueue_process(self, material_id: str, force_reprocess: bool = False) -> None:
-        asyncio.create_task(self.process_material(material_id, force_reprocess=force_reprocess))
+    async def enqueue_process(
+        self, material_id: str, force_reprocess: bool = False
+    ) -> None:
+        asyncio.create_task(
+            self.process_material(material_id, force_reprocess=force_reprocess)
+        )
 
-    async def _ensure_guardrail_approved(self, material_id: str, material: dict) -> None:
+    async def _ensure_guardrail_approved(
+        self, material_id: str, material: dict
+    ) -> None:
         if material.get("guardrail_status") == "approved":
             return
 
@@ -252,3 +276,50 @@ class MaterialService:
                 "updated_at": utc_now(),
             },
         )
+
+    async def delete_material(self, material_id: str) -> bool:
+        material = await self.get_material(material_id)
+
+        # 1. Delete Source File
+        if material.get("file_url"):
+            try:
+                file_name = material["file_url"].split("/")[-1]
+                file_path = Path(settings.upload_dir) / file_name
+                if file_path.exists():
+                    file_path.unlink()
+            except Exception as e:
+                logger.warning(
+                    "Failed to delete source file for material %s: %s", material_id, e
+                )
+
+        # 2. Delete Generated Content Files
+        try:
+            generated_items = await self.generated_repo.list_by_material_id(material_id)
+            for item in generated_items:
+                if item.get("file_url"):
+                    # Extract filename from /api/files/{filename}/download
+                    file_name = item["file_url"].split("/")[3]
+                    file_path = Path(settings.generated_dir) / file_name
+                    if file_path.exists():
+                        file_path.unlink()
+        except Exception as e:
+            logger.warning(
+                "Failed to delete generated files for material %s: %s", material_id, e
+            )
+
+        # 3. Delete from Vector Store (ChromaDB)
+        try:
+            self.vector_store.delete_material_chunks(material_id)
+        except Exception as e:
+            logger.warning(
+                "Failed to delete vector embeddings for material %s: %s", material_id, e
+            )
+
+        # 4. Delete from MongoDB Collections
+        await self.material_repo.delete(parse_object_id(material_id))
+        await self.chat_repo.delete_by_material_id(material_id)
+        await self.generated_repo.delete_by_material_id(material_id)
+        await self.game_repo.delete_by_material_id(material_id)
+        await self.job_repo.delete_many({"material_id": material_id})
+
+        return True

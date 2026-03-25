@@ -21,6 +21,14 @@ class GeneratedContentRepository:
         items = [serialize_document(doc) async for doc in cursor]
         return [item for item in items if item]
 
+    async def list_by_material_id(self, material_id: str) -> list[dict]:
+        cursor = self.collection.find({"material_id": material_id})
+        items = [serialize_document(doc) async for doc in cursor]
+        return [item for item in items if item]
+
+    async def delete_by_material_id(self, material_id: str) -> None:
+        await self.collection.delete_many({"material_id": material_id})
+
     async def update(self, content_id: ObjectId, update_fields: dict) -> dict | None:
         await self.collection.update_one({"_id": content_id}, {"$set": update_fields})
         return await self.get_by_id(content_id)

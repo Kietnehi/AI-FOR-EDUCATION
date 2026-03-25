@@ -53,4 +53,14 @@ export type ChatMessage = {
     snippet: string;
   }>;
   created_at: string;
+  model_used?: string | null;
+  fallback_applied?: boolean;
+};
+
+export type MascotChatResponse = {
+  message: string;
+  model: string;
+  session_id: string;
+  model_used?: string | null;
+  fallback_applied?: boolean;
 };

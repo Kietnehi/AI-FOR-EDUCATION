@@ -26,6 +26,22 @@ import { listMaterials } from "@/lib/api";
 import { Material } from "@/types";
 import dynamic from "next/dynamic";
 
+const GithubIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
 const AIVisualizer = dynamic(() => import("@/components/3d/ai-visualizer").then(mod => mod.AIVisualizer), {
   ssr: false,
   loading: () => <div className="absolute inset-0 z-0 bg-transparent" />
@@ -302,6 +318,82 @@ export default function DashboardPage() {
             ></iframe>
           </div>
         </Card>
+      </motion.div>
+
+      {/* Cooperation Contact */}
+      <motion.div variants={item}>
+        <div className="flex items-center gap-2 mb-4">
+          <GithubIcon className="w-5 h-5 text-brand-600" />
+          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+            Liên hệ hợp tác
+          </h2>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            {
+              name: "Kietnehi",
+              username: "Kietnehi",
+              role: "Developer",
+              gradient: "from-brand-500 to-brand-600",
+            },
+            {
+              name: "ductoanoxo",
+              username: "ductoanoxo",
+              role: "Developer",
+              gradient: "from-accent-500 to-accent-600",
+            },
+            {
+              name: "phatle224",
+              username: "phatle224",
+              role: "Developer",
+              gradient: "from-emerald-500 to-emerald-600",
+            },
+          ].map((contact) => (
+            <a key={contact.username} href={`https://github.com/${contact.username}`} target="_blank" rel="noopener noreferrer" className="no-underline">
+              <Card hover className="group flex flex-col items-center justify-center p-6 text-center h-full">
+                {/* Avatar with gradient border */}
+                <div className={`relative w-24 h-24 rounded-full bg-gradient-to-br ${contact.gradient} p-1 mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`https://github.com/${contact.username}.png`} 
+                    alt={contact.username} 
+                    className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-900"
+                  />
+                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-gray-700">
+                    <GithubIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  </div>
+                </div>
+                
+                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">
+                  {contact.name}
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] font-medium mb-4">
+                  {contact.role}
+                </p>
+
+                {/* Shields.io badges like README */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4 w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`https://img.shields.io/github/followers/${contact.username}?style=social`} 
+                    alt="Followers" 
+                    className="h-6 object-contain"
+                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`} 
+                    alt="Stars" 
+                    className="h-6 object-contain"
+                  />
+                </div>
+
+                <div className="mt-auto text-brand-600 text-sm font-medium flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                  Xem Github <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Card>
+            </a>
+          ))}
+        </div>
       </motion.div>
     </motion.div>
   );

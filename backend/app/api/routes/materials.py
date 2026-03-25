@@ -26,7 +26,9 @@ async def create_material(
     return MaterialResponse(**material)
 
 
-@router.post("/materials/guardrail-check", response_model=MaterialGuardrailCheckResponse)
+@router.post(
+    "/materials/guardrail-check", response_model=MaterialGuardrailCheckResponse
+)
 async def check_material_guardrail(
     payload: MaterialGuardrailCheckRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
@@ -36,7 +38,9 @@ async def check_material_guardrail(
     return MaterialGuardrailCheckResponse(**result)
 
 
-@router.post("/materials/guardrail-check-upload", response_model=MaterialGuardrailCheckResponse)
+@router.post(
+    "/materials/guardrail-check-upload", response_model=MaterialGuardrailCheckResponse
+)
 async def check_upload_guardrail(
     file: UploadFile = File(...),
     title: str | None = Form(None),
@@ -94,7 +98,9 @@ async def list_materials(
 ) -> MaterialListResponse:
     service = MaterialService(db)
     items, total = await service.list_materials(skip=skip, limit=limit)
-    return MaterialListResponse(items=[MaterialResponse(**item) for item in items], total=total)
+    return MaterialListResponse(
+        items=[MaterialResponse(**item) for item in items], total=total
+    )
 
 
 @router.get("/materials/{material_id}", response_model=MaterialResponse)
@@ -120,3 +126,15 @@ async def process_material(
         processing_status="queued",
         message="Processing started in background",
     )
+
+
+@router.delete("/materials/{material_id}")
+async def delete_material(
+    material_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> dict:
+    service = MaterialService(db)
+    deleted = await service.delete_material(material_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Material not found")
+    return {"message": "Material deleted successfully"}

@@ -35,6 +35,13 @@ class MaterialRepository:
             await self.chunk_collection.insert_many(chunks)
 
     async def list_chunks(self, material_id: str) -> list[dict]:
-        cursor = self.chunk_collection.find({"material_id": material_id}).sort("chunk_index", 1)
+        cursor = self.chunk_collection.find({"material_id": material_id}).sort(
+            "chunk_index", 1
+        )
         chunks = [serialize_document(doc) async for doc in cursor]
         return [chunk for chunk in chunks if chunk]
+
+    async def delete(self, material_id: ObjectId) -> bool:
+        await self.chunk_collection.delete_many({"material_id": str(material_id)})
+        result = await self.collection.delete_one({"_id": material_id})
+        return result.deleted_count > 0

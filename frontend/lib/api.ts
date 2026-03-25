@@ -1,4 +1,4 @@
-import { ChatMessage, ChatSession, GeneratedContent, Material } from "@/types";
+import { ChatMessage, ChatSession, GeneratedContent, Material, MascotChatResponse } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
@@ -22,6 +22,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
 export async function listMaterials(): Promise<{ items: Material[]; total: number }> {
   return apiFetch<{ items: Material[]; total: number }>("/materials");
+}
+
+export async function deleteMaterial(id: string): Promise<void> {
+  return apiFetch<void>(`/materials/${id}`, { method: "DELETE" });
 }
 
 export async function getMaterial(id: string): Promise<Material> {
@@ -71,20 +75,21 @@ export async function getChatSession(sessionId: string): Promise<{ session: Chat
   return apiFetch<{ session: ChatSession; messages: ChatMessage[] }>(`/chat/sessions/${sessionId}`);
 }
 
-export async function sendChatMessage(sessionId: string, message: string): Promise<ChatMessage> {
+export async function sendChatMessage(sessionId: string, message: string, images?: string[]): Promise<ChatMessage> {
   return apiFetch<ChatMessage>(`/chat/sessions/${sessionId}/message`, {
     method: "POST",
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, images: images || [] }),
   });
 }
 
 export async function sendMascotChatMessage(
   message: string,
-  sessionId?: string
-): Promise<{ message: string; model: string; session_id: string }> {
-  return apiFetch<{ message: string; model: string; session_id: string }>("/chat/mascot/message", {
+  sessionId?: string,
+  images?: string[]
+): Promise<MascotChatResponse> {
+  return apiFetch<MascotChatResponse>("/chat/mascot/message", {
     method: "POST",
-    body: JSON.stringify({ message, session_id: sessionId || null }),
+    body: JSON.stringify({ message, session_id: sessionId || null, images: images || [] }),
   });
 }
 
@@ -108,6 +113,24 @@ export async function transcribeChatAudio(
   }
 
   return response.json() as Promise<{ text: string }>;
+}
+
+export async function synthesizeChatSpeech(text: string, lang: string = "vi"): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/chat/tts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text, lang }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Request failed: ${response.status}`);
+  }
+
+  return response.blob();
 }
 
 export async function submitGameAttempt(
