@@ -55,6 +55,7 @@ export type ChatMessage = {
   created_at: string;
   model_used?: string | null;
   fallback_applied?: boolean;
+  images?: string[];
 };
 
 export type MascotChatResponse = {

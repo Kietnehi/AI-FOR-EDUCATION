@@ -7,6 +7,7 @@ import { Bot as BotIcon, Loader2, Mic, Send, Settings2, Square, Volume2, VolumeX
 import * as THREE from "three";
 
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
+import { Markdown } from "@/components/ui/markdown";
 
 type MiniChatMessage = {
   role: "user" | "assistant";
@@ -114,7 +115,9 @@ export function FloatingMascot() {
   const [ttsCurrentTime, setTtsCurrentTime] = useState(0);
   const [ttsDuration, setTtsDuration] = useState(0);
   const [ttsActiveText, setTtsActiveText] = useState("");
-  const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
+   const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
+   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const dragStartRef = useRef({ x: 0, y: 0 });
@@ -597,17 +600,29 @@ export function FloatingMascot() {
                         : "bg-[var(--bg-elevated)] border border-[var(--border-light)] text-[var(--text-primary)]"
                     }`}
                   >
-                    {msg.images && msg.images.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {msg.images.map((img, idx) => (
-                          <div key={idx} className="w-12 h-12 rounded border border-white/20 overflow-hidden bg-black/10">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={img} alt="msg img" className="w-full h-full object-cover" />
-                          </div>
-                        ))}
-                      </div>
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {msg.images.map((img, idx) => (
+                            <div key={idx} className="w-16 h-16 rounded border border-white/20 overflow-hidden bg-black/10">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={img}
+                                alt={`msg img ${idx}`}
+                                className="w-full h-full object-cover cursor-pointer hover:opacity-80"
+                                onClick={() => {
+                                  setSelectedImage(img);
+                                  setIsImageModalOpen(true);
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    {msg.role === "user" ? (
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                    ) : (
+                      <Markdown content={msg.content} />
                     )}
-                    {msg.content}
                     {msg.role === "assistant" && (
                       <div className="mt-2 flex justify-end">
                         <button
@@ -718,23 +733,31 @@ export function FloatingMascot() {
 
             {/* Input area */}
             <div className="p-3 border-t border-[var(--border-light)] bg-[var(--bg-elevated)] flex flex-col gap-2 flex-shrink-0">
-              {chatImages.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap pb-1">
-                  {chatImages.map((img, idx) => (
-                    <div key={idx} className="relative group w-12 h-12 rounded-lg border border-[var(--border-light)] overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img} alt="preview" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeChatImage(idx)}
-                        className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+               {chatImages.length > 0 && (
+                 <div className="flex items-center gap-2 flex-wrap pb-1">
+                   {chatImages.map((img, idx) => (
+                     <div key={idx} className="relative group w-12 h-12 rounded-lg border border-[var(--border-light)] overflow-hidden">
+                       {/* eslint-disable-next-line @next/next/no-img-element */}
+                       <img
+                         src={img}
+                         alt={`preview ${idx}`}
+                         className="w-full h-full object-cover cursor-pointer"
+                         onClick={() => {
+                           setSelectedImage(img);
+                           setIsImageModalOpen(true);
+                         }}
+                       />
+                       <button
+                         type="button"
+                         onClick={() => removeChatImage(idx)}
+                         className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                       >
+                         <X className="w-2.5 h-2.5" />
+                       </button>
+                     </div>
+                   ))}
+                 </div>
+               )}
               <div className="flex items-center gap-2">
                 <label className="mb-0 cursor-pointer flex-shrink-0">
                   <input
@@ -847,8 +870,37 @@ export function FloatingMascot() {
           <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
           <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />
           <Bot />
-        </Canvas>
-      </div>
-    </div>
-  );
-}
+         </Canvas>
+       </div>
+
+       {/* Image Modal */}
+       {isImageModalOpen && selectedImage && (
+         <div
+           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+           onClick={() => {
+             setIsImageModalOpen(false);
+             setSelectedImage(null);
+           }}
+         >
+           <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+             <button
+               onClick={() => {
+                 setIsImageModalOpen(false);
+                 setSelectedImage(null);
+               }}
+               className="absolute -top-10 right-0 text-white hover:text-gray-300 text-4xl font-bold"
+               aria-label="Close"
+             >
+               &times;
+             </button>
+             <img
+               src={selectedImage}
+               alt="Full size preview"
+               className="max-w-full max-h-[90vh] object-contain rounded-lg"
+             />
+           </div>
+         </div>
+       )}
+     </div>
+   );
+ }

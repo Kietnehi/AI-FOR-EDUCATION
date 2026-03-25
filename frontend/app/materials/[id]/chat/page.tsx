@@ -44,9 +44,11 @@ export default function ChatbotPage() {
   const [ttsCurrentTime, setTtsCurrentTime] = useState(0);
   const [ttsDuration, setTtsDuration] = useState(0);
   const [ttsActiveText, setTtsActiveText] = useState("");
-  const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
-  const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
-  const [initializing, setInitializing] = useState(true);
+   const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
+   const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
+   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+   const [initializing, setInitializing] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -162,34 +164,35 @@ export default function ChatbotPage() {
     }
   }
 
-  async function handleSend(event: FormEvent) {
-    event.preventDefault();
-    if (!sessionId || (!input.trim() && images.length === 0)) return;
+   async function handleSend(event: FormEvent) {
+     event.preventDefault();
+     if (!sessionId || (!input.trim() && images.length === 0)) return;
 
-    const userMessage: ChatMessage = {
-      id: `tmp-${Date.now()}`,
-      role: "user",
-      session_id: sessionId,
-      message: input || "[Hình ảnh]",
-      citations: [],
-      created_at: new Date().toISOString(),
-    };
+     const currentImages = [...images];
+     const userMessage: ChatMessage = {
+       id: `tmp-${Date.now()}`,
+       role: "user",
+       session_id: sessionId,
+       message: input || "[Hình ảnh]",
+       citations: [],
+       created_at: new Date().toISOString(),
+       images: currentImages,
+     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    const question = input;
-    const currentImages = [...images];
-    setInput("");
-    setImages([]);
-    setLoading(true);
+     setMessages((prev) => [...prev, userMessage]);
+     const question = input;
+     setInput("");
+     setImages([]);
+     setLoading(true);
 
-    try {
-      const assistantMessage = await sendChatMessage(sessionId, question, currentImages);
-      setMessages((prev) => [...prev, assistantMessage]);
-    } finally {
-      setLoading(false);
-      inputRef.current?.focus();
-    }
-  }
+     try {
+       const assistantMessage = await sendChatMessage(sessionId, question, currentImages);
+       setMessages((prev) => [...prev, assistantMessage]);
+     } finally {
+       setLoading(false);
+       inputRef.current?.focus();
+     }
+   }
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
@@ -417,37 +420,55 @@ export default function ChatbotPage() {
                     : "bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] rounded-tl-sm"
                   }
                 `}>
-                  {msg.role === "user" ? (
-                    <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
-                      {msg.message}
-                    </p>
-                  ) : (
-                    <Markdown content={msg.message} />
-                  )}
+                   {msg.role === "user" ? (
+                     <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
+                       {msg.message}
+                     </p>
+                   ) : (
+                     <Markdown content={msg.message} />
+                   )}
 
-                   {msg.role === "assistant" && (
-                     <div className="mt-2 flex items-center justify-end gap-2">
-                       {msg.fallback_applied && (
-                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                           <AlertCircle className="w-3 h-3" />
-                           Đã chuyển sang model dự phòng
-                         </span>
-                       )}
-                       <button
-                         type="button"
-                         onClick={() => handleToggleSpeak(msg.id, msg.message)}
-                         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                         aria-label={speakingMessageId === msg.id ? "Dừng đọc nội dung" : "Đọc nội dung"}
-                       >
-                         {speakingMessageId === msg.id ? (
-                           <VolumeX className="w-3.5 h-3.5" />
-                         ) : (
-                           <Volume2 className="w-3.5 h-3.5" />
-                         )}
-                         {speakingMessageId === msg.id ? "Dừng" : "Nghe"}
-                       </button>
+                   {/* Image preview */}
+                   {msg.images && msg.images.length > 0 && (
+                     <div className="flex flex-wrap gap-2 mt-2">
+                       {msg.images.map((img, idx) => (
+                         <img
+                           key={idx}
+                           src={img}
+                           alt={`upload ${idx}`}
+                           className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-[var(--border-light)] cursor-pointer hover:opacity-90"
+                           onClick={() => {
+                             setSelectedImage(img);
+                             setIsImageModalOpen(true);
+                           }}
+                         />
+                       ))}
                      </div>
                    )}
+
+                    {msg.role === "assistant" && (
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        {msg.fallback_applied && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                            <AlertCircle className="w-3 h-3" />
+                            Đã chuyển sang model dự phòng
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSpeak(msg.id, msg.message)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                          aria-label={speakingMessageId === msg.id ? "Dừng đọc nội dung" : "Đọc nội dung"}
+                        >
+                          {speakingMessageId === msg.id ? (
+                            <VolumeX className="w-3.5 h-3.5" />
+                          ) : (
+                            <Volume2 className="w-3.5 h-3.5" />
+                          )}
+                          {speakingMessageId === msg.id ? "Dừng" : "Nghe"}
+                        </button>
+                      </div>
+                    )}
 
                   {/* Citations */}
                   {msg.citations?.length > 0 && (
@@ -542,23 +563,31 @@ export default function ChatbotPage() {
             </div>
           </div>
           <form onSubmit={handleSend} className="flex flex-col gap-3">
-            {images.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {images.map((img, idx) => (
-                  <div key={idx} className="relative group w-16 h-16 rounded-lg border border-[var(--border-light)] overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={img} alt="preview" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(idx)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+             {images.length > 0 && (
+               <div className="flex items-center gap-2 flex-wrap">
+                 {images.map((img, idx) => (
+                   <div key={idx} className="relative group w-16 h-16 rounded-lg border border-[var(--border-light)] overflow-hidden">
+                     {/* eslint-disable-next-line @next/next/no-img-element */}
+                     <img
+                       src={img}
+                       alt={`preview ${idx}`}
+                       className="w-full h-full object-cover cursor-pointer"
+                       onClick={() => {
+                         setSelectedImage(img);
+                         setIsImageModalOpen(true);
+                       }}
+                     />
+                     <button
+                       type="button"
+                       onClick={() => removeImage(idx)}
+                       className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                     >
+                       <X className="w-3 h-3" />
+                     </button>
+                   </div>
+                 ))}
+               </div>
+             )}
             <div className="flex flex-1 items-end gap-3 w-full">
               <label className="mb-0 cursor-pointer flex-shrink-0">
                 <input
@@ -714,11 +743,40 @@ export default function ChatbotPage() {
               )}
             </div>
           )}
-          <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
+           <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
             Trợ lý AI trả lời dựa trên nội dung học liệu. Nhấn Mic để ghi âm, Enter để gửi, Shift+Enter để xuống dòng.
           </p>
         </div>
       </Card>
+
+      {/* Image Modal */}
+      {isImageModalOpen && selectedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => {
+            setIsImageModalOpen(false);
+            setSelectedImage(null);
+          }}
+        >
+          <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => {
+                setIsImageModalOpen(false);
+                setSelectedImage(null);
+              }}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 text-4xl font-bold"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <img
+              src={selectedImage}
+              alt="Full size preview"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
