@@ -24,7 +24,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { ChatSkeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
-import { createChatSession, getChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
+import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
+import { markdownToPlainText } from "@/lib/tts";
 import { ChatMessage } from "@/types";
 
 export default function ChatbotPage() {
@@ -54,6 +55,7 @@ export default function ChatbotPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsUiTickRef = useRef(0);
 
   const resetTtsState = () => {
     setSpeakingMessageId(null);
@@ -105,14 +107,23 @@ export default function ChatbotPage() {
 
   useEffect(() => {
     if (!materialId) return;
+    let cancelled = false;
     createChatSession(materialId)
-      .then(async (session) => {
+      .then((session) => {
+        if (cancelled) return;
         setSessionId(session.id);
-        const detail = await getChatSession(session.id);
-        setMessages(detail.messages);
+        setMessages([]);
       })
       .catch(() => undefined)
-      .finally(() => setInitializing(false));
+      .finally(() => {
+        if (!cancelled) {
+          setInitializing(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [materialId]);
 
   useEffect(() => {
@@ -155,7 +166,9 @@ export default function ChatbotPage() {
       setSpeakingMessageId(messageId);
       setTtsActiveText(content);
       setIsTtsPanelCollapsed(true);
-      const audioBlob = await synthesizeChatSpeech(content, ttsLang);
+      // Convert markdown to plain text so TTS reads the rendered content
+      const plainText = markdownToPlainText(content);
+      const audioBlob = await synthesizeChatSpeech(plainText, ttsLang);
       const audioUrl = URL.createObjectURL(audioBlob);
       setTtsAudioUrl(audioUrl);
     } catch {
@@ -451,7 +464,7 @@ export default function ChatbotPage() {
                         {msg.fallback_applied && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
                             <AlertCircle className="w-3 h-3" />
-                            Đã chuyển sang model dự phòng
+                            {`Đã chuyển sang model dự phòng: ${msg.model_used || "không xác định"}`}
                           </span>
                         )}
                         <button
@@ -708,6 +721,11 @@ export default function ChatbotPage() {
                 className={isTtsPanelCollapsed ? "hidden" : "w-full"}
                 onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
                 onTimeUpdate={(e) => {
+                  const now = performance.now();
+                  if (now - ttsUiTickRef.current < 200) {
+                    return;
+                  }
+                  ttsUiTickRef.current = now;
                   const audio = e.target as HTMLAudioElement;
                   setTtsCurrentTime(audio.currentTime || 0);
                   setTtsDuration(audio.duration || 0);
@@ -731,6 +749,7 @@ export default function ChatbotPage() {
                       if (ttsAudioRef.current) {
                         ttsAudioRef.current.currentTime = nextTime;
                       }
+                      ttsUiTickRef.current = performance.now();
                       setTtsCurrentTime(nextTime);
                     }}
                     className="mt-2 w-full accent-brand-600"

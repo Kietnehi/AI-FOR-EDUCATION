@@ -7,6 +7,7 @@ import { Bot as BotIcon, Loader2, Mic, Send, Settings2, Square, Volume2, VolumeX
 import * as THREE from "three";
 
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
+import { markdownToPlainText } from "@/lib/tts";
 import { Markdown } from "@/components/ui/markdown";
 
 type MiniChatMessage = {
@@ -129,6 +130,7 @@ export function FloatingMascot() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsUiTickRef = useRef(0);
 
   const resetTtsState = () => {
     setSpeakingMessageKey(null);
@@ -185,6 +187,10 @@ export function FloatingMascot() {
   }, []);
 
   useEffect(() => {
+    if (!isDragging && !isResizing) {
+      return;
+    }
+
     const handleMouseMove = (event: MouseEvent) => {
       if (isDragging) {
         const maxX = Math.max(viewportPadding, window.innerWidth - mascotSize - viewportPadding);
@@ -235,6 +241,16 @@ export function FloatingMascot() {
       setIsResizing(false);
     };
 
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, isResizing]);
+
+  useEffect(() => {
     const handleResize = () => {
       const maxX = Math.max(viewportPadding, window.innerWidth - mascotSize - viewportPadding);
       const maxY = Math.max(viewportPadding, window.innerHeight - mascotSize - viewportPadding);
@@ -244,16 +260,11 @@ export function FloatingMascot() {
       }));
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("resize", handleResize);
-
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("resize", handleResize);
     };
-  }, [isDragging, isResizing]);
+  }, []);
 
   useEffect(() => {
     if (messagesRef.current) {
@@ -355,7 +366,9 @@ export function FloatingMascot() {
       setSpeakingMessageKey(messageKey);
       setTtsActiveText(content);
       setIsTtsPanelCollapsed(true);
-      const audioBlob = await synthesizeChatSpeech(content, ttsLang);
+      // Convert markdown to plain text so TTS reads the rendered content
+      const plainText = markdownToPlainText(content);
+      const audioBlob = await synthesizeChatSpeech(plainText, ttsLang);
       const audioUrl = URL.createObjectURL(audioBlob);
       setTtsAudioUrl(audioUrl);
     } catch {
@@ -691,6 +704,11 @@ export function FloatingMascot() {
                     className={isTtsPanelCollapsed ? "hidden" : "w-full h-8"}
                     onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
                     onTimeUpdate={(e) => {
+                      const now = performance.now();
+                      if (now - ttsUiTickRef.current < 200) {
+                        return;
+                      }
+                      ttsUiTickRef.current = now;
                       const audio = e.target as HTMLAudioElement;
                       setTtsCurrentTime(audio.currentTime || 0);
                       setTtsDuration(audio.duration || 0);
@@ -717,6 +735,7 @@ export function FloatingMascot() {
                           if (ttsAudioRef.current) {
                             ttsAudioRef.current.currentTime = nextTime;
                           }
+                          ttsUiTickRef.current = performance.now();
                           setTtsCurrentTime(nextTime);
                         }}
                         className="mt-1 w-full accent-brand-600"
@@ -865,7 +884,7 @@ export function FloatingMascot() {
         aria-label="Mascot AI có thể kéo thả"
         tabIndex={0}
       >
-        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={[1, 1.5]} performance={{ min: 0.5 }}>
+        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={[1, 1.25]} performance={{ min: 0.5 }}>
           <ambientLight intensity={1} />
           <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
           <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />
