@@ -20,6 +20,7 @@ backend/.env
 # OS
 .DS_Store
 Thumbs.db
+*.mp4
 
 # Github
 .github/copilot-instructions.md

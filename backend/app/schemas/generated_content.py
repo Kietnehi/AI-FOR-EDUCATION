@@ -24,6 +24,53 @@ class GenerateMinigameRequest(BaseModel):
     )
 
 
+class GenerateNotebookLMMediaRequest(BaseModel):
+    prompt: str | None = Field(default=None, min_length=5, max_length=2000)
+    guidance: str | None = Field(default=None, max_length=2000)
+    confirm: bool = Field(default=False, description="Set to true to start generation. First call with confirm=false to get confirmation prompt.")
+
+
+class NotebookLMMediaFile(BaseModel):
+    file_name: str
+    file_url: str
+
+
+class GenerateNotebookLMMediaResponse(BaseModel):
+    status: str = "generation_complete"
+    session_id: str
+    material_id: str | None = None
+    prompt: str
+    notebook_title: str | None = None
+    message: str = "Đã tạo xong! Vui lòng xác nhận để tải xuống."
+
+
+class NotebookLMArtifactConfirmationResponse(BaseModel):
+    """Response after upload, waiting for user confirmation to trigger artifact creation."""
+    status: str = "awaiting_artifact_confirmation"
+    session_id: str
+    material_id: str | None = None
+    prompt: str
+    notebook_title: str | None = None
+    message: str = "Đã upload tài liệu lên NotebookLM. Xác nhận để bấm tạo Video + Infographic."
+
+
+class ConfirmNotebookLMDownloadResponse(BaseModel):
+    """Response after confirming download to permanent storage"""
+    status: str = "saved"
+    session_id: str
+    videos: list[NotebookLMMediaFile] = Field(default_factory=list)
+    infographics: list[NotebookLMMediaFile] = Field(default_factory=list)
+
+
+class NotebookLMConfirmationResponse(BaseModel):
+    """Confirmation prompt before starting media generation"""
+    status: str = "awaiting_confirmation"
+    material_id: str | None = None
+    prompt: str
+    message: str = "Sẵn sàng tạo video và infographics từ học liệu này. Tác vụ này có thể mất 5-10 phút hoặc lâu hơn. Bạn có chắc chắn muốn tiếp tục? Gửi lại request với confirm=true để xác nhận."
+    estimated_duration_seconds: int = Field(default=600, description="Estimated time for generation in seconds")
+
+
 class GeneratedContentResponse(BaseModel):
     id: str
     material_id: str

@@ -34,6 +34,48 @@ export type GeneratedContent = {
   updated_at: string;
 };
 
+export type NotebookLMMediaFile = {
+  file_name: string;
+  file_url: string;
+};
+
+export type NotebookLMMediaResult = {
+  status: "generation_complete";
+  session_id: string;
+  material_id?: string | null;
+  prompt: string;
+  notebook_title?: string;
+  message: string;
+};
+
+export type NotebookLMConfirmationResult = {
+  status: "awaiting_confirmation";
+  material_id?: string | null;
+  prompt: string;
+  message: string;
+  estimated_duration_seconds: number;
+};
+
+export type NotebookLMArtifactConfirmationResult = {
+  status: "awaiting_artifact_confirmation";
+  session_id: string;
+  material_id?: string | null;
+  prompt: string;
+  notebook_title?: string;
+  message: string;
+};
+
+export type NotebookLMSavedResult = {
+  session_id: string;
+  videos: NotebookLMMediaFile[];
+  infographics: NotebookLMMediaFile[];
+};
+
+export type NotebookLMResponse =
+  | NotebookLMMediaResult
+  | NotebookLMConfirmationResult
+  | NotebookLMArtifactConfirmationResult;
+
 export type ChatSession = {
   id: string;
   user_id: string;

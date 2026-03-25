@@ -17,3 +17,4 @@ tiktoken
 openai-whisper
 groq
 gTTS
+playwright

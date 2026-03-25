@@ -45,6 +45,8 @@ class FileService:
         candidates = [
             Path(settings.upload_dir) / file_name,
             Path(settings.generated_dir) / file_name,
+            Path(settings.generated_dir) / "notebooklm" / "videos" / file_name,
+            Path(settings.generated_dir) / "notebooklm" / "infographics" / file_name,
         ]
 
         # If file_name doesn't contain subdirectory path, also check common subdirectories
@@ -55,3 +57,15 @@ class FileService:
             if path.exists():
                 return path
         raise HTTPException(status_code=404, detail="File not found on storage")
+
+    @staticmethod
+    def resolve_temp_file_path(session_id: str, file_type: str, file_name: str) -> Path:
+        """
+        Resolve temp file path for preview.
+        file_type should be either 'videos' or 'infographics'
+        """
+        temp_dir = Path(settings.generated_dir) / "notebooklm" / "temp"
+        path = temp_dir / session_id / file_type / file_name
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Temp file not found or session expired")
+        return path
