@@ -1,3 +1,5 @@
+import asyncio
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,6 +9,11 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging, logger
 from app.db.mongo import close_mongo, connect_mongo, ensure_indexes
+
+
+if sys.platform.startswith("win"):
+    # Playwright async API needs subprocess support, which requires Proactor loop on Windows.
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
 @asynccontextmanager

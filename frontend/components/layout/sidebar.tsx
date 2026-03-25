@@ -9,6 +9,7 @@ import {
   Upload,
   MessageSquareText,
   Sparkles,
+  Clapperboard,
   ChevronLeft,
   GraduationCap,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/materials", label: "Học liệu", icon: BookOpen },
   { href: "/materials/upload", label: "Tải lên", icon: Upload },
+  { href: "/materials/video", label: "Tạo Video AI", icon: Clapperboard },
   { href: "/chatbot", label: "Chatbot", icon: MessageSquareText },
   { href: "/generated", label: "Nội dung AI", icon: Sparkles },
 ];

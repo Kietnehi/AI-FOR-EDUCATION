@@ -1,4 +1,14 @@
-import { ChatMessage, ChatSession, GeneratedContent, Material, MascotChatResponse } from "@/types";
+import {
+  ChatMessage,
+  ChatSession,
+  GeneratedContent,
+  Material,
+  MascotChatResponse,
+  NotebookLMArtifactConfirmationResult,
+  NotebookLMMediaResult,
+  NotebookLMResponse,
+  NotebookLMSavedResult,
+} from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
@@ -160,6 +170,47 @@ export async function generateMinigame(id: string): Promise<GeneratedContent> {
 
 export async function getGeneratedContent(id: string): Promise<GeneratedContent> {
   return apiFetch<GeneratedContent>(`/generated-contents/${id}`);
+}
+
+export async function generateNotebookLMMedia(prompt: string, confirm: boolean = false): Promise<NotebookLMResponse> {
+  return apiFetch<NotebookLMResponse>("/notebooklm/generate-media", {
+    method: "POST",
+    body: JSON.stringify({ prompt, confirm }),
+  });
+}
+
+export async function generateNotebookLMMediaFromMaterial(
+  materialId: string,
+  guidance?: string,
+  confirm: boolean = false
+): Promise<NotebookLMResponse> {
+  return apiFetch<NotebookLMResponse>(`/materials/${materialId}/generate/notebooklm-media`, {
+    method: "POST",
+    body: JSON.stringify({ guidance: guidance || null, confirm }),
+  });
+}
+
+export async function confirmNotebookLMDownload(sessionId: string): Promise<NotebookLMSavedResult> {
+  return apiFetch<NotebookLMSavedResult>(`/notebooklm/sessions/${sessionId}/confirm`, {
+    method: "POST",
+  });
+}
+
+export async function confirmNotebookLMArtifactGeneration(
+  sessionId: string
+): Promise<NotebookLMMediaResult | NotebookLMArtifactConfirmationResult> {
+  return apiFetch<NotebookLMMediaResult | NotebookLMArtifactConfirmationResult>(
+    `/notebooklm/sessions/${sessionId}/confirm-artifacts`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function cancelNotebookLMSession(sessionId: string): Promise<{ session_id: string; status: string }> {
+  return apiFetch<{ session_id: string; status: string }>(`/notebooklm/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function createChatSession(materialId: string): Promise<ChatSession> {

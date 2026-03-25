@@ -61,6 +61,8 @@ const CodeBlock: React.FC<{ language: string; value: string }> = memo(({ languag
   );
 });
 
+CodeBlock.displayName = "CodeBlock";
+
 const MarkdownBase: React.FC<MarkdownProps> = ({ content, className = "" }) => {
   const [copied, setCopied] = useState(false);
 
