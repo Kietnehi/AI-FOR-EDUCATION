@@ -19,61 +19,52 @@ const MASCOT_SESSION_STORAGE_KEY = "mascot-chat-session-id";
 
 function Bot() {
   const groupRef = useRef<THREE.Group>(null);
-  const [hovered, setHovered] = useState(false);
 
   useFrame((state) => {
-    if (!groupRef.current) {
-      return;
-    }
-
-    const targetX = state.pointer.x * 0.5;
-    const targetY = state.pointer.y * 0.5;
-
-    groupRef.current.rotation.y += (targetX - groupRef.current.rotation.y) * 0.1;
-    groupRef.current.rotation.x += (-targetY - groupRef.current.rotation.x) * 0.1;
-
-    const bounceSpeed = hovered ? 5 : 2;
-    groupRef.current.position.y = Math.sin(state.clock.elapsedTime * bounceSpeed) * 0.1;
+    if (!groupRef.current) return;
+    // Simple idle bounce only - no mouse tracking to save CPU
+    groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1;
+    groupRef.current.rotation.y = state.clock.elapsedTime * 0.3;
   });
 
   return (
-    <group ref={groupRef} onPointerOver={() => setHovered(true)} onPointerOut={() => setHovered(false)}>
-      <Float floatIntensity={hovered ? 0.5 : 1.5} speed={hovered ? 5 : 2}>
-        <RoundedBox args={[1.2, 1, 1.2]} radius={0.3} smoothness={4}>
-          <meshStandardMaterial color={hovered ? "#fbcfe8" : "#e0e7ff"} roughness={0.2} metalness={0.5} />
+    <group ref={groupRef}>
+      <Float floatIntensity={1} speed={2}>
+        <RoundedBox args={[1.2, 1, 1.2]} radius={0.3} smoothness={2}>
+          <meshStandardMaterial color="#e0e7ff" roughness={0.2} metalness={0.5} />
         </RoundedBox>
 
-        <RoundedBox args={[0.9, 0.4, 0.1]} position={[0, 0.1, 0.6]} radius={0.1} smoothness={4}>
+        <RoundedBox args={[0.9, 0.4, 0.1]} position={[0, 0.1, 0.6]} radius={0.1} smoothness={2}>
           <meshStandardMaterial color="#1e1b4b" roughness={0.5} />
         </RoundedBox>
 
-        <Sphere args={[0.08, 16, 16]} position={[-0.2, 0.1, 0.65]}>
-          <meshBasicMaterial color={hovered ? "#f472b6" : "#34d399"} />
+        <Sphere args={[0.08, 8, 8]} position={[-0.2, 0.1, 0.65]}>
+          <meshBasicMaterial color="#34d399" />
         </Sphere>
-        <Sphere args={[0.08, 16, 16]} position={[0.2, 0.1, 0.65]}>
-          <meshBasicMaterial color={hovered ? "#f472b6" : "#34d399"} />
+        <Sphere args={[0.08, 8, 8]} position={[0.2, 0.1, 0.65]}>
+          <meshBasicMaterial color="#34d399" />
         </Sphere>
 
         <mesh position={[0, 0.6, 0]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.4, 8]} />
+          <cylinderGeometry args={[0.05, 0.05, 0.4, 6]} />
           <meshStandardMaterial color="#94a3b8" />
         </mesh>
 
-        <Sphere args={[0.15, 16, 16]} position={[0, 0.8, 0]}>
+        <Sphere args={[0.15, 8, 8]} position={[0, 0.8, 0]}>
           <meshStandardMaterial
-            color={hovered ? "#f472b6" : "#6366f1"}
-            emissive={hovered ? "#f472b6" : "#6366f1"}
+            color="#6366f1"
+            emissive="#6366f1"
             emissiveIntensity={0.5}
           />
         </Sphere>
 
         <mesh position={[-0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.2, 0.2, 0.1, 16]} />
+          <cylinderGeometry args={[0.2, 0.2, 0.1, 8]} />
           <meshStandardMaterial color="#818cf8" />
         </mesh>
 
         <mesh position={[0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.2, 0.2, 0.1, 16]} />
+          <cylinderGeometry args={[0.2, 0.2, 0.1, 8]} />
           <meshStandardMaterial color="#818cf8" />
         </mesh>
       </Float>
@@ -865,10 +856,9 @@ export function FloatingMascot() {
         aria-label="Mascot AI có thể kéo thả"
         tabIndex={0}
       >
-        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={[1, 1.5]} performance={{ min: 0.5 }}>
+        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={1} performance={{ min: 0.3 }} gl={{ antialias: false, powerPreference: "low-power" }}>
           <ambientLight intensity={1} />
           <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
-          <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />
           <Bot />
          </Canvas>
        </div>

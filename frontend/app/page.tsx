@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
 import {
   Upload,
   BookOpen,
@@ -47,25 +46,56 @@ const AIVisualizer = dynamic(() => import("@/components/3d/ai-visualizer").then(
   loading: () => <div className="absolute inset-0 z-0 bg-transparent" />
 });
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
-};
-
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 },
-};
-
 const statCards = [
   { label: "Học liệu", icon: BookOpen, color: "from-brand-500 to-brand-600" },
   { label: "Slide đã tạo", icon: FileText, color: "from-accent-500 to-accent-600" },
   { label: "Podcast", icon: Mic, color: "from-emerald-500 to-emerald-600" },
   { label: "Minigame", icon: Gamepad2, color: "from-amber-500 to-amber-600" },
 ];
+
+// Lazy-loaded Google Maps component - only loads when scrolled into view
+function LazyMap() {
+  const [show, setShow] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShow(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="w-full h-[400px] relative">
+      {show ? (
+        <iframe
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d9309.215601568438!2d106.67968337575233!3d10.759917089387919!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2sus!4v1774422510403!5m2!1svi!2sus"
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          allowFullScreen={true}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          title="SGU Map"
+          className="grayscale-[0.2] contrast-[1.1]"
+        />
+      ) : (
+        <div className="w-full h-full bg-[var(--bg-secondary)] rounded-lg flex items-center justify-center">
+          <MapPin className="w-8 h-8 text-[var(--text-tertiary)] animate-pulse" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -80,14 +110,9 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="space-y-8"
-    >
+    <div className="space-y-8 animate-fade-in-up">
       {/* Hero Section */}
-      <motion.div variants={item}>
+      <div>
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-accent-600 to-brand-700 p-8 sm:p-10 text-white min-h-[400px] flex flex-col justify-center">
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
@@ -130,10 +155,10 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Quick Stats */}
-      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ perspective: 1000 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ perspective: 1000 }}>
         {statCards.map((stat) => {
           const Icon = stat.icon;
           const count =
@@ -156,10 +181,10 @@ export default function DashboardPage() {
             </TiltCard>
           );
         })}
-      </motion.div>
+      </div>
 
       {/* Recent Materials */}
-      <motion.div variants={item}>
+      <div>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -206,11 +231,10 @@ export default function DashboardPage() {
         {!loading && materials.length > 0 && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {materials.slice(0, 6).map((material, index) => (
-              <motion.div
+              <div
                 key={material.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <Link href={`/materials/${material.id}`} className="block no-underline">
                   <Card hover>
@@ -238,14 +262,14 @@ export default function DashboardPage() {
                     </div>
                   </Card>
                 </Link>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Quick Actions */}
-      <motion.div variants={item}>
+      <div>
         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)" }}>
           Hành động nhanh
         </h2>
@@ -289,10 +313,10 @@ export default function DashboardPage() {
             );
           })}
         </div>
-      </motion.div>
+      </div>
 
       {/* Geography Location */}
-      <motion.div variants={item}>
+      <div>
         <div className="flex items-center gap-2 mb-4">
           <MapPin className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -304,24 +328,12 @@ export default function DashboardPage() {
             <h3 className="font-semibold text-[var(--text-primary)]">Trường Đại học Sài Gòn</h3>
             <p className="text-sm text-[var(--text-secondary)]">273 An Dương Vương, Phường 3, Quận 5, Thành phố Hồ Chí Minh</p>
           </div>
-          <div className="w-full h-[400px] relative">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d9309.215601568438!2d106.67968337575233!3d10.759917089387919!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2sus!4v1774422510403!5m2!1svi!2sus"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen={true}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title="SGU Map"
-              className="grayscale-[0.2] contrast-[1.1]"
-            ></iframe>
-          </div>
+          <LazyMap />
         </Card>
-      </motion.div>
+      </div>
 
       {/* Cooperation Contact */}
-      <motion.div variants={item}>
+      <div>
         <div className="flex items-center gap-2 mb-4">
           <GithubIcon className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -358,6 +370,7 @@ export default function DashboardPage() {
                     src={`https://github.com/${contact.username}.png`} 
                     alt={contact.username} 
                     className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-900"
+                    loading="lazy"
                   />
                   <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-gray-700">
                     <GithubIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -371,19 +384,21 @@ export default function DashboardPage() {
                   {contact.role}
                 </p>
 
-                {/* Shields.io badges like README */}
+                {/* Shields.io badges - lazy loaded */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4 w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
                     src={`https://img.shields.io/github/followers/${contact.username}?style=social`} 
                     alt="Followers" 
                     className="h-6 object-contain"
+                    loading="lazy"
                   />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
                     src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`} 
                     alt="Stars" 
                     className="h-6 object-contain"
+                    loading="lazy"
                   />
                 </div>
 
@@ -394,7 +409,7 @@ export default function DashboardPage() {
             </a>
           ))}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

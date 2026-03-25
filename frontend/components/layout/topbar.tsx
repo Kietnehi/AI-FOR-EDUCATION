@@ -2,7 +2,6 @@
 
 import { Search, Moon, Sun, Bell, User, Bot } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { motion } from "framer-motion";
 import { useState } from "react";
 
 interface TopbarProps {
@@ -16,15 +15,15 @@ export function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: Topb
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
-    <motion.header
-      initial={false}
-      animate={{ paddingLeft: sidebarCollapsed ? 72 : 260 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    <header
+      style={{
+        paddingLeft: sidebarCollapsed ? 72 : 260,
+        transition: "padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
       className="
         fixed top-0 right-0 left-0 z-30 h-16
         flex items-center gap-4 px-6
-        bg-[var(--glass-bg)] backdrop-blur-2xl
-        border-b border-[var(--border-light)]
+        bg-[var(--bg-elevated)] border-b border-[var(--border-light)]
       "
     >
       {/* Search */}
@@ -79,14 +78,7 @@ export function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: Topb
           "
           aria-label="Chuyển chế độ sáng/tối"
         >
-          <motion.div
-            key={theme}
-            initial={{ rotate: -45, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            transition={{ duration: 0.2 }}
-          >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </motion.div>
+          {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
         {/* Notifications */}
@@ -118,6 +110,6 @@ export function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: Topb
           <User className="w-4 h-4" />
         </button>
       </div>
-    </motion.header>
+    </header>
   );
 }

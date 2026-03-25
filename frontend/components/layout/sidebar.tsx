@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   BookOpen,
@@ -30,40 +29,35 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    <aside
+      style={{
+        width: collapsed ? 72 : 260,
+        transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
       className="
         fixed top-0 left-0 z-40 h-screen flex flex-col
-        bg-[var(--glass-bg)] backdrop-blur-2xl
-        border-r border-[var(--border-light)]
+        bg-[var(--bg-elevated)] border-r border-[var(--border-light)]
       "
     >
       {/* Brand */}
-      <Link href="/" className="flex items-center gap-3 px-4 h-16 border-b border-[var(--border-light)] no-underline hover:opacity-80 transition-opacity">
+      <Link href="/" className="flex items-center gap-3 px-4 h-16 border-b border-[var(--border-light)] no-underline hover:opacity-80 transition-opacity overflow-hidden">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center flex-shrink-0 shadow-md">
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.span
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              className="font-bold text-base text-[var(--text-primary)] whitespace-nowrap"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              AI Learning Studio
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <span
+          className="font-bold text-base text-[var(--text-primary)] whitespace-nowrap transition-opacity duration-200"
+          style={{
+            opacity: collapsed ? 0 : 1,
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          AI Learning Studio
+        </span>
       </Link>
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          // Find the most specific match to avoid highlighting parent when child is active
           const isBestMatch = navItems.reduce((best, navItem) => {
             if (pathname === navItem.href || pathname.startsWith(navItem.href + "/")) {
               if (!best || navItem.href.length > best.length) {
@@ -84,31 +78,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 relative flex items-center gap-3 px-3 py-2.5 rounded-xl
                 text-sm font-medium no-underline transition-all duration-200
                 ${isActive
-                  ? "text-brand-600 bg-brand-50"
+                  ? "text-brand-600 bg-brand-50 border border-brand-200"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                 }
               `}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 bg-brand-50 rounded-xl border border-brand-200"
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                />
-              )}
-              <Icon className={`relative z-10 w-5 h-5 flex-shrink-0 ${isActive ? 'text-brand-600' : ''}`} />
-              <AnimatePresence>
-                {!collapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -8 }}
-                    className="relative z-10 whitespace-nowrap"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
+              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-brand-600' : ''}`} />
+              <span
+                className="whitespace-nowrap transition-opacity duration-200 overflow-hidden"
+                style={{ opacity: collapsed ? 0 : 1 }}
+              >
+                {item.label}
+              </span>
             </Link>
           );
         })}
@@ -125,14 +106,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             transition-colors duration-200 cursor-pointer
           "
         >
-          <motion.div
-            animate={{ rotate: collapsed ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </motion.div>
+          <ChevronLeft
+            className="w-5 h-5 transition-transform duration-200"
+            style={{ transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+          />
         </button>
       </div>
-    </motion.aside>
+    </aside>
   );
 }

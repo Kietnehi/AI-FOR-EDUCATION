@@ -214,7 +214,8 @@ body {
     backface-visibility: hidden;
   }
   .animate-fade-in-up {
-    animation: fadeInUp 0.5s ease-out forwards;
+    animation: fadeInUp 0.5s ease-out both;
+    opacity: 0;
   }
 }
 @keyframes fadeInUp {
