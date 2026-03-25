@@ -78,6 +78,16 @@ export async function sendChatMessage(sessionId: string, message: string): Promi
   });
 }
 
+export async function sendMascotChatMessage(
+  message: string,
+  sessionId?: string
+): Promise<{ message: string; model: string; session_id: string }> {
+  return apiFetch<{ message: string; model: string; session_id: string }>("/chat/mascot/message", {
+    method: "POST",
+    body: JSON.stringify({ message, session_id: sessionId || null }),
+  });
+}
+
 export async function transcribeChatAudio(
   audioBlob: Blob,
   sttModel: "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo"

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -14,6 +14,20 @@ const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").t
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mascotEnabled, setMascotEnabled] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("mascot-enabled");
+    if (saved === "false") {
+      setMascotEnabled(false);
+    }
+  }, []);
+
+  const handleToggleMascot = () => {
+    const next = !mascotEnabled;
+    setMascotEnabled(next);
+    localStorage.setItem("mascot-enabled", String(next));
+  };
 
   return (
     <ThemeProvider>
@@ -30,7 +44,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </a>
 
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <Topbar sidebarCollapsed={sidebarCollapsed} />
+        <Topbar
+          sidebarCollapsed={sidebarCollapsed}
+          mascotEnabled={mascotEnabled}
+          onToggleMascot={handleToggleMascot}
+        />
 
         <motion.main
           id="main-content"
@@ -45,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </motion.main>
         
         {/* Floating AI Mascot */}
-        <FloatingMascot />
+        {mascotEnabled && <FloatingMascot />}
       </div>
     </ThemeProvider>
   );

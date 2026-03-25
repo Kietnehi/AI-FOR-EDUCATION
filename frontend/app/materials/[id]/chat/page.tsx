@@ -18,6 +18,7 @@ import {
 
 import { Card } from "@/components/ui/card";
 import { ChatSkeleton } from "@/components/ui/skeleton";
+import { Markdown } from "@/components/ui/markdown";
 import { createChatSession, getChatSession, sendChatMessage, transcribeChatAudio } from "@/lib/api";
 import { ChatMessage } from "@/types";
 
@@ -248,15 +249,19 @@ export default function ChatbotPage() {
 
                 {/* Message bubble */}
                 <div className={`
-                  max-w-[75%] rounded-2xl px-4 py-3
+                  max-w-[85%] rounded-2xl px-4 py-3
                   ${msg.role === "user"
                     ? "bg-gradient-to-r from-brand-600 to-accent-500 text-white rounded-tr-sm"
                     : "bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] rounded-tl-sm"
                   }
                 `}>
-                  <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
-                    {msg.message}
-                  </p>
+                  {msg.role === "user" ? (
+                    <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
+                      {msg.message}
+                    </p>
+                  ) : (
+                    <Markdown content={msg.message} />
+                  )}
 
                   {/* Citations */}
                   {msg.citations?.length > 0 && (
@@ -272,7 +277,7 @@ export default function ChatbotPage() {
                             text-xs rounded-lg px-3 py-2
                             ${msg.role === "user"
                               ? "bg-white/15"
-                              : "bg-brand-50 border border-brand-100"
+                              : "bg-[var(--bg-primary)] border border-[var(--border-default)]"
                             }
                           `}
                         >

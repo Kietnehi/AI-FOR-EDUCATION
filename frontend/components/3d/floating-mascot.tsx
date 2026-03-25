@@ -1,9 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sphere } from "@react-three/drei";
+import { Bot as BotIcon, Send, X } from "lucide-react";
 import * as THREE from "three";
+
+import { sendMascotChatMessage } from "@/lib/api";
+
+type MiniChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+const MASCOT_SESSION_STORAGE_KEY = "mascot-chat-session-id";
 
 function Bot() {
   const groupRef = useRef<THREE.Group>(null);
@@ -77,14 +87,234 @@ function Bot() {
 }
 
 export function FloatingMascot() {
+  const mascotSize = 128;
+  const viewportPadding = 8;
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [mascotSessionId, setMascotSessionId] = useState<string | undefined>(undefined);
+  const [messages, setMessages] = useState<MiniChatMessage[]>([
+    {
+      role: "assistant",
+      content: "Xin chào. Mình là mascot AI, bạn cần hỗ trợ gì hôm nay?",
+    },
+  ]);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const hasMovedRef = useRef(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const setDefaultPosition = () => {
+      const initialX = Math.max(viewportPadding, window.innerWidth - mascotSize - 24);
+      const initialY = Math.max(viewportPadding, window.innerHeight - mascotSize - 24);
+      setPosition({ x: initialX, y: initialY });
+    };
+
+    setDefaultPosition();
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!isDragging) {
+        return;
+      }
+
+      const maxX = Math.max(viewportPadding, window.innerWidth - mascotSize - viewportPadding);
+      const maxY = Math.max(viewportPadding, window.innerHeight - mascotSize - viewportPadding);
+      const nextX = Math.min(Math.max(viewportPadding, event.clientX - dragOffsetRef.current.x), maxX);
+      const nextY = Math.min(Math.max(viewportPadding, event.clientY - dragOffsetRef.current.y), maxY);
+      setPosition({ x: nextX, y: nextY });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const handleResize = () => {
+      const maxX = Math.max(viewportPadding, window.innerWidth - mascotSize - viewportPadding);
+      const maxY = Math.max(viewportPadding, window.innerHeight - mascotSize - viewportPadding);
+      setPosition((prev) => ({
+        x: Math.min(prev.x, maxX),
+        y: Math.min(prev.y, maxY),
+      }));
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+  }, [messages, isChatOpen]);
+
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem(MASCOT_SESSION_STORAGE_KEY);
+    if (savedSessionId) {
+      setMascotSessionId(savedSessionId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mascotSessionId) {
+      localStorage.setItem(MASCOT_SESSION_STORAGE_KEY, mascotSessionId);
+    }
+  }, [mascotSessionId]);
+
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    hasMovedRef.current = false;
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
+    dragOffsetRef.current = {
+      x: event.clientX - position.x,
+      y: event.clientY - position.y,
+    };
+  };
+
+  const handleMouseMoveMark = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) {
+      return;
+    }
+    const dx = Math.abs(event.clientX - dragStartRef.current.x);
+    const dy = Math.abs(event.clientY - dragStartRef.current.y);
+    if (dx > 3 || dy > 3) {
+      hasMovedRef.current = true;
+    }
+  };
+
+  const handleMascotClick = () => {
+    if (hasMovedRef.current) {
+      hasMovedRef.current = false;
+      return;
+    }
+    setIsChatOpen((prev) => !prev);
+  };
+
+  const handleSendMessage = async () => {
+    const trimmed = chatInput.trim();
+    if (!trimmed || isSending) {
+      return;
+    }
+
+    const userMessage: MiniChatMessage = { role: "user", content: trimmed };
+    setMessages((prev) => [...prev, userMessage]);
+    setChatInput("");
+    setIsSending(true);
+
+    try {
+      const response = await sendMascotChatMessage(trimmed, mascotSessionId);
+      setMascotSessionId(response.session_id);
+      setMessages((prev) => [...prev, { role: "assistant", content: response.message }]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Mình đang gặp lỗi kết nối. Bạn thử lại sau ít giây nhé.",
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleInputKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await handleSendMessage();
+    }
+  };
+
   return (
-    <div className="fixed bottom-6 right-6 w-32 h-32 z-50 drop-shadow-2xl cursor-pointer">
-      <Canvas camera={{ position: [0, 0, 4], fov: 45 }}>
-        <ambientLight intensity={1} />
-        <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
-        <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />
-        <Bot />
-      </Canvas>
+    <div className="fixed z-50" style={{ left: `${position.x}px`, top: `${position.y}px` }}>
+      {isChatOpen && (
+        <div
+          className="absolute bottom-[140px] right-0 w-[320px] max-w-[calc(100vw-24px)] rounded-2xl border border-[var(--border-light)] bg-[var(--bg-elevated)] shadow-2xl overflow-hidden"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-light)] bg-[var(--bg-secondary)]">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+              <BotIcon className="w-4 h-4 text-brand-500" />
+              Chat Mascot
+            </div>
+            <button
+              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"
+              onClick={() => setIsChatOpen(false)}
+              aria-label="Đóng khung chat mascot"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div ref={messagesRef} className="h-64 overflow-y-auto p-3 space-y-2 bg-[var(--bg-primary)]">
+            {messages.map((msg, index) => (
+              <div
+                key={`${msg.role}-${index}`}
+                className={`max-w-[88%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "ml-auto bg-brand-600 text-white"
+                    : "bg-[var(--bg-elevated)] border border-[var(--border-light)] text-[var(--text-primary)]"
+                }`}
+              >
+                {msg.content}
+              </div>
+            ))}
+            {isSending && (
+              <div className="max-w-[88%] rounded-xl px-3 py-2 text-sm border border-[var(--border-light)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
+                Đang trả lời...
+              </div>
+            )}
+          </div>
+
+          <div className="p-3 border-t border-[var(--border-light)] bg-[var(--bg-elevated)]">
+            <div className="flex items-center gap-2">
+              <input
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                onKeyDown={handleInputKeyDown}
+                placeholder="Nhập tin nhắn..."
+                className="flex-1 h-10 px-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-brand-400"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={isSending || !chatInput.trim()}
+                className="w-10 h-10 rounded-lg bg-brand-600 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Gui tin nhan mascot"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`w-32 h-32 drop-shadow-2xl select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMoveMark}
+        onClick={handleMascotClick}
+        role="button"
+        aria-label="Mascot AI có thể kéo thả"
+        tabIndex={0}
+      >
+        <Canvas camera={{ position: [0, 0, 4], fov: 45 }}>
+          <ambientLight intensity={1} />
+          <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
+          <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />
+          <Bot />
+        </Canvas>
+      </div>
     </div>
   );
 }

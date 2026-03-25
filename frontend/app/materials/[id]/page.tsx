@@ -40,10 +40,15 @@ export default function MaterialDetailPage() {
   const [material, setMaterial] = useState<Material | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
+  const [isFullPreview, setIsFullPreview] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
     message: "",
     type: "success",
   });
+
+  const fullText = material?.cleaned_text || material?.raw_text || "";
+  const previewLimit = 1000;
+  const hasMore = fullText.length > previewLimit;
 
   useEffect(() => {
     if (!materialId) return;
@@ -253,15 +258,26 @@ export default function MaterialDetailPage() {
       </Card>
 
       {/* Content Preview */}
-      {(material.cleaned_text || material.raw_text) && (
+      {fullText && (
         <Card>
-          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-[var(--text-tertiary)]" />
-            Nội dung trích xuất
-          </h3>
-          <div className="max-h-64 overflow-auto rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[var(--text-tertiary)]" />
+              Nội dung trích xuất
+            </h3>
+            {hasMore && (
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => setIsFullPreview(!isFullPreview)}
+              >
+                {isFullPreview ? "Thu gọn" : "Xem toàn bộ nội dung"}
+              </Button>
+            )}
+          </div>
+          <div className={`${isFullPreview ? "" : "max-h-64 overflow-auto"} rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] p-4 transition-all duration-300`}>
             <pre className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap font-mono leading-relaxed m-0 bg-transparent border-0 p-0">
-              {(material.cleaned_text || material.raw_text || "").slice(0, 2000)}
+              {isFullPreview ? fullText : fullText.slice(0, previewLimit) + (hasMore ? "..." : "")}
             </pre>
           </div>
         </Card>

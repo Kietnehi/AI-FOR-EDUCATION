@@ -75,6 +75,18 @@ async def ensure_indexes() -> None:
         ]
     )
 
+    await db.mascot_chat_sessions.create_indexes(
+        [
+            IndexModel([("user_id", ASCENDING), ("updated_at", ASCENDING)]),
+        ]
+    )
+
+    await db.mascot_chat_messages.create_indexes(
+        [
+            IndexModel([("session_id", ASCENDING), ("created_at", ASCENDING)]),
+        ]
+    )
+
     await db.game_attempts.create_indexes(
         [
             IndexModel([("user_id", ASCENDING), ("material_id", ASCENDING), ("completed_at", ASCENDING)]),

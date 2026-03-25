@@ -7,7 +7,7 @@ class ChatbotOrchestrator:
         self.retriever = Retriever()
         self.llm = LLMClient()
 
-    def answer(self, material_id: str, question: str) -> dict:
+    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None) -> dict:
         contexts = self.retriever.retrieve(material_id=material_id, query=question)
 
         if not contexts:
@@ -21,9 +21,22 @@ class ChatbotOrchestrator:
         )
         system_prompt = (
             "Bạn là trợ lý dạy học. Chỉ trả lời dựa trên context được cung cấp bằng tiếng Việt có dấu chuẩn xác. "
-            "Nếu thiếu dữ liệu, phải nói rõ là không chắc chắn."
+            "Nếu thiếu dữ liệu, phải nói rõ là không chắc chắn. "
+            "Luôn ưu tiên bám theo mạch hội thoại gần đây nếu có."
         )
-        user_prompt = f"Câu hỏi: {question}\n\nContext:\n{context_text}"
+        history_text = ""
+        if conversation_history:
+            turns: list[str] = []
+            for item in conversation_history:
+                role = "User" if item.get("role") == "user" else "Assistant"
+                message = str(item.get("message", "")).strip()
+                if not message:
+                    continue
+                turns.append(f"{role}: {message[:400]}")
+            if turns:
+                history_text = "\n\nLịch sử hội thoại gần đây:\n" + "\n".join(turns)
+
+        user_prompt = f"Câu hỏi hiện tại: {question}{history_text}\n\nContext:\n{context_text}"
 
         fallback_answer = "Dữ liệu cho thấy: " + contexts[0]["chunk_text"][:300]
         answer = self.llm.text_response(system_prompt, user_prompt, fallback_answer)

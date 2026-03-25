@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
+    mascot_chat_model: str = "openai/gpt-4o-mini"
 
     whisper_model: str = "base"
     whisper_language: str | None = None
@@ -42,6 +43,12 @@ class Settings(BaseSettings):
     chunk_size: int = 2500  # tokens per chunk
     chunk_overlap: int = 500  # tokens overlap
     retrieval_top_k: int = 6
+
+    # Number of latest chat messages injected as conversation memory for RAG chat.
+    chat_memory_turns: int = 8
+
+    # Number of latest mascot chat messages injected as memory.
+    mascot_memory_turns: int = 10
 
     @field_validator("upload_dir", "generated_dir", "chroma_persist_dir")
     @classmethod

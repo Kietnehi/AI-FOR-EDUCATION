@@ -23,6 +23,11 @@ class ChatMessageRequest(BaseModel):
     message: str
 
 
+class MascotChatRequest(BaseModel):
+    message: str
+    session_id: str | None = None
+
+
 class ChatMessageResponse(BaseModel):
     id: str
     session_id: str
@@ -39,3 +44,9 @@ class ChatSessionDetailResponse(BaseModel):
 
 class TranscriptionResponse(BaseModel):
     text: str
+
+
+class MascotChatResponse(BaseModel):
+    message: str
+    model: str
+    session_id: str

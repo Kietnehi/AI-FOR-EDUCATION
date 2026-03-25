@@ -39,6 +39,16 @@ class LLMClient:
         content = self._generate_text(system_prompt, user_prompt, temperature=0.3, force_json=False)
         return content or fallback
 
+    def text_response_openai(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        fallback: str,
+        model: str | None = None,
+    ) -> str:
+        content = self._generate_openai(system_prompt, user_prompt, temperature=0.3, force_json=False, model=model)
+        return content or fallback
+
     def _generate_text(
         self,
         system_prompt: str,
@@ -89,12 +99,13 @@ class LLMClient:
         user_prompt: str,
         temperature: float,
         force_json: bool,
+        model: str | None = None,
     ) -> str | None:
         if not self.openai_client:
             return None
 
         request_payload = {
-            "model": self.openai_model,
+            "model": model or self.openai_model,
             "temperature": temperature,
             "messages": [
                 {"role": "system", "content": system_prompt},

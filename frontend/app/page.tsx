@@ -13,6 +13,7 @@ import {
   FileText,
   Gamepad2,
   Mic,
+  MapPin,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -122,7 +123,7 @@ export default function DashboardPage() {
           const count =
             stat.label === "Học liệu"
               ? materials.length
-              : "—";
+              : 0;
           return (
             <TiltCard key={stat.label}>
               <Card className="!p-4 h-full shadow-sm hover:shadow-md transition-shadow">
@@ -272,6 +273,35 @@ export default function DashboardPage() {
             );
           })}
         </div>
+      </motion.div>
+
+      {/* Geography Location */}
+      <motion.div variants={item}>
+        <div className="flex items-center gap-2 mb-4">
+          <MapPin className="w-5 h-5 text-brand-600" />
+          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+            Vị trí địa lý
+          </h2>
+        </div>
+        <Card className="overflow-hidden !p-0 border-[var(--border-light)] shadow-sm">
+          <div className="p-4 bg-[var(--bg-secondary)] border-b border-[var(--border-light)]">
+            <h3 className="font-semibold text-[var(--text-primary)]">Trường Đại học Sài Gòn</h3>
+            <p className="text-sm text-[var(--text-secondary)]">273 An Dương Vương, Phường 3, Quận 5, Thành phố Hồ Chí Minh</p>
+          </div>
+          <div className="w-full h-[400px] relative">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d9309.215601568438!2d106.67968337575233!3d10.759917089387919!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2sus!4v1774422510403!5m2!1svi!2sus"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen={true}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title="SGU Map"
+              className="grayscale-[0.2] contrast-[1.1]"
+            ></iframe>
+          </div>
+        </Card>
       </motion.div>
     </motion.div>
   );

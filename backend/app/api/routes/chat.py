@@ -13,6 +13,8 @@ from app.schemas.chat import (
     ChatSessionDetailResponse,
     ChatSessionResponse,
     CreateChatSessionRequest,
+    MascotChatRequest,
+    MascotChatResponse,
     TranscriptionResponse,
 )
 from app.services.chat_service import ChatService
@@ -55,6 +57,16 @@ async def send_message(
     service = ChatService(db)
     assistant_message = await service.add_user_message_and_answer(session_id, payload.message)
     return ChatMessageResponse(**assistant_message)
+
+
+@router.post("/chat/mascot/message", response_model=MascotChatResponse)
+async def send_mascot_message(
+    payload: MascotChatRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> MascotChatResponse:
+    service = ChatService(db)
+    response = await service.answer_mascot_no_rag(payload.message, payload.session_id)
+    return MascotChatResponse(**response)
 
 
 @router.post("/chat/transcribe", response_model=TranscriptionResponse)

@@ -1,15 +1,17 @@
 "use client";
 
-import { Search, Moon, Sun, Bell, User } from "lucide-react";
+import { Search, Moon, Sun, Bell, User, Bot } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
+  mascotEnabled: boolean;
+  onToggleMascot: () => void;
 }
 
-export function Topbar({ sidebarCollapsed }: TopbarProps) {
+export function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: TopbarProps) {
   const { theme, toggle } = useTheme();
   const [searchFocused, setSearchFocused] = useState(false);
 
@@ -49,6 +51,22 @@ export function Topbar({ sidebarCollapsed }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        <button
+          onClick={onToggleMascot}
+          className={`
+            w-10 h-10 rounded-xl flex items-center justify-center
+            border transition-all duration-200 cursor-pointer
+            ${mascotEnabled
+              ? "bg-brand-50 border-brand-300 text-brand-600 hover:bg-brand-100"
+              : "bg-transparent border-[var(--border-light)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] hover:border-brand-300"
+            }
+          `}
+          aria-label={mascotEnabled ? "Tắt mascot" : "Bật mascot"}
+          title={mascotEnabled ? "Tắt mascot" : "Bật mascot"}
+        >
+          <Bot className="w-4 h-4" />
+        </button>
+
         {/* Theme toggle */}
         <button
           onClick={toggle}
