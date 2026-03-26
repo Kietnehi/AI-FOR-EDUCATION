@@ -27,52 +27,61 @@ const STT_MODEL_OPTIONS: SttModel[] = [
 
 function Bot() {
   const groupRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
 
   useFrame((state) => {
-    if (!groupRef.current) return;
-    // Simple idle bounce only - no mouse tracking to save CPU
-    groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1;
-    groupRef.current.rotation.y = state.clock.elapsedTime * 0.3;
+    if (!groupRef.current) {
+      return;
+    }
+
+    const targetX = state.pointer.x * 0.5;
+    const targetY = state.pointer.y * 0.5;
+
+    groupRef.current.rotation.y += (targetX - groupRef.current.rotation.y) * 0.1;
+    groupRef.current.rotation.x += (-targetY - groupRef.current.rotation.x) * 0.1;
+
+    const bounceSpeed = hovered ? 5 : 2;
+    groupRef.current.position.y = Math.sin(state.clock.elapsedTime * bounceSpeed) * 0.1;
   });
 
   return (
-    <group ref={groupRef}>
-      <Float floatIntensity={1} speed={2}>
-        <RoundedBox args={[1.2, 1, 1.2]} radius={0.3} smoothness={2}>
-          <meshStandardMaterial color="#e0e7ff" roughness={0.2} metalness={0.5} />
+    <group ref={groupRef} onPointerOver={() => setHovered(true)} onPointerOut={() => setHovered(false)}>
+      <Float floatIntensity={hovered ? 0.5 : 1.5} speed={hovered ? 5 : 2}>
+        <RoundedBox args={[1.2, 1, 1.2]} radius={0.3} smoothness={4}>
+          <meshStandardMaterial color={hovered ? "#fbcfe8" : "#e0e7ff"} roughness={0.2} metalness={0.5} />
         </RoundedBox>
 
-        <RoundedBox args={[0.9, 0.4, 0.1]} position={[0, 0.1, 0.6]} radius={0.1} smoothness={2}>
+        <RoundedBox args={[0.9, 0.4, 0.1]} position={[0, 0.1, 0.6]} radius={0.1} smoothness={4}>
           <meshStandardMaterial color="#1e1b4b" roughness={0.5} />
         </RoundedBox>
 
-        <Sphere args={[0.08, 8, 8]} position={[-0.2, 0.1, 0.65]}>
-          <meshBasicMaterial color="#34d399" />
+        <Sphere args={[0.08, 16, 16]} position={[-0.2, 0.1, 0.65]}>
+          <meshBasicMaterial color={hovered ? "#f472b6" : "#34d399"} />
         </Sphere>
-        <Sphere args={[0.08, 8, 8]} position={[0.2, 0.1, 0.65]}>
-          <meshBasicMaterial color="#34d399" />
+        <Sphere args={[0.08, 16, 16]} position={[0.2, 0.1, 0.65]}>
+          <meshBasicMaterial color={hovered ? "#f472b6" : "#34d399"} />
         </Sphere>
 
         <mesh position={[0, 0.6, 0]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.4, 6]} />
+          <cylinderGeometry args={[0.05, 0.05, 0.4, 8]} />
           <meshStandardMaterial color="#94a3b8" />
         </mesh>
 
-        <Sphere args={[0.15, 8, 8]} position={[0, 0.8, 0]}>
+        <Sphere args={[0.15, 16, 16]} position={[0, 0.8, 0]}>
           <meshStandardMaterial
-            color="#6366f1"
-            emissive="#6366f1"
+            color={hovered ? "#f472b6" : "#6366f1"}
+            emissive={hovered ? "#f472b6" : "#6366f1"}
             emissiveIntensity={0.5}
           />
         </Sphere>
 
         <mesh position={[-0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.2, 0.2, 0.1, 8]} />
+          <cylinderGeometry args={[0.2, 0.2, 0.1, 16]} />
           <meshStandardMaterial color="#818cf8" />
         </mesh>
 
         <mesh position={[0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.2, 0.2, 0.1, 8]} />
+          <cylinderGeometry args={[0.2, 0.2, 0.1, 16]} />
           <meshStandardMaterial color="#818cf8" />
         </mesh>
       </Float>
@@ -178,6 +187,33 @@ export function FloatingMascot() {
     return normalized.slice(start, end);
   };
 
+  const renderHighlightedText = (text: string, progress: number) => {
+    if (!text) return null;
+    const words = text.split(/(\s+)/);
+    const wordsOnly = words.filter(w => w.trim().length > 0);
+    const ratio = Math.min(Math.max(progress, 0), 1);
+    const targetIndex = Math.floor(wordsOnly.length * ratio);
+    
+    let wordCount = 0;
+    return (
+      <span className="whitespace-pre-wrap leading-relaxed text-[13px]">
+        {words.map((w, i) => {
+          if (w.trim().length === 0) return <span key={i}>{w}</span>;
+          const isHighlighted = wordCount === targetIndex;
+          wordCount++;
+          return (
+            <span
+              key={i}
+              className={isHighlighted ? "bg-brand-500/30 text-brand-700 dark:text-brand-300 rounded px-[2px] transition-all duration-200" : ""}
+            >
+              {w}
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
+
   useEffect(() => {
     const initialX = Math.max(viewportPadding, window.innerWidth - mascotSize - 24);
     const initialY = Math.max(viewportPadding, window.innerHeight - mascotSize - 24);
@@ -189,7 +225,7 @@ export function FloatingMascot() {
       return;
     }
 
-    const handleMouseMove = (event: MouseEvent) => {
+    const handlePointerMove = (event: PointerEvent) => {
       if (isDragging) {
         const maxX = Math.max(viewportPadding, window.innerWidth - mascotSize - viewportPadding);
         const maxY = Math.max(viewportPadding, window.innerHeight - mascotSize - viewportPadding);
@@ -234,17 +270,17 @@ export function FloatingMascot() {
       }
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setIsDragging(false);
       setIsResizing(false);
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [isDragging, isResizing]);
 
@@ -310,7 +346,10 @@ export function FloatingMascot() {
     ttsAudioRef.current.play().catch(() => undefined);
   }, [ttsAudioUrl]);
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    // Only capture left click
+    if (event.button !== 0) return;
+    
     setIsDragging(true);
     hasMovedRef.current = false;
     dragStartRef.current = { x: event.clientX, y: event.clientY };
@@ -318,9 +357,11 @@ export function FloatingMascot() {
       x: event.clientX - position.x,
       y: event.clientY - position.y,
     };
+    // Capture pointer to ensure we don't lose drag if moving over iframe or outside window
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handleMouseMoveMark = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerMoveMark = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) {
       return;
     }
@@ -331,7 +372,7 @@ export function FloatingMascot() {
     }
   };
 
-  const handleResizeMouseDown = (event: React.MouseEvent<HTMLDivElement>, corner: "tl" | "tr" | "bl" | "br") => {
+  const handleResizePointerDown = (event: React.PointerEvent<HTMLDivElement>, corner: "tl" | "tr" | "bl" | "br") => {
     event.stopPropagation();
     setIsResizing(true);
     resizeStartRef.current = {
@@ -771,9 +812,9 @@ export function FloatingMascot() {
                         className="mt-1 w-full accent-brand-600"
                         aria-label="Thanh tua âm thanh"
                       />
-                      <p className="mt-1 text-[11px] text-[var(--text-tertiary)] line-clamp-1">
-                        Đoạn đang đọc: {getApproxReadingSegment(ttsActiveText, ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0)}
-                      </p>
+                      <div className="mt-2 max-h-32 overflow-y-auto rounded-lg border border-brand-200/50 bg-white/60 dark:bg-black/20 p-2 text-left">
+                        {renderHighlightedText(ttsActiveText, ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0)}
+                      </div>
                     </>
                   )}
                 </div>
@@ -867,56 +908,58 @@ export function FloatingMascot() {
           {/* Resize handles - 4 corners */}
           {/* Top-left */}
           <div
-            onMouseDown={(e) => handleResizeMouseDown(e, "tl")}
+            onPointerDown={(e) => handleResizePointerDown(e, "tl")}
             className={`absolute -top-2 -left-2 w-5 h-5 cursor-nwse-resize transition-all rounded-tl-xl ${
               isResizing ? "bg-brand-400 opacity-100" : "opacity-30 hover:opacity-80 hover:bg-brand-300"
             }`}
-            style={{ background: "linear-gradient(315deg, transparent 50%, #6366f1 50%)", zIndex: 20 }}
+            style={{ background: "linear-gradient(315deg, transparent 50%, #6366f1 50%)", zIndex: 20, touchAction: 'none' }}
             title="Kéo để thay đổi kích thước"
           />
           {/* Top-right */}
           <div
-            onMouseDown={(e) => handleResizeMouseDown(e, "tr")}
+            onPointerDown={(e) => handleResizePointerDown(e, "tr")}
             className={`absolute -top-2 -right-2 w-5 h-5 cursor-nesw-resize transition-all rounded-tr-xl ${
               isResizing ? "bg-brand-400 opacity-100" : "opacity-30 hover:opacity-80 hover:bg-brand-300"
             }`}
-            style={{ background: "linear-gradient(225deg, transparent 50%, #6366f1 50%)", zIndex: 20 }}
+            style={{ background: "linear-gradient(225deg, transparent 50%, #6366f1 50%)", zIndex: 20, touchAction: 'none' }}
             title="Kéo để thay đổi kích thước"
           />
           {/* Bottom-left */}
           <div
-            onMouseDown={(e) => handleResizeMouseDown(e, "bl")}
+            onPointerDown={(e) => handleResizePointerDown(e, "bl")}
             className={`absolute -bottom-2 -left-2 w-5 h-5 cursor-nesw-resize transition-all rounded-bl-xl ${
               isResizing ? "bg-brand-400 opacity-100" : "opacity-30 hover:opacity-80 hover:bg-brand-300"
             }`}
-            style={{ background: "linear-gradient(45deg, transparent 50%, #6366f1 50%)", zIndex: 20 }}
+            style={{ background: "linear-gradient(45deg, transparent 50%, #6366f1 50%)", zIndex: 20, touchAction: 'none' }}
             title="Kéo để thay đổi kích thước"
           />
           {/* Bottom-right */}
           <div
-            onMouseDown={(e) => handleResizeMouseDown(e, "br")}
+            onPointerDown={(e) => handleResizePointerDown(e, "br")}
             className={`absolute -bottom-2 -right-2 w-5 h-5 cursor-nwse-resize transition-all rounded-br-xl ${
               isResizing ? "bg-brand-400 opacity-100" : "opacity-30 hover:opacity-80 hover:bg-brand-300"
             }`}
-            style={{ background: "linear-gradient(135deg, transparent 50%, #6366f1 50%)", zIndex: 20 }}
+            style={{ background: "linear-gradient(135deg, transparent 50%, #6366f1 50%)", zIndex: 20, touchAction: 'none' }}
             title="Kéo để thay đổi kích thước"
           />
         </div>
       )}
 
-      {/* The Mascot */}
+          {/* The Mascot */}
       <div
-        className={`relative w-32 h-32 select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
-        onMouseDown={handleMouseDown}
+        className={`relative w-32 h-32 select-none ${isDragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none"}`}
+        onPointerDown={handlePointerDown}
         onClick={handleMascotClick}
-        onMouseMove={handleMouseMoveMark}
+        onPointerMove={handlePointerMoveMark}
         role="button"
         aria-label="Mascot AI có thể kéo thả"
         tabIndex={0}
       >
-        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={[1, 1.25]} performance={{ min: 0.5 }}>
+        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={[1, 1.25]} performance={{ min: 0.5 }}
+          style={{ pointerEvents: 'none' }}>
           <ambientLight intensity={1} />
           <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
+          <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />
           <Bot />
          </Canvas>
        </div>
