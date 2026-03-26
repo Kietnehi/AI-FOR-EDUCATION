@@ -97,12 +97,22 @@ export default function SlidesPage() {
         <>
           {/* Info bar */}
           <Card className="!p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Badge status={content.generation_status} />
                 <span className="text-sm text-[var(--text-tertiary)]">
                   Phiên bản v{content.version}
                 </span>
+                {content.model_used && (
+                  <span className="text-sm text-[var(--text-tertiary)]">
+                    Model: {content.model_used}
+                  </span>
+                )}
+                {content.fallback_applied && (
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    {`Đã chuyển sang model dự phòng: ${content.model_used || "không xác định"}`}
+                  </span>
+                )}
               </div>
               <span className="text-sm text-[var(--text-tertiary)]">
                 {slides.length} slides

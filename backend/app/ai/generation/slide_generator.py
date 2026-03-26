@@ -21,7 +21,7 @@ class SlideGenerator:
         }
         system_prompt = "Bạn là AI tạo nội dung chuẩn. Bắt buộc trả về tiếng Việt có dấu chuẩn xác (Vietnamese with diacritics). Output JSON with title and slides."
         user_prompt = (
-            f"Tao toi da {max_slides} slides tu noi dung sau. Moi slide co type,title,bullets(3-5 y).\n\n{context[:12000]}"
+            f"Tạo tối đa {max_slides} slide từ nội dung sau. Mỗi slide có type, title, bullets (3-5 ý).\n\n{context[:12000]}"
         )
         result = self.llm.json_response(system_prompt, user_prompt, fallback)
         slides = result.get("slides", fallback["slides"])

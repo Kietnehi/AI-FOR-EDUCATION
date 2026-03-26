@@ -129,6 +129,33 @@ export default function MinigamePage() {
                   Lựa chọn cách học tập phù hợp với bạn
                 </p>
               </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Question Cards */}
+      {items.length > 0 && (
+        <div className="space-y-4">
+          {content && (
+            <Card className="!p-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge status={content.generation_status} />
+                <span className="text-sm text-[var(--text-tertiary)]">Phiên bản v{content.version}</span>
+                {content.model_used && (
+                  <span className="text-sm text-[var(--text-tertiary)]">Model: {content.model_used}</span>
+                )}
+                {content.fallback_applied && (
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    {`Đã chuyển sang model dự phòng: ${content.model_used || "không xác định"}`}
+                  </span>
+                )}
+              </div>
+            </Card>
+          )}
+          {items.map((item: any, idx: number) => {
+            const feedback = result?.feedback?.find((f: any) => f.id === item.id);
+            const isCorrect = feedback?.correct;
 
               <div className="grid sm:grid-cols-3 gap-4">
                 {(
