@@ -89,8 +89,10 @@ export default function MinigamePage() {
     },
   };
 
+  const MotionDiv = motion.div;
+
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
@@ -290,6 +292,6 @@ export default function MinigamePage() {
           }
         />
       )}
-    </motion.div>
+    </MotionDiv>
   );
 }

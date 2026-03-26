@@ -81,8 +81,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main-content"
           style={{ 
-            paddingLeft: sidebarCollapsed ? 72 : 260,
-            transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+            paddingLeft: sidebarCollapsed ? 80 : 280,
+            transition: "padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
           }}
           className="pt-16 min-h-screen"
         >
