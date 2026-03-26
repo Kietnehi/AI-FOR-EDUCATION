@@ -40,6 +40,10 @@ class Settings(BaseSettings):
 
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
+    notebooklm_documents_dir: str = "./storage/notebooklm/documents"
+    notebooklm_user_data_dir: str = "./storage/notebooklm/chrome-profile"
+    notebooklm_generate_wait_seconds: int = 120
+    notebooklm_headless: bool = False
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
@@ -55,7 +59,13 @@ class Settings(BaseSettings):
     # Number of latest mascot chat messages injected as memory.
     mascot_memory_turns: int = 10
 
-    @field_validator("upload_dir", "generated_dir", "chroma_persist_dir")
+    @field_validator(
+        "upload_dir",
+        "generated_dir",
+        "chroma_persist_dir",
+        "notebooklm_documents_dir",
+        "notebooklm_user_data_dir",
+    )
     @classmethod
     def ensure_dirs(cls, value: str) -> str:
         Path(value).mkdir(parents=True, exist_ok=True)

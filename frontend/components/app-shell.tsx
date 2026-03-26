@@ -14,6 +14,7 @@ const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").t
 export function AppShell({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mascotEnabled, setMascotEnabled] = useState(true);
+  const [shouldRenderMascot, setShouldRenderMascot] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("mascot-enabled");
@@ -21,6 +22,34 @@ export function AppShell({ children }: { children: ReactNode }) {
       setMascotEnabled(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!mascotEnabled) {
+      setShouldRenderMascot(false);
+      return;
+    }
+
+    let cancelled = false;
+    const scheduleRender = () => {
+      if (!cancelled) {
+        setShouldRenderMascot(true);
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(scheduleRender, { timeout: 1200 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timeoutId = globalThis.setTimeout(scheduleRender, 300);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [mascotEnabled]);
 
   const handleToggleMascot = () => {
     const next = !mascotEnabled;
@@ -51,11 +80,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main
           id="main-content"
-          style={{
-            paddingLeft: sidebarCollapsed ? 80 : 280,
-            transition: "padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          style={{ 
+            paddingLeft: sidebarCollapsed ? 72 : 260,
+            transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
           }}
-          className="pt-24 min-h-screen"
+          className="pt-16 min-h-screen"
         >
           <div className="max-w-[1400px] mx-auto px-6 sm:px-8 py-8 relative">
             {children}
@@ -63,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
         
         {/* Floating AI Mascot */}
-        {mascotEnabled && <FloatingMascot />}
+        {mascotEnabled && shouldRenderMascot && <FloatingMascot />}
       </div>
     </ThemeProvider>
   );

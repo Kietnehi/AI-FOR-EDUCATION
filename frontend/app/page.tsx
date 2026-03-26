@@ -68,33 +68,20 @@ function LazyMap() {
     return () => observer.disconnect();
   }, []);
 
-  return (
-    <div ref={ref} className="w-full h-[250px] relative rounded-2xl overflow-hidden mt-6 shadow-sm border border-[var(--border-light)]">
-      {show ? (
-        <iframe
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d9309.215601568438!2d106.67968337575233!3d10.759917089387919!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2sus!4v1774422510403!5m2!1svi!2sus"
-          width="100%"
-          height="100%"
-          style={{ border: 0 }}
-          allowFullScreen={true}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          title="SGU Map"
-          className="grayscale-[0.2] contrast-[1.1]"
-        />
-      ) : (
-        <div className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center">
-          <MapPin className="w-8 h-8 text-[var(--text-tertiary)] animate-pulse" />
-        </div>
-      )}
-    </div>
-  );
-}
+const DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN");
+
+const statCards = [
+  { label: "Học liệu", icon: BookOpen, color: "from-brand-500 to-brand-600" },
+  { label: "Slide đã tạo", icon: FileText, color: "from-accent-500 to-accent-600" },
+  { label: "Podcast", icon: Mic, color: "from-emerald-500 to-emerald-600" },
+  { label: "Minigame", icon: Gamepad2, color: "from-amber-500 to-amber-600" },
+];
 
 export default function DashboardPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showVisualizer, setShowVisualizer] = useState(false);
 
   useEffect(() => {
     listMaterials()
@@ -103,22 +90,52 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const enableVisualizer = () => {
+      if (!cancelled) {
+        setShowVisualizer(true);
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(enableVisualizer, { timeout: 1500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timeoutId = globalThis.setTimeout(enableVisualizer, 400);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, []);
+
   return (
-    <div className="flex flex-col xl:flex-row gap-8 animate-fade-in-up pb-10">
-      
-      {/* LEFT COLUMN - Main Content */}
-      <div className="flex-1 space-y-8 min-w-0">
-        
-        {/* Banner Section */}
-        <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-brand-500 to-accent-400 p-10 sm:p-12 text-white shadow-brand">
-          {/* Subtle Sparkles Graphics */}
-          <Sparkles className="absolute top-8 right-32 w-24 h-24 text-white opacity-20" />
-          <Sparkles className="absolute bottom-10 right-10 w-48 h-48 text-white opacity-10" />
-          <Sparkles className="absolute top-20 right-[40%] w-10 h-10 text-white opacity-40" />
-          
-          <div className="relative z-10 max-w-xl">
-            <div className="uppercase tracking-widest text-[11px] font-bold text-white/80 mb-4">
-              AI Learning Studio
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-8"
+    >
+      {/* Hero Section */}
+      <motion.div variants={item}>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-accent-600 to-brand-700 p-8 sm:p-10 text-white min-h-[400px] flex flex-col justify-center">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent-400/20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl pointer-events-none" />
+
+          {/* 3D Visualizer Background */}
+          <div className="absolute top-0 right-0 bottom-0 w-full sm:w-2/3 lg:w-1/2 min-h-[300px]">
+             {showVisualizer ? <AIVisualizer /> : null}
+          </div>
+
+          <div className="relative z-10 max-w-xl pointer-events-none">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm text-sm font-medium mb-4 pointer-events-auto">
+              <Sparkles className="w-4 h-4" />
+              AI-Powered Learning
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-bold leading-[1.2] mb-8" style={{ fontFamily: "var(--font-display)" }}>
               Sharpen Your Skills With<br/>
@@ -219,10 +236,30 @@ export default function DashboardPage() {
                       </div>
 
                       <Badge status={material.processing_status} />
-                      
-                      <h3 className="text-[15px] font-bold text-[var(--text-primary)] mt-3 mb-4 line-clamp-2 leading-snug group-hover:text-brand-600 transition-colors">
-                        {material.title}
-                      </h3>
+                    </div>
+                    <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1 line-clamp-1">
+                      {material.title}
+                    </h3>
+                    <p className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-2">
+                      {material.description || "Không có mô tả"}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                      {material.subject && (
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] font-medium">
+                          {material.subject}
+                        </span>
+                      )}
+                      <span className="ml-auto">
+                        {DATE_FORMATTER.format(new Date(material.updated_at))}
+                      </span>
+                    </div>
+                  </Card>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
 
                       {/* Progress Bar Mockup */}
                       <div className="w-full h-1.5 bg-[var(--bg-secondary)] rounded-full mb-4 overflow-hidden">
@@ -241,12 +278,13 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                    </div>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Geography Location */}
+      <motion.div variants={item} className="content-auto">
+        <div className="flex items-center gap-2 mb-4">
+          <MapPin className="w-5 h-5 text-brand-600" />
+          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+            Vị trí địa lý
+          </h2>
         </div>
       </div>
 
@@ -283,19 +321,78 @@ export default function DashboardPage() {
              </button>
           </div>
 
-          <LazyMap />
+      {/* Cooperation Contact */}
+      <motion.div variants={item} className="content-auto">
+        <div className="flex items-center gap-2 mb-4">
+          <GithubIcon className="w-5 h-5 text-brand-600" />
+          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+            Liên hệ hợp tác
+          </h2>
         </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            {
+              name: "Kietnehi",
+              username: "Kietnehi",
+              role: "Developer",
+              gradient: "from-brand-500 to-brand-600",
+            },
+            {
+              name: "ductoanoxo",
+              username: "ductoanoxo",
+              role: "Developer",
+              gradient: "from-accent-500 to-accent-600",
+            },
+            {
+              name: "phatle224",
+              username: "phatle224",
+              role: "Developer",
+              gradient: "from-emerald-500 to-emerald-600",
+            },
+          ].map((contact) => (
+            <a key={contact.username} href={`https://github.com/${contact.username}`} target="_blank" rel="noopener noreferrer" className="no-underline">
+              <Card hover className="group flex flex-col items-center justify-center p-6 text-center h-full">
+                {/* Avatar with gradient border */}
+                <div className={`relative w-24 h-24 rounded-full bg-gradient-to-br ${contact.gradient} p-1 mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`https://github.com/${contact.username}.png`} 
+                    alt={contact.username} 
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-900"
+                  />
+                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-gray-700">
+                    <GithubIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  </div>
+                </div>
+                
+                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">
+                  {contact.name}
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] font-medium mb-4">
+                  {contact.role}
+                </p>
 
-        {/* Your Mentor (Cooperation Contacts Wrapper) */}
-        <div>
-          <div className="flex items-center justify-between mb-6 px-1">
-            <h3 className="font-bold text-lg text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-              Liên hệ hợp tác
-            </h3>
-            <button className="w-8 h-8 rounded-full border border-[var(--border-light)] bg-white flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
-              <Sparkles className="w-4 h-4" />
-            </button>
-          </div>
+                {/* Shields.io badges like README */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4 w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`https://img.shields.io/github/followers/${contact.username}?style=social`} 
+                    alt="Followers" 
+                    loading="lazy"
+                    decoding="async"
+                    className="h-6 object-contain"
+                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`} 
+                    alt="Stars" 
+                    loading="lazy"
+                    decoding="async"
+                    className="h-6 object-contain"
+                  />
+                </div>
 
           <div className="bg-[var(--bg-elevated)] rounded-[32px] p-6 shadow-sm border border-[var(--border-light)] flex flex-col gap-5">
             {[

@@ -28,7 +28,17 @@ class ChatRepository:
         created = await self.message_collection.find_one({"_id": result.inserted_id})
         return serialize_document(created) or {}
 
-    async def list_messages(self, session_id: str) -> list[dict]:
+    async def list_messages(self, session_id: str, limit: int | None = None) -> list[dict]:
+        if limit and limit > 0:
+            cursor = (
+                self.message_collection.find({"session_id": session_id})
+                .sort("created_at", -1)
+                .limit(limit)
+            )
+            items = [serialize_document(doc) async for doc in cursor]
+            # Return ascending order to preserve existing conversation formatting.
+            return [item for item in reversed(items) if item]
+
         cursor = self.message_collection.find({"session_id": session_id}).sort("created_at", 1)
         items = [serialize_document(doc) async for doc in cursor]
         return [item for item in items if item]
@@ -50,7 +60,18 @@ class ChatRepository:
         created = await self.mascot_message_collection.find_one({"_id": result.inserted_id})
         return serialize_document(created) or {}
 
-    async def list_mascot_messages(self, session_id: str) -> list[dict]:
+    async def list_mascot_messages(
+        self, session_id: str, limit: int | None = None
+    ) -> list[dict]:
+        if limit and limit > 0:
+            cursor = (
+                self.mascot_message_collection.find({"session_id": session_id})
+                .sort("created_at", -1)
+                .limit(limit)
+            )
+            items = [serialize_document(doc) async for doc in cursor]
+            return [item for item in reversed(items) if item]
+
         cursor = self.mascot_message_collection.find({"session_id": session_id}).sort("created_at", 1)
         items = [serialize_document(doc) async for doc in cursor]
         return [item for item in items if item]

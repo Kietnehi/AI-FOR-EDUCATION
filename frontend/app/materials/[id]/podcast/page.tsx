@@ -102,6 +102,16 @@ export default function PodcastPage() {
                       <Clock className="w-4 h-4 text-accent-500" />
                       <span className="font-medium">{segments.length} đoạn hội thoại</span>
                     </div>
+                    {content.model_used && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-secondary)] shadow-sm">
+                        <span className="font-medium">Model: {content.model_used}</span>
+                      </div>
+                    )}
+                    {content.fallback_applied && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-100 px-3 py-1.5 text-amber-700 shadow-sm">
+                        {`Đã chuyển sang model dự phòng: ${content.model_used || "không xác định"}`}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

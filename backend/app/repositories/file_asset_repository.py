@@ -10,8 +10,7 @@ class FileAssetRepository:
 
     async def create(self, payload: dict) -> dict:
         result = await self.collection.insert_one(payload)
-        created = await self.collection.find_one({"_id": result.inserted_id})
-        return serialize_document(created) or {}
+        return serialize_document({"_id": result.inserted_id, **payload}) or {}
 
     async def get_by_id(self, file_id: ObjectId) -> dict | None:
         return serialize_document(await self.collection.find_one({"_id": file_id}))

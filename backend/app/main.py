@@ -1,7 +1,12 @@
+import asyncio
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import ORJSONResponse
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -9,8 +14,17 @@ from app.core.logging import configure_logging, logger
 from app.db.mongo import close_mongo, connect_mongo, ensure_indexes
 
 
+if sys.platform.startswith("win"):
+    # Playwright async API needs subprocess support, which requires Proactor loop on Windows.
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Optimize ThreadPool for AI/Blocking tasks
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
+    
     configure_logging()
     await connect_mongo()
     await ensure_indexes()
@@ -24,6 +38,7 @@ app = FastAPI(
     title="AI Learning Content Platform API",
     version="0.1.0",
     lifespan=lifespan,
+    default_response_class=ORJSONResponse,
 )
 
 app.add_middleware(
@@ -33,6 +48,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(api_router, prefix="/api")
 
