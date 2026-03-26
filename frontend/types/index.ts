@@ -28,9 +28,53 @@ export type GeneratedContent = {
   json_content: Record<string, any>;
   file_url?: string;
   generation_status: "queued" | "generating" | "generated" | "failed";
+  model_used?: string | null;
+  fallback_applied?: boolean;
   created_at: string;
   updated_at: string;
 };
+
+export type NotebookLMMediaFile = {
+  file_name: string;
+  file_url: string;
+};
+
+export type NotebookLMMediaResult = {
+  status: "generation_complete";
+  session_id: string;
+  material_id?: string | null;
+  prompt: string;
+  notebook_title?: string;
+  message: string;
+};
+
+export type NotebookLMConfirmationResult = {
+  status: "awaiting_confirmation";
+  material_id?: string | null;
+  prompt: string;
+  message: string;
+  estimated_duration_seconds: number;
+};
+
+export type NotebookLMArtifactConfirmationResult = {
+  status: "awaiting_artifact_confirmation";
+  session_id: string;
+  material_id?: string | null;
+  prompt: string;
+  notebook_title?: string;
+  message: string;
+};
+
+export type NotebookLMSavedResult = {
+  session_id: string;
+  videos: NotebookLMMediaFile[];
+  infographics: NotebookLMMediaFile[];
+};
+
+export type NotebookLMResponse =
+  | NotebookLMMediaResult
+  | NotebookLMConfirmationResult
+  | NotebookLMArtifactConfirmationResult;
 
 export type ChatSession = {
   id: string;
@@ -65,3 +109,9 @@ export type MascotChatResponse = {
   model_used?: string | null;
   fallback_applied?: boolean;
 };
+
+export type SttModel =
+  | "local-base"
+  | "local-small"
+  | "whisper-large-v3"
+  | "whisper-large-v3-turbo";

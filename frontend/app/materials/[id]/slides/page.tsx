@@ -259,8 +259,8 @@ export default function SlidesPage() {
         <>
           {/* Info bar */}
           <Card className="!p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Badge status={content.generation_status} />
                 <span className="text-sm text-[var(--text-tertiary)]">
                   Phiên bản v{content.version}
