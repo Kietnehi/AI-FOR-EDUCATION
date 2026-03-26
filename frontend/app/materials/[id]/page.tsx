@@ -58,17 +58,14 @@ export default function MaterialDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
   const [isFullPreview, setIsFullPreview] = useState(false);
-<<<<<<< HEAD
   const [showSlideDialog, setShowSlideDialog] = useState(false);
   const [slideProgress, setSlideProgress] = useState(0);
-=======
   const [notebookArtifactPending, setNotebookArtifactPending] = useState<NotebookLMArtifactConfirmationResult | null>(null);
   const [notebookGenerated, setNotebookGenerated] = useState<NotebookLMMediaResult | null>(null);
   const [isArtifactGenerating, setIsArtifactGenerating] = useState(false);
   const [notebookSaved, setNotebookSaved] = useState<NotebookLMSavedResult | null>(null);
   const [notebookConfirmation, setNotebookConfirmation] = useState<NotebookLMConfirmationResult | null>(null);
   const [selectedInfographic, setSelectedInfographic] = useState<{ file_name: string; file_url: string } | null>(null);
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
     message: "",
     type: "success",
@@ -143,8 +140,15 @@ export default function MaterialDetailPage() {
     setBusyAction(type);
     try {
       let generated;
-      if (type === "podcast") generated = await generatePodcast(materialId);
-      else generated = await generateMinigame(materialId);
+      if (type === "slides") generated = await generateSlides(materialId);
+      else if (type === "podcast") generated = await generatePodcast(materialId);
+      else {
+        // Minigame: navigate to minigame page without contentId
+        // User will select game type there
+        router.push(`/materials/${materialId}/minigame`);
+        setBusyAction("");
+        return;
+      }
 
       router.push(`/materials/${materialId}/${type}?contentId=${generated.id}`);
     } catch (error) {
@@ -154,7 +158,6 @@ export default function MaterialDetailPage() {
     }
   }
 
-<<<<<<< HEAD
   async function handleGenerateSlides(maxSlides: number, skipRefine: boolean) {
     setBusyAction("slides");
     setSlideProgress(0);
@@ -181,7 +184,6 @@ export default function MaterialDetailPage() {
     } catch (error) {
       clearInterval(progressInterval);
       setSlideProgress(0);
-=======
   async function handleGenerateNotebookMedia(confirm: boolean = false) {
     setBusyAction("notebooklm");
     try {
@@ -292,7 +294,6 @@ export default function MaterialDetailPage() {
       setIsArtifactGenerating(false);
       setToast({ message: "Đã hủy session và đóng browser", type: "info" });
     } catch (error) {
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
       setToast({ message: String(error), type: "error" });
     } finally {
       setBusyAction("");
@@ -709,7 +710,6 @@ export default function MaterialDetailPage() {
         </Card>
       )}
 
-<<<<<<< HEAD
       <Toast
         message={toast.message}
         type={toast.type}
@@ -728,8 +728,6 @@ export default function MaterialDetailPage() {
         loading={busyAction === "slides"}
         progress={slideProgress}
       />
-=======
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
     </motion.div>
   );
 }

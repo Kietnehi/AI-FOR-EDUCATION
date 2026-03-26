@@ -219,12 +219,6 @@ class GenerationService:
         return await self.generated_repo.create(doc)
 
     async def generate_podcast(self, material_id: str, style: str, target_duration_minutes: int) -> dict:
-<<<<<<< HEAD
-        material = await self._prepare_material(material_id)
-        text = self._get_material_text(material)
-        script = self.podcast_generator.generate_script(text, style=style, target_duration_minutes=target_duration_minutes)
-        version = await self._next_version(material_id, "podcast")
-=======
         text = await self._prepare_material_text(material_id)
         script, version = await asyncio.gather(
             asyncio.to_thread(
@@ -237,7 +231,6 @@ class GenerationService:
         )
         model_used = self.podcast_generator.llm.last_model_used
         fallback_applied = self.podcast_generator.llm.fallback_used
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
 
         # Generate audio file from podcast segments
         audio_filename = f"podcast_{material_id}_v{version}"
@@ -274,13 +267,6 @@ class GenerationService:
         }
         return await self.generated_repo.create(doc)
 
-    async def generate_minigame(self, material_id: str, game_types: list[str]) -> dict:
-<<<<<<< HEAD
-        material = await self._prepare_material(material_id)
-        text = self._get_material_text(material)
-        game_payload = self.minigame_generator.generate(text, game_types=game_types)
-        version = await self._next_version(material_id, "minigame")
-=======
         text = await self._prepare_material_text(material_id)
         game_payload, version = await asyncio.gather(
             asyncio.to_thread(
@@ -292,14 +278,24 @@ class GenerationService:
         )
         model_used = self.minigame_generator.llm.last_model_used
         fallback_applied = self.minigame_generator.llm.fallback_used
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
 
+    async def generate_minigame(self, material_id: str, game_type: str = "quiz_mixed") -> dict:
+        text = await self._prepare_material_text(material_id)
+        game_payload = self.minigame_generator.generate(text, game_type=game_type)
+        version = await self._next_version(material_id, "minigame")
+
+        # Extract outline based on game type
+        if game_type == "scenario_branching":
+            outline = [s.get("title", "") for s in game_payload.get("scenarios", [])]
+        else:
+            outline = [game_payload.get("title", "")]
         now = utc_now()
         doc = {
             "material_id": material_id,
             "content_type": "minigame",
+            "game_type": game_type,
             "version": version,
-            "outline": [game.get("title", "") for game in game_payload.get("games", [])],
+            "outline": outline,
             "json_content": game_payload,
             "file_url": None,
             "generation_status": "generated",
