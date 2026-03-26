@@ -27,7 +27,7 @@ import { ChatSkeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
 import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
 import { markdownToPlainText } from "@/lib/tts";
-import { ChatMessage } from "@/types";
+import type { ChatMessage, SttModel } from "@/types";
 
 const EMPTY_CHAT_SUGGESTIONS = [
   "Tóm tắt nội dung chính",
@@ -172,7 +172,7 @@ export default function ChatbotPage() {
   const [ttsDuration, setTtsDuration] = useState(0);
   const [ttsActiveText, setTtsActiveText] = useState("");
    const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
-   const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
+   const [sttModel, setSttModel] = useState<SttModel>("local-base");
    const [selectedImage, setSelectedImage] = useState<string | null>(null);
    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
    const [initializing, setInitializing] = useState(true);
@@ -739,7 +739,7 @@ export default function ChatbotPage() {
               <label className="text-xs text-[var(--text-tertiary)] mr-2">Model STT</label>
             <select
               value={sttModel}
-              onChange={(e) => setSttModel(e.target.value as "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo")}
+              onChange={(e) => setSttModel(e.target.value as SttModel)}
               disabled={isRecording || isTranscribing}
               className="
                 text-xs rounded-lg px-2.5 py-1.5
@@ -750,6 +750,7 @@ export default function ChatbotPage() {
               "
             >
               <option value="local-base">Local - Whisper base</option>
+              <option value="local-small">Local - Whisper small</option>
               <option value="whisper-large-v3">Groq - whisper-large-v3</option>
               <option value="whisper-large-v3-turbo">Groq - whisper-large-v3-turbo</option>
             </select>
