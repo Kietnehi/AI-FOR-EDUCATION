@@ -24,6 +24,10 @@ from app.services.speech_service import SpeechToTextService
 from app.services.tts_service import TextToSpeechService
 
 router = APIRouter()
+LOCAL_WHISPER_MODELS = {
+    "local-base": "base",
+    "local-small": "small",
+}
 
 
 @router.post("/chat/{material_id}/session", response_model=ChatSessionResponse)
@@ -89,8 +93,9 @@ async def transcribe_audio(
             temp_file.write(await file.read())
 
         whisper_language = language or settings.whisper_language
-        if stt_model == "local-base":
-            service = SpeechToTextService(settings.whisper_model)
+        local_whisper_model = LOCAL_WHISPER_MODELS.get(stt_model)
+        if local_whisper_model:
+            service = SpeechToTextService(local_whisper_model)
             text = await asyncio.to_thread(service.transcribe_file, temp_path, whisper_language)
         elif stt_model in {"whisper-large-v3", "whisper-large-v3-turbo"}:
             if not settings.groq_api_key:

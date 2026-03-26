@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -8,7 +10,6 @@ from app.repositories.chat_repository import ChatRepository
 from app.services.material_service import MaterialService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
-
 
 class ChatService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
@@ -58,10 +59,13 @@ class ChatService:
         )
 
         # Keep recent exchanges as memory so multi-turn questions preserve context.
-        all_messages = await self.chat_repo.list_messages(session_id)
-        memory_messages = all_messages[-settings.chat_memory_turns :]
+        memory_messages = await self.chat_repo.list_messages(
+            session_id, limit=settings.chat_memory_turns
+        )
 
-        result = self.orchestrator.answer(
+        # Run blocking retrieval + LLM call off the event loop.
+        result = await asyncio.to_thread(
+            self.orchestrator.answer,
             session["material_id"],
             message,
             conversation_history=memory_messages,
@@ -126,8 +130,9 @@ class ChatService:
             }
         )
 
-        all_messages = await self.chat_repo.list_mascot_messages(mascot_session_id)
-        memory_messages = all_messages[-settings.mascot_memory_turns :]
+        memory_messages = await self.chat_repo.list_mascot_messages(
+            mascot_session_id, limit=settings.mascot_memory_turns
+        )
         memory_lines: list[str] = []
         for item in memory_messages:
             role = "Người dùng" if item.get("role") == "user" else "Trợ lý"
@@ -146,7 +151,8 @@ class ChatService:
         if memory_text:
             user_prompt = f"Lịch sử hội thoại gần đây:\n{memory_text}\n\nTin nhắn hiện tại: {message}"
 
-        answer = self.llm_client.text_response_openai(
+        answer = await asyncio.to_thread(
+            self.llm_client.text_response_openai,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             fallback=fallback,

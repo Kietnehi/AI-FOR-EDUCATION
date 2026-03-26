@@ -3,7 +3,7 @@
 import { Search, Moon, Sun, Bell, User, Bot } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, memo } from "react";
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
@@ -11,15 +11,16 @@ interface TopbarProps {
   onToggleMascot: () => void;
 }
 
-export function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: TopbarProps) {
+export const Topbar = memo(function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: TopbarProps) {
   const { theme, toggle } = useTheme();
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
-    <motion.header
-      initial={false}
-      animate={{ paddingLeft: sidebarCollapsed ? 72 : 260 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    <header
+      style={{ 
+        paddingLeft: sidebarCollapsed ? 72 : 260,
+        transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+      }}
       className="
         fixed top-0 right-0 left-0 z-30 h-16
         flex items-center gap-4 px-6
@@ -118,6 +119,6 @@ export function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: Topb
           <User className="w-4 h-4" />
         </button>
       </div>
-    </motion.header>
+    </header>
   );
-}
+});

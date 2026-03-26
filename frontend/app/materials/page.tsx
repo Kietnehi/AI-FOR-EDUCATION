@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { useDeferredValue, useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Search, Filter, Upload, ArrowRight, Trash2 } from "lucide-react";
 
@@ -24,6 +24,7 @@ export default function MaterialsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bạn có chắc chắn muốn xóa học liệu này không?")) {
@@ -58,13 +59,13 @@ export default function MaterialsPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const s = search.toLowerCase();
+    const s = deferredSearch.toLowerCase();
     return materials.filter(
       (m) =>
         m.title.toLowerCase().includes(s) ||
         (m.subject || "").toLowerCase().includes(s)
     );
-  }, [materials, search]);
+  }, [materials, deferredSearch]);
 
   return (
     <motion.div
