@@ -43,11 +43,11 @@ class LLMClient:
         self.active_gemini_key_index: int = 0
 
     def json_response(
-        self, system_prompt: str, user_prompt: str, fallback: dict
+        self, system_prompt: str, user_prompt: str, fallback: dict, images: list[str] | None = None
     ) -> dict:
         self.last_model_used = None
         content = self._generate_text(
-            system_prompt, user_prompt, temperature=0.4, force_json=True
+            system_prompt, user_prompt, temperature=0.4, force_json=True, images=images
         )
         if not content:
             return fallback
@@ -120,18 +120,21 @@ class LLMClient:
             )
             if result is not None:
                 return result
-            return None
         except Exception as exc:
-            # Only fallback to OpenAI when Gemini API call fails.
             logger.warning(
-                "Gemini API failed, fallback to OpenAI model %s: %s",
-                self.openai_model,
+                "Gemini API failed with exception: %s",
                 exc,
             )
-            self.fallback_used = True
-            return self._generate_openai(
-                system_prompt, user_prompt, temperature, force_json, images=images
-            )
+            
+        # Fallback to OpenAI if Gemini returns None or hits an exception
+        logger.warning(
+            "Gemini returned None or failed, fallback to OpenAI model %s",
+            self.openai_model,
+        )
+        self.fallback_used = True
+        return self._generate_openai(
+            system_prompt, user_prompt, temperature, force_json, images=images
+        )
 
     def _generate_gemini(
         self,

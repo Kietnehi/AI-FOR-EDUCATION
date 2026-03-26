@@ -23,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import { Toast } from "@/components/ui/toast";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { SlideGenerationDialog } from "@/components/ui/slide-generation-dialog";
 import {
   generateMinigame,
   generatePodcast,
@@ -41,6 +42,8 @@ export default function MaterialDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
   const [isFullPreview, setIsFullPreview] = useState(false);
+  const [showSlideDialog, setShowSlideDialog] = useState(false);
+  const [slideProgress, setSlideProgress] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
     message: "",
     type: "success",
@@ -73,15 +76,53 @@ export default function MaterialDetailPage() {
   }
 
   async function handleGenerate(type: "slides" | "podcast" | "minigame") {
+    // For slides, show dialog first
+    if (type === "slides") {
+      setShowSlideDialog(true);
+      return;
+    }
+
+    // For other types, generate directly
     setBusyAction(type);
     try {
       let generated;
-      if (type === "slides") generated = await generateSlides(materialId);
-      else if (type === "podcast") generated = await generatePodcast(materialId);
+      if (type === "podcast") generated = await generatePodcast(materialId);
       else generated = await generateMinigame(materialId);
 
       router.push(`/materials/${materialId}/${type}?contentId=${generated.id}`);
     } catch (error) {
+      setToast({ message: String(error), type: "error" });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function handleGenerateSlides(maxSlides: number, skipRefine: boolean) {
+    setBusyAction("slides");
+    setSlideProgress(0);
+
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      setSlideProgress((prev) => {
+        if (prev >= 95) return prev; // Stop at 95%, let API completion bring it to 100%
+        const increment = Math.random() * 15 + 5; // Random 5-20% increments
+        return Math.min(prev + increment, 95);
+      });
+    }, 800);
+
+    try {
+      const generated = await generateSlides(materialId, { max_slides: maxSlides, skip_refine: skipRefine });
+      clearInterval(progressInterval);
+      setSlideProgress(100);
+
+      // Brief delay to show 100% completion
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setShowSlideDialog(false);
+      router.push(`/materials/${materialId}/slides?contentId=${generated.id}`);
+    } catch (error) {
+      clearInterval(progressInterval);
+      setSlideProgress(0);
       setToast({ message: String(error), type: "error" });
     } finally {
       setBusyAction("");
@@ -287,6 +328,19 @@ export default function MaterialDetailPage() {
         message={toast.message}
         type={toast.type}
         onClose={() => setToast({ ...toast, message: "" })}
+      />
+
+      <SlideGenerationDialog
+        open={showSlideDialog}
+        onClose={() => {
+          if (busyAction !== "slides") {
+            setShowSlideDialog(false);
+            setSlideProgress(0);
+          }
+        }}
+        onGenerate={handleGenerateSlides}
+        loading={busyAction === "slides"}
+        progress={slideProgress}
       />
     </motion.div>
   );

@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
     image_cache_dir: str = "./storage/images"
+    pexels_api_key: str = ""
 
     cors_origins: list[str] = ["http://localhost:3000"]
 

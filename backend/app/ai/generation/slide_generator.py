@@ -1,195 +1,296 @@
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 
 from pptx import Presentation
-from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import MSO_AUTO_SIZE, PP_ALIGN
+from pptx.util import Inches, Pt
 
 from app.ai.generation.llm_client import LLMClient
 from app.core.logging import logger
 
-# ──────────────────────────────────────────────
-# Slide Generation Prompt Template
-# ──────────────────────────────────────────────
+CHUNK_SYSTEM_PROMPT = """Bạn là chuyên gia trích xuất và tổ chức nội dung học thuật.
+Nhiệm vụ: TRICH XUAT va TO CHUC LAI thong tin tu CHUNK DUOC CUNG CAP thanh slide.
 
-SYSTEM_PROMPT = """Bạn là chuyên gia thiết kế bài giảng và slide thuyết trình.
+QUY TAC BAT BUOC:
+1) CHI TRICH XUAT - KHONG DUOC TAO MOI hoac THEM kien thuc ngoai chunk.
+2) Moi bullet phai la CAU TRUC XUAT TRUC TIEP tu chunk (facts, definitions, steps, examples CO SAN).
+3) Moi bullet phai dai 10-20 tu, BAO TOM day du y nghia cua doan text goc.
+4) NEU chunk co danh sach (list), dinh nghia, or buoc thuc hien → GIAI THICH RO RANG trong bullet.
+5) Moi slide phai co 3-5 bullets CHI TIET.
+6) Neu chunk ngan hoac it thong tin, van phai TRICH XUAT het thong tin co duoc.
 
-Nhiệm vụ của bạn là tạo slide bài giảng chất lượng cao từ nội dung được cung cấp.
+VI DU CACH TRICH XUAT:
+- Chunk: "Machine learning uses data to build models. It does not require explicit programming."
+  → Bullet: "Machine Learning la ky thuat su dung du lieu de xay dung mo hinh du doan, khong can lap trinh logic ro rang"
 
-## YÊU CẦU BẮT BUỘC
+- Chunk: "K-means divides data into K clusters. Each cluster has a centroid."
+  → Bullet: "Thuat toan K-means chia du lieu thanh K nhom (clusters), moi nhom co mot diem trung tam (centroid)"
 
-* Chỉ trả về JSON hợp lệ (KHÔNG markdown, KHÔNG giải thích)
-* Không được trả về text ngoài JSON
+CAM:
+- Them y kien ca nhan
+- Tong quat hoa qua muc ("Machine Learning rat quan trong")
+- Bullets qua ngan khong ro nghia
 
-## CẤU TRÚC OUTPUT
+CHI TRA VE JSON HOP LE, KHONG markdown, KHONG giai thich.
+"""
 
+CHUNK_PROMPT_TEMPLATE = """Ten chunk: {chunk_title}
+Tone: {tone}
+So slide toi da cho chunk nay: {slide_budget}
+
+NOI DUNG CHUNK:
+{chunk_content}
+
+METADATA ANH TU TAI LIEU (neu co):
+{available_images_json}
+
+YEU CAU OUTPUT CHINH XAC THEO FORMAT SAU:
+{{
+  "title": "...",
+  "slides": [
+    {{
+      "title": "...",
+      "bullets": ["...", "...", "..."],
+      "image_source_id": "img_0"
+    }}
+  ]
+}}
+
+RANG BUOC:
+- So bullets moi slide: 3-5
+- Bullet phai TRICH XUAT TRUC TIEP tu chunk (10-20 tu/bullet, day du y nghia)
+- image_source_id: CHI dung image_id tu METADATA ANH ben tren, KHONG tao moi
+  + Neu co anh phu hop → dung image_id do (vi du: "img_0", "img_1")
+  + Neu khong co anh phu hop → DE TRONG ("image_source_id": null)
+- KHONG duoc them hoac bien doan noi dung chunk
+"""
+
+REFINE_SYSTEM_PROMPT = """Ban la reviewer toi uu bo slide hoc tap.
+Nhiem vu: CHI sap xep lai va loai bo trung lap - GIU NGUYEN TOI DA noi dung goc.
+
+QUY TAC:
+1) Remove slides trung lap (tieu de va bullets giong >70%).
+2) Sap xep trinh tu logic (tong quat → chi tiet, co ban → nang cao).
+3) GIU NGUYEN 100% bullets da tot - CHI loai bo neu trung lap hoan toan.
+4) Dam bao moi slide co 3-5 bullets.
+5) NEU phai cat bot de <= gioi han: uu tien GIU slides co nhieu thong tin cu the nhat.
+6) KHONG DUOC sua doi, rut gon, hoac viet lai bullets da co - chi sap xep va chon loc.
+
+CHI TRA VE JSON HOP LE (khong markdown):
 {
-"title": "Tiêu đề toàn bộ bài",
-"slides": [
-  {
-    "title": "Tiêu đề slide",
-    "layout": "text_image",
-    "elements": [
-      {
-        "type": "bullet",
-        "content": ["ý 1", "ý 2"]
-      },
-      {
-        "type": "image",
-        "query": "english image search query"
-      },
-      {
-        "type": "highlight",
-        "content": "ý chính quan trọng"
-      }
-    ]
-  }
-]
+  "title": "...",
+  "slides": [
+    {
+      "title": "...",
+      "bullets": ["...", "...", "..."],
+      "image_source_id": "img_0"
+    }
+  ]
 }
-
-## LOẠI ELEMENT
-
-1. bullet:
-   * type: "bullet"
-   * content: 2–5 ý ngắn, không viết đoạn văn
-
-2. image:
-   * type: "image"
-   * query: mô tả ảnh bằng TIẾNG ANH (ngắn gọn, rõ nghĩa)
-   * BẮT BUỘC có trong phần lớn slide
-
-3. highlight:
-   * type: "highlight"
-   * content: 1 câu ngắn là ý quan trọng nhất
-
-## QUY TẮC NỘI DUNG
-
-* Mỗi slide chỉ 1 ý chính
-* Không viết đoạn văn dài
-* Không lặp ý giữa các slide
-* Ngắn gọn, dễ hiểu
-* Ưu tiên trực quan (ít chữ + có hình)
-* Ít nhất 70% slide phải có image
-
-## QUY TẮC LAYOUT
-
-* Slide đầu tiên: "title_only"
-* Các slide nội dung: ưu tiên "text_image"
-* Chỉ dùng "text_only" khi không phù hợp với hình
-
-## XỬ LÝ TRƯỜNG HỢP KHÓ
-
-Nếu không chắc nội dung:
-* Vẫn phải tạo slide hợp lệ
-* Giữ nội dung đơn giản, dễ hiểu
-* KHÔNG được bỏ trường JSON
-
-Chỉ trả về JSON hợp lệ."""
+"""
 
 
-def _build_user_prompt(context: str, max_slides: int, tone: str) -> str:
-    return (
-        f"Số lượng slide tối đa: {max_slides}\n"
-        f"Tone: {tone}\n\n"
-        f"## NỘI DUNG ĐẦU VÀO\n\n"
-        f"{context[:12000]}\n\n"
-        f"Chỉ trả về JSON hợp lệ."
-    )
-
-
-# ──────────────────────────────────────────────
-# Styling constants for PPTX export
-# ──────────────────────────────────────────────
-
-# Brand colors
-BRAND_PRIMARY = RGBColor(0x4F, 0x46, 0xE5)   # Indigo-600
-BRAND_LIGHT = RGBColor(0xEE, 0xF2, 0xFF)     # Indigo-50
-HIGHLIGHT_BG = RGBColor(0xFE, 0xF3, 0xC7)    # Amber-100
-HIGHLIGHT_TEXT = RGBColor(0x92, 0x40, 0x0E)   # Amber-800
+BRAND_PRIMARY = RGBColor(0x4F, 0x46, 0xE5)
+BRAND_LIGHT = RGBColor(0xEE, 0xF2, 0xFF)
+HIGHLIGHT_BG = RGBColor(0xFE, 0xF3, 0xC7)
+HIGHLIGHT_TEXT = RGBColor(0x92, 0x40, 0x0E)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 DARK_TEXT = RGBColor(0x1E, 0x1E, 0x2E)
-BODY_TEXT = RGBColor(0x4B, 0x55, 0x63)        # Gray-600
-SUBTITLE_TEXT = RGBColor(0x6B, 0x72, 0x80)    # Gray-500
-IMG_PLACEHOLDER_BG = RGBColor(0xE0, 0xE7, 0xFF)  # Light indigo
+BODY_TEXT = RGBColor(0x4B, 0x55, 0x63)
+SUBTITLE_TEXT = RGBColor(0x6B, 0x72, 0x80)
+IMG_PLACEHOLDER_BG = RGBColor(0xE0, 0xE7, 0xFF)
 
 
 class SlideGenerator:
     def __init__(self) -> None:
         self.llm = LLMClient()
 
-    # ────────── LLM outline generation ──────────
-
-    def generate_outline(self, context: str, max_slides: int = 8, tone: str = "teacher") -> dict:
+    def generate_from_chunk(
+        self,
+        chunk: dict,
+        tone: str = "teacher",
+        slide_budget: int = 2,
+        available_images: list[dict] | None = None,
+    ) -> list[dict]:
         fallback = {
-            "title": "Bài giảng tổng hợp",
-            "title": "Bài giảng tổng hợp",
+            "title": chunk.get("title", "Nội dung"),
             "slides": [
                 {
-                    "title": "Giới thiệu",
-                    "layout": "title_only",
-                    "elements": [
-                        {"type": "bullet", "content": ["Mục tiêu bài học", "Nội dung chính"]},
-                    ],
-                },
-                {
-                    "title": "Kiến thức cốt lõi",
-                    "layout": "text_image",
-                    "elements": [
-                        {"type": "bullet", "content": ["Khái niệm", "Ví dụ", "Ứng dụng"]},
-                        {"type": "image", "query": "knowledge concept diagram"},
-                        {"type": "highlight", "content": "Nắm vững kiến thức nền tảng"},
-                    ],
-                },
-                {
-                    "title": "Tổng kết",
-                    "layout": "text_image",
-                    "elements": [
-                        {"type": "bullet", "content": ["Điểm cần nhớ", "Hướng ôn tập"]},
-                        {"type": "image", "query": "summary review checklist"},
-                        {"type": "highlight", "content": "Ôn tập các ý chính để ghi nhớ lâu"},
-                    ],
-                },
-                {
-                    "title": "Câu hỏi ôn tập",
-                    "layout": "text_only",
-                    "elements": [
-                        {"type": "bullet", "content": ["Câu hỏi 1", "Câu hỏi 2"]},
-                    ],
-                },
+                    "title": chunk.get("title", "Nội dung chính"),
+                    "bullets": self._fallback_bullets_from_chunk(chunk.get("content", "")),
+                }
             ],
         }
 
-        user_prompt = _build_user_prompt(context, max_slides, tone)
-        result = self.llm.json_response(SYSTEM_PROMPT, user_prompt, fallback)
+        # Truncate chunk content to 8000 chars max to reduce token cost
+        # (avg 1 char ~= 0.3 tokens → 8000 chars ~= 2400 tokens)
+        chunk_content = (chunk.get("content", "") or "")[:8000]
 
-        # Ensure slides are capped at max_slides
-        slides = result.get("slides", fallback["slides"])
-        result["slides"] = slides[:max_slides]
+        prompt = CHUNK_PROMPT_TEMPLATE.format(
+            chunk_title=chunk.get("title", "Nội dung"),
+            tone=tone,
+            slide_budget=max(1, min(2, slide_budget)),
+            chunk_content=chunk_content,
+            available_images_json=json.dumps(
+                {"available_images": available_images or []},
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+
+        result = self.llm.json_response(CHUNK_SYSTEM_PROMPT, prompt, fallback)
+        raw_slides = result.get("slides", fallback["slides"])
+        normalized = self._normalize_generated_slides(raw_slides, slide_budget)
+        return normalized
+
+    def refine_slides(
+        self,
+        slides: list[dict],
+        presentation_title: str,
+        max_slides: int,
+    ) -> dict:
+        fallback = {
+            "title": presentation_title,
+            "slides": self._normalize_generated_slides(slides, max_slides),
+        }
+
+        user_prompt = (
+            f"Title: {presentation_title}\n"
+            f"Max slides: {max_slides}\n\n"
+            "Slides draft to refine:\n"
+            f"{json.dumps(slides, ensure_ascii=False, indent=2)}"
+        )
+
+        result = self.llm.json_response(REFINE_SYSTEM_PROMPT, user_prompt, fallback)
+        refined_slides = self._normalize_generated_slides(result.get("slides", []), max_slides)
+
+        # Keep output backward-compatible with existing frontend/export code.
+        final_slides = [self._to_legacy_slide_model(slide, idx) for idx, slide in enumerate(refined_slides)]
+        return {"title": result.get("title") or presentation_title, "slides": final_slides}
+
+    def _normalize_generated_slides(self, slides: list[dict], max_slides: int) -> list[dict]:
+        normalized: list[dict] = []
+        for slide in slides:
+            if not isinstance(slide, dict):
+                continue
+            title = (slide.get("title") or "Nội dung").strip()
+            bullets = slide.get("bullets") or []
+            if not isinstance(bullets, list):
+                bullets = []
+
+            cleaned_bullets = [self._clean_line(str(item)) for item in bullets if self._clean_line(str(item))]
+            cleaned_bullets = [b for b in cleaned_bullets if not self._is_generic_bullet(b)]
+
+            if len(cleaned_bullets) < 3:
+                cleaned_bullets = self._pad_bullets(cleaned_bullets, title)
+
+            normalized.append(
+                {
+                    "title": title,
+                    "bullets": cleaned_bullets[:5],
+                    "image_source_id": slide.get("image_source_id"),
+                    "doc_image_index": slide.get("doc_image_index"),
+                }
+            )
+
+            if len(normalized) >= max_slides:
+                break
+
+        return normalized
+
+    @staticmethod
+    def _clean_line(text: str) -> str:
+        return re.sub(r"\s+", " ", (text or "").strip())
+
+    @staticmethod
+    def _is_generic_bullet(text: str) -> bool:
+        """Filter bullets that are too short or vague."""
+        t = (text or "").strip()
+
+        # Filter bullets that are too short (< 8 words)
+        word_count = len(t.split())
+        if word_count < 8:
+            return True
+
+        # Filter bullets that are ONLY generic phrases without details
+        t_lower = t.lower()
+        generic_only_patterns = [
+            r"^(gioi thieu|giới thiệu)\s*(về|ve)?\s*$",
+            r"^(tong quan|tổng quan)\s*$",
+            r"^(ung dung|ứng dụng)\s*(thuc te|thực tiễn)?\s*$",
+            r"^(vi du|ví dụ)\s*(minh hoa|minh họa)?\s*$",
+            r"^(khai niem|khái niệm)\s*(co ban|cơ bản)?\s*$",
+            r"^(dinh nghia|định nghĩa)\s*(ro rang|rõ ràng)?\s*$",
+        ]
+
+        import re as regex
+        for pattern in generic_only_patterns:
+            if regex.match(pattern, t_lower):
+                return True
+
+        return False
+
+    def _pad_bullets(self, bullets: list[str], title: str) -> list[str]:
+        result = list(bullets)
+        defaults = [
+            f"Ý chính 1 của phần {title}",
+            f"Ý chính 2 của phần {title}",
+            f"Chi tiết quan trọng trong phần {title}",
+        ]
+        for item in defaults:
+            if len(result) >= 3:
+                break
+            result.append(item)
         return result
 
-    # ────────── PPTX export (with real images) ──────────
+    def _fallback_bullets_from_chunk(self, chunk_content: str) -> list[str]:
+        lines = [self._clean_line(line) for line in re.split(r"[\.\n]", chunk_content) if self._clean_line(line)]
+        lines = [line for line in lines if len(line.split()) >= 4]
+        if len(lines) >= 3:
+            return lines[:5]
+        return self._pad_bullets(lines, "nội dung")
+
+    def _to_legacy_slide_model(self, slide: dict, idx: int) -> dict:
+        layout = "title_only" if idx == 0 else "text_image"
+        elements = [
+            {"type": "bullet", "content": slide.get("bullets", [])},
+        ]
+
+        image_source_id = slide.get("image_source_id")
+
+        # Only use document images - no external image queries
+        if image_source_id:
+            elements.append(
+                {
+                    "type": "image_source",
+                    "image_id": image_source_id,
+                    "image_context": "Ảnh từ tài liệu nguồn",
+                }
+            )
+
+        return {
+            "title": slide.get("title", "Nội dung"),
+            "layout": layout,
+            "elements": elements,
+            # Fields for compatibility
+            "bullets": slide.get("bullets", []),
+            "image_source_id": image_source_id,
+            "doc_image_index": slide.get("doc_image_index"),
+        }
 
     def export_pptx(
         self,
         outline: dict,
         output_path: str,
         image_map: dict[str, str | None] | None = None,
+        doc_image_paths: list[str] | None = None,
     ) -> str:
-        """Export outline to a styled PPTX file.
-
-        Args:
-            outline: The structured slide JSON from LLM.
-            output_path: Destination path for the .pptx file.
-            image_map: Optional mapping ``{image_query: local_file_path}``.
-                       When a query maps to a valid path the image is embedded;
-                       otherwise a styled placeholder is shown.
-
-        Returns:
-            The output path string.
-        """
         image_map = image_map or {}
+        doc_image_paths = doc_image_paths or []
 
         prs = Presentation()
         prs.slide_width = Inches(13.333)
@@ -199,135 +300,121 @@ class SlideGenerator:
         presentation_title = outline.get("title", "Bài giảng")
 
         for idx, slide_data in enumerate(slides_data):
-            layout = slide_data.get("layout", "text_image")
+            layout = slide_data.get("layout") or ("title_only" if idx == 0 else "text_image")
             title = slide_data.get("title", f"Slide {idx + 1}")
-            elements = slide_data.get("elements", [])
 
-            # Extract elements by type
-            bullets: list[str] = []
-            highlight: str | None = None
-            image_query: str | None = None
-            for elem in elements:
-                etype = elem.get("type")
-                if etype == "bullet":
-                    bullets = elem.get("content", [])
-                elif etype == "highlight":
-                    highlight = elem.get("content", "")
-                elif etype == "image":
-                    image_query = elem.get("query", "")
+            bullets, doc_image_index = self._extract_slide_parts(slide_data)
 
-            # Resolve image path from map
             image_path: str | None = None
-            if image_query:
-                image_path = image_map.get(image_query)
+            if doc_image_index is not None and 0 <= doc_image_index < len(doc_image_paths):
+                candidate = doc_image_paths[doc_image_index]
+                if candidate and Path(candidate).exists():
+                    image_path = candidate
 
             if layout == "title_only":
-                self._add_title_slide(prs, title, presentation_title, bullets, image_path)
+                self._add_title_slide(prs, title, presentation_title, bullets)
             elif layout == "text_only":
-                self._add_text_only_slide(prs, title, bullets, highlight, idx, len(slides_data))
-            else:  # text_image
-                self._add_text_image_slide(prs, title, bullets, highlight, image_query, image_path, idx, len(slides_data))
+                self._add_text_only_slide(prs, title, bullets, idx, len(slides_data))
+            else:
+                self._add_text_image_slide(
+                    prs,
+                    title,
+                    bullets,
+                    image_path,
+                    idx,
+                    len(slides_data),
+                )
 
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
         prs.save(output)
         return str(output)
 
-    # ──────────────────────────────────────────────
-    # Private slide builders
-    # ──────────────────────────────────────────────
+    def _extract_slide_parts(self, slide_data: dict) -> tuple[list[str], int | None]:
+        bullets = list(slide_data.get("bullets") or [])
+        doc_image_index = slide_data.get("doc_image_index")
 
-    def _add_title_slide(
-        self,
-        prs: Presentation,
-        title: str,
-        subtitle: str,
-        bullets: list[str],
-        image_path: str | None = None,
-    ) -> None:
-        slide_layout = prs.slide_layouts[6]  # Blank layout
+        image_source_id = slide_data.get("image_source_id")
+        if doc_image_index is None and isinstance(image_source_id, str) and image_source_id.startswith("img_"):
+            try:
+                doc_image_index = int(image_source_id.replace("img_", ""))
+            except ValueError:
+                doc_image_index = None
+
+        for elem in slide_data.get("elements", []):
+            etype = elem.get("type")
+            if etype == "bullet" and not bullets:
+                bullets = list(elem.get("content", []))
+            elif etype in ("image_source", "doc_image") and doc_image_index is None:
+                eid = elem.get("image_id")
+                if isinstance(eid, str) and eid.startswith("img_"):
+                    try:
+                        doc_image_index = int(eid.replace("img_", ""))
+                    except ValueError:
+                        pass
+
+        return bullets, doc_image_index
+
+    def _add_title_slide(self, prs: Presentation, title: str, subtitle: str, bullets: list[str]) -> None:
+        slide_layout = prs.slide_layouts[6]
         slide = prs.slides.add_slide(slide_layout)
 
-        # Background
-        bg = slide.background
-        fill = bg.fill
+        fill = slide.background.fill
         fill.solid()
         fill.fore_color.rgb = BRAND_PRIMARY
 
-        # Title
-        left, top = Inches(1.5), Inches(2.2)
-        width, height = Inches(10), Inches(1.5)
-        txBox = slide.shapes.add_textbox(left, top, width, height)
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
+        tx = slide.shapes.add_textbox(Inches(1.5), Inches(2.2), Inches(10), Inches(1.5)).text_frame
+        tx.word_wrap = True
+        p = tx.paragraphs[0]
         p.text = title
         p.font.size = Pt(44)
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.alignment = PP_ALIGN.CENTER
 
-        # Subtitle
-        left, top = Inches(2.5), Inches(4.0)
-        width, height = Inches(8), Inches(1.0)
-        txBox = slide.shapes.add_textbox(left, top, width, height)
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = subtitle
-        p.font.size = Pt(22)
-        p.font.color.rgb = BRAND_LIGHT
-        p.alignment = PP_ALIGN.CENTER
+        tx2 = slide.shapes.add_textbox(Inches(2.5), Inches(4.0), Inches(8), Inches(1.0)).text_frame
+        tx2.word_wrap = True
+        p2 = tx2.paragraphs[0]
+        p2.text = subtitle
+        p2.font.size = Pt(22)
+        p2.font.color.rgb = BRAND_LIGHT
+        p2.alignment = PP_ALIGN.CENTER
 
-        # Bullet summary below subtitle
         if bullets:
-            left, top = Inches(3), Inches(5.2)
-            width, height = Inches(7), Inches(1.5)
-            txBox = slide.shapes.add_textbox(left, top, width, height)
-            tf = txBox.text_frame
-            tf.word_wrap = True
+            tx3 = slide.shapes.add_textbox(Inches(3), Inches(5.2), Inches(7), Inches(1.5)).text_frame
+            tx3.word_wrap = True
             for b in bullets[:3]:
-                pg = tf.add_paragraph()
-                pg.text = f"• {b}"
-                pg.font.size = Pt(16)
-                pg.font.color.rgb = WHITE
-                pg.alignment = PP_ALIGN.CENTER
+                pb = tx3.add_paragraph()
+                pb.text = f"- {b}"
+                pb.font.size = Pt(16)
+                pb.font.color.rgb = WHITE
+                pb.alignment = PP_ALIGN.CENTER
 
     def _add_text_only_slide(
         self,
         prs: Presentation,
         title: str,
         bullets: list[str],
-        highlight: str | None,
         idx: int,
         total: int,
     ) -> None:
-        slide_layout = prs.slide_layouts[6]
-        slide = prs.slides.add_slide(slide_layout)
-
-        bg = slide.background
-        fill = bg.fill
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        fill = slide.background.fill
         fill.solid()
         fill.fore_color.rgb = WHITE
 
         self._add_accent_bar(slide)
         self._add_slide_title(slide, title)
 
-        # Bullets
-        left, top = Inches(1.5), Inches(2.0)
-        width, height = Inches(10), Inches(3.5)
-        txBox = slide.shapes.add_textbox(left, top, width, height)
-        tf = txBox.text_frame
-        tf.word_wrap = True
+        tx = slide.shapes.add_textbox(Inches(1.5), Inches(2.0), Inches(10), Inches(4.0)).text_frame
+        tx.word_wrap = True
+        tx.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
         for b in bullets:
-            pg = tf.add_paragraph()
-            pg.text = f"▸  {b}"
-            pg.font.size = Pt(20)
-            pg.font.color.rgb = BODY_TEXT
-            pg.space_after = Pt(12)
-
-        if highlight:
-            self._add_highlight_box(slide, highlight, top_pos=Inches(5.5))
+            pb = tx.add_paragraph()
+            pb.text = f"- {b}"
+            pb.font.size = Pt(20)
+            pb.font.color.rgb = BODY_TEXT
+            pb.space_after = Pt(12)
 
         self._add_slide_number(slide, idx, total)
 
@@ -336,150 +423,131 @@ class SlideGenerator:
         prs: Presentation,
         title: str,
         bullets: list[str],
-        highlight: str | None,
-        image_query: str | None,
         image_path: str | None,
         idx: int,
         total: int,
     ) -> None:
-        slide_layout = prs.slide_layouts[6]
-        slide = prs.slides.add_slide(slide_layout)
-
-        bg = slide.background
-        fill = bg.fill
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        fill = slide.background.fill
         fill.solid()
         fill.fore_color.rgb = WHITE
 
         self._add_accent_bar(slide)
         self._add_slide_title(slide, title)
 
-        # Left column — bullets
-        left, top = Inches(1.5), Inches(2.0)
-        width, height = Inches(5.5), Inches(3.5)
-        txBox = slide.shapes.add_textbox(left, top, width, height)
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        for b in bullets:
-            pg = tf.add_paragraph()
-            pg.text = f"▸  {b}"
-            pg.font.size = Pt(20)
-            pg.font.color.rgb = BODY_TEXT
-            pg.space_after = Pt(12)
+        # If no image, use full width for text
+        if not image_path or not Path(image_path).exists():
+            tx = slide.shapes.add_textbox(Inches(1.5), Inches(2.0), Inches(10), Inches(4.0)).text_frame
+            tx.word_wrap = True
+            tx.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+            for b in bullets:
+                pb = tx.add_paragraph()
+                pb.text = f"- {b}"
+                pb.font.size = Pt(20)
+                pb.font.color.rgb = BODY_TEXT
+                pb.space_after = Pt(12)
+        else:
+            # Text + Image layout
+            tx = slide.shapes.add_textbox(Inches(1.5), Inches(2.0), Inches(5.5), Inches(4.0)).text_frame
+            tx.word_wrap = True
+            tx.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+            for b in bullets:
+                pb = tx.add_paragraph()
+                pb.text = f"- {b}"
+                pb.font.size = Pt(20)
+                pb.font.color.rgb = BODY_TEXT
+                pb.space_after = Pt(12)
 
-        # Right column — REAL image or placeholder
-        img_left = Inches(7.8)
-        img_top = Inches(1.8)
-        img_w = Inches(4.5)
-        img_h = Inches(3.5)
+            img_left = Inches(7.8)
+            img_top = Inches(1.8)
+            img_max_w = Inches(4.5)
+            img_max_h = Inches(4.5)
 
-        if image_path and Path(image_path).exists():
-            # ✅ Embed the actual image
             try:
-                slide.shapes.add_picture(image_path, img_left, img_top, img_w, img_h)
-                logger.debug("Embedded image for '%s'", image_query)
+                pic = slide.shapes.add_picture(image_path, img_left, img_top)
+                ratio = min(img_max_w / float(pic.width), img_max_h / float(pic.height))
+                new_w = int(pic.width * ratio)
+                new_h = int(pic.height * ratio)
+                pic.width = new_w
+                pic.height = new_h
+                pic.left = int(img_left + (img_max_w - new_w) / 2)
+                pic.top = int(img_top + (img_max_h - new_h) / 2)
             except Exception as exc:
                 logger.warning("Failed to embed image '%s': %s", image_path, exc)
-                self._add_image_placeholder(slide, image_query, img_left, img_top, img_w, img_h)
-        elif image_query:
-            # Fallback: styled placeholder
-            self._add_image_placeholder(slide, image_query, img_left, img_top, img_w, img_h)
-
-        if highlight:
-            self._add_highlight_box(slide, highlight, top_pos=Inches(5.8))
 
         self._add_slide_number(slide, idx, total)
 
-    # ──────────────────────────────────────────────
-    # Reusable helpers
-    # ──────────────────────────────────────────────
-
     def _add_image_placeholder(self, slide, query: str | None, left, top, width, height) -> None:
-        """Add a branded rectangle with the image query text as placeholder."""
-        shape = slide.shapes.add_shape(1, left, top, width, height)  # RECTANGLE
+        shape = slide.shapes.add_shape(1, left, top, width, height)
         shape.fill.solid()
         shape.fill.fore_color.rgb = IMG_PLACEHOLDER_BG
         shape.line.fill.background()
 
         label = query or "image"
-        txBox = slide.shapes.add_textbox(
-            left + Inches(0.3), top + Inches(1.2),
-            width - Inches(0.6), Inches(1.0),
-        )
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = f"🖼  {label}"
+        tx = slide.shapes.add_textbox(left + Inches(0.3), top + Inches(1.2), width - Inches(0.6), Inches(1.0)).text_frame
+        tx.word_wrap = True
+        p = tx.paragraphs[0]
+        p.text = label
         p.font.size = Pt(12)
         p.font.color.rgb = SUBTITLE_TEXT
         p.alignment = PP_ALIGN.CENTER
 
     def _add_accent_bar(self, slide) -> None:
-        shape = slide.shapes.add_shape(
-            1, Inches(1.5), Inches(0.9), Inches(0.6), Inches(0.08),
-        )
+        shape = slide.shapes.add_shape(1, Inches(1.5), Inches(0.9), Inches(0.6), Inches(0.08))
         shape.fill.solid()
         shape.fill.fore_color.rgb = BRAND_PRIMARY
         shape.line.fill.background()
 
     def _add_slide_title(self, slide, title: str) -> None:
-        left, top = Inches(1.5), Inches(1.1)
-        width, height = Inches(10), Inches(0.8)
-        txBox = slide.shapes.add_textbox(left, top, width, height)
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
+        tx = slide.shapes.add_textbox(Inches(1.5), Inches(1.1), Inches(10), Inches(0.8)).text_frame
+        tx.word_wrap = True
+        p = tx.paragraphs[0]
         p.text = title
         p.font.size = Pt(30)
         p.font.bold = True
         p.font.color.rgb = DARK_TEXT
 
     def _add_highlight_box(self, slide, text: str, top_pos) -> None:
-        left = Inches(1.5)
-        width, height = Inches(10), Inches(0.7)
-        shape = slide.shapes.add_shape(1, left, top_pos, width, height)
+        shape = slide.shapes.add_shape(1, Inches(1.5), top_pos, Inches(10), Inches(0.7))
         shape.fill.solid()
         shape.fill.fore_color.rgb = HIGHLIGHT_BG
         shape.line.fill.background()
 
-        txBox = slide.shapes.add_textbox(
-            left + Inches(0.3), top_pos + Inches(0.1),
-            width - Inches(0.6), height - Inches(0.2),
-        )
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = f"⭐  {text}"
+        tx = slide.shapes.add_textbox(Inches(1.8), top_pos + Inches(0.1), Inches(9.4), Inches(0.5)).text_frame
+        tx.word_wrap = True
+        p = tx.paragraphs[0]
+        p.text = text
         p.font.size = Pt(16)
         p.font.bold = True
         p.font.color.rgb = HIGHLIGHT_TEXT
         p.alignment = PP_ALIGN.LEFT
 
     def _add_slide_number(self, slide, idx: int, total: int) -> None:
-        left = Inches(11.5)
-        top = Inches(6.9)
-        width, height = Inches(1.5), Inches(0.4)
-        txBox = slide.shapes.add_textbox(left, top, width, height)
-        tf = txBox.text_frame
-        p = tf.paragraphs[0]
+        tx = slide.shapes.add_textbox(Inches(11.5), Inches(6.9), Inches(1.5), Inches(0.4)).text_frame
+        p = tx.paragraphs[0]
         p.text = f"{idx + 1} / {total}"
         p.font.size = Pt(11)
         p.font.color.rgb = SUBTITLE_TEXT
         p.alignment = PP_ALIGN.RIGHT
 
 
-# ──────────────────────────────────────────────
-# Utility: Extract all image queries from outline
-# ──────────────────────────────────────────────
-
 def extract_image_queries(outline: dict) -> list[str]:
-    """Return a deduplicated list of image queries from a slide outline."""
     queries: list[str] = []
     seen: set[str] = set()
+
     for slide in outline.get("slides", []):
+        # New-format query field.
+        q = (slide.get("image_query") or "").strip()
+        if q and q not in seen:
+            seen.add(q)
+            queries.append(q)
+
+        # Legacy elements fallback.
         for elem in slide.get("elements", []):
-            if elem.get("type") == "image":
-                q = (elem.get("query") or "").strip()
-                if q and q not in seen:
-                    queries.append(q)
-                    seen.add(q)
+            if elem.get("type") in ("image_pexels", "image"):
+                candidate = (elem.get("query") or "").strip()
+                if candidate and candidate not in seen:
+                    seen.add(candidate)
+                    queries.append(candidate)
+
     return queries

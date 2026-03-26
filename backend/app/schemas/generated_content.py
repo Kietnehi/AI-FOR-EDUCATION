@@ -10,7 +10,13 @@ GenerationStatus = Literal["queued", "generating", "generated", "failed"]
 
 class GenerateSlidesRequest(BaseModel):
     tone: str = "teacher"
-    max_slides: int = Field(default=8, ge=4, le=20)
+    max_slides: int = Field(
+        default=10,
+        ge=3,
+        le=50,
+        description="Số lượng slide tối đa muốn tạo (3-50 slides)"
+    )
+    skip_refine: bool = Field(default=False, description="Skip LLM refine step to save cost (may reduce quality)")
 
 
 class GeneratePodcastRequest(BaseModel):
