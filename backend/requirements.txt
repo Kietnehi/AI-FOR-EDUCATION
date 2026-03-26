@@ -19,3 +19,9 @@ openai-whisper
 groq
 gTTS
 playwright
+docling
+pywin32
+nest_asyncio
+pandas
+openpyxl
+pillow
