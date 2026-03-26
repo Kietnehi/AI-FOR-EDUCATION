@@ -41,14 +41,12 @@ class Settings(BaseSettings):
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
     image_cache_dir: str = "./storage/images"
-<<<<<<< HEAD
     pexels_api_key: str = ""
-=======
+
     notebooklm_documents_dir: str = "./storage/notebooklm/documents"
     notebooklm_user_data_dir: str = "./storage/notebooklm/chrome-profile"
     notebooklm_generate_wait_seconds: int = 120
     notebooklm_headless: bool = False
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
@@ -64,11 +62,11 @@ class Settings(BaseSettings):
     # Number of latest mascot chat messages injected as memory.
     mascot_memory_turns: int = 10
 
-    @field_validator("upload_dir", "generated_dir", "chroma_persist_dir", "image_cache_dir")
     @field_validator(
         "upload_dir",
         "generated_dir",
         "chroma_persist_dir",
+        "image_cache_dir",
         "notebooklm_documents_dir",
         "notebooklm_user_data_dir",
     )
