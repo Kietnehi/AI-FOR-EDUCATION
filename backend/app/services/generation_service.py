@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -13,7 +14,6 @@ from app.services.material_service import MaterialService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
-
 class GenerationService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.db = db
@@ -25,10 +25,7 @@ class GenerationService:
         self.audio_generator = AudioGenerator(uploads_dir=str(Path(settings.generated_dir) / "podcasts"))
 
     async def _next_version(self, material_id: str, content_type: str) -> int:
-        existing = await self.generated_repo.list_by_material_and_type(material_id, content_type)
-        if not existing:
-            return 1
-        return max(item.get("version", 1) for item in existing) + 1
+        return await self.generated_repo.get_next_version(material_id, content_type)
 
     async def _prepare_material_text(self, material_id: str) -> str:
         material = await self.material_service.get_material(material_id)
@@ -38,11 +35,19 @@ class GenerationService:
 
     async def generate_slides(self, material_id: str, tone: str, max_slides: int) -> dict:
         text = await self._prepare_material_text(material_id)
-        outline = self.slide_generator.generate_outline(text, max_slides=max_slides)
-        version = await self._next_version(material_id, "slides")
+        outline, version = await asyncio.gather(
+            asyncio.to_thread(
+                self.slide_generator.generate_outline,
+                text,
+                max_slides=max_slides,
+            ),
+            self._next_version(material_id, "slides"),
+        )
+        model_used = self.slide_generator.llm.last_model_used
+        fallback_applied = self.slide_generator.llm.fallback_used
         filename = f"slides_{material_id}_v{version}.pptx"
         output_path = str(Path(settings.generated_dir) / filename)
-        self.slide_generator.export_pptx(outline, output_path)
+        await asyncio.to_thread(self.slide_generator.export_pptx, outline, output_path)
 
         now = utc_now()
         doc = {
@@ -53,6 +58,8 @@ class GenerationService:
             "json_content": {"tone": tone, **outline},
             "file_url": f"/api/files/{filename}/download",
             "generation_status": "generated",
+            "model_used": model_used,
+            "fallback_applied": fallback_applied,
             "created_at": now,
             "updated_at": now,
         }
@@ -60,8 +67,17 @@ class GenerationService:
 
     async def generate_podcast(self, material_id: str, style: str, target_duration_minutes: int) -> dict:
         text = await self._prepare_material_text(material_id)
-        script = self.podcast_generator.generate_script(text, style=style, target_duration_minutes=target_duration_minutes)
-        version = await self._next_version(material_id, "podcast")
+        script, version = await asyncio.gather(
+            asyncio.to_thread(
+                self.podcast_generator.generate_script,
+                text,
+                style=style,
+                target_duration_minutes=target_duration_minutes,
+            ),
+            self._next_version(material_id, "podcast"),
+        )
+        model_used = self.podcast_generator.llm.last_model_used
+        fallback_applied = self.podcast_generator.llm.fallback_used
 
         # Generate audio file from podcast segments
         audio_filename = f"podcast_{material_id}_v{version}"
@@ -71,9 +87,10 @@ class GenerationService:
 
         if segments:
             try:
-                audio_file_path = self.audio_generator.generate_podcast_audio(
+                audio_file_path = await asyncio.to_thread(
+                    self.audio_generator.generate_podcast_audio,
                     segments=segments,
-                    output_filename=audio_filename
+                    output_filename=audio_filename,
                 )
                 # Create URL for serving the audio file
                 audio_url = f"/api/files/podcasts/{audio_filename}.mp3/download"
@@ -90,6 +107,8 @@ class GenerationService:
             "json_content": script,
             "file_url": audio_url,
             "generation_status": "generated",
+            "model_used": model_used,
+            "fallback_applied": fallback_applied,
             "created_at": now,
             "updated_at": now,
         }
@@ -97,8 +116,16 @@ class GenerationService:
 
     async def generate_minigame(self, material_id: str, game_types: list[str]) -> dict:
         text = await self._prepare_material_text(material_id)
-        game_payload = self.minigame_generator.generate(text, game_types=game_types)
-        version = await self._next_version(material_id, "minigame")
+        game_payload, version = await asyncio.gather(
+            asyncio.to_thread(
+                self.minigame_generator.generate,
+                text,
+                game_types=game_types,
+            ),
+            self._next_version(material_id, "minigame"),
+        )
+        model_used = self.minigame_generator.llm.last_model_used
+        fallback_applied = self.minigame_generator.llm.fallback_used
 
         now = utc_now()
         doc = {
@@ -109,6 +136,8 @@ class GenerationService:
             "json_content": game_payload,
             "file_url": None,
             "generation_status": "generated",
+            "model_used": model_used,
+            "fallback_applied": fallback_applied,
             "created_at": now,
             "updated_at": now,
         }

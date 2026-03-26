@@ -78,10 +78,10 @@ export default function GeneratedIndexPage() {
       <Card className="text-center py-8">
         <Sparkles className="w-12 h-12 text-accent-400 mx-auto mb-3" />
         <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">
-          Để tạo nội dung mới
+          Tạo media theo học liệu
         </h3>
         <p className="text-sm text-[var(--text-secondary)] mb-4">
-          Mở chi tiết một học liệu và sử dụng các nút tạo nội dung
+          Mở chi tiết một học liệu rồi bấm nút &quot;Tạo Video + Infographic&quot;
         </p>
         <Link href="/materials">
           <span className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors">
