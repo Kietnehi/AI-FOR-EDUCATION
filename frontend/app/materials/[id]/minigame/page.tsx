@@ -22,92 +22,7 @@ import { GeneratedContent } from "@/types";
 import { QuizMixedPlayer } from "@/components/minigame/QuizMixedPlayer";
 import { FlashcardPlayer } from "@/components/minigame/FlashcardPlayer";
 import { ScenarioPlayer } from "@/components/minigame/ScenarioPlayer";
-
-type LegacyScenarioChoice = {
-  id: string;
-  text: string;
-  feedback: string;
-  impact: "positive" | "negative" | "neutral";
-  next_node_id?: string;
-};
-
-type LegacyScenarioNode = {
-  id: string;
-  prompt: string;
-  choices?: LegacyScenarioChoice[];
-  is_end?: boolean;
-  result?: {
-    score: number;
-    skills_gained: string[];
-    improvement_tips: string[];
-  };
-};
-
-type LegacyScenario = {
-  id: string;
-  title: string;
-  description: string;
-  root_node_id: string;
-  nodes: LegacyScenarioNode[];
-};
-
-function normalizeImpact(score: number): "positive" | "negative" | "neutral" {
-  if (score > 0) return "positive";
-  if (score < 0) return "negative";
-  return "neutral";
-}
-
-function mapStrictScenarioToLegacy(jsonContent: Record<string, any>): LegacyScenario[] {
-  const game = jsonContent?.game;
-  if (!game || !Array.isArray(game.steps)) return [];
-
-  const endingsById = new Map<string, any>();
-  const endings = Array.isArray(game.endings) ? game.endings : [];
-  endings.forEach((ending: any) => {
-    if (ending?.id) endingsById.set(`ending_${ending.id}`, ending);
-  });
-
-  const nodes: LegacyScenarioNode[] = game.steps.map((step: any) => ({
-    id: step.id,
-    prompt: `${step.scenario || ""}${step.knowledge_point ? `\n\nKien thuc trong tam: ${step.knowledge_point}` : ""}`,
-    choices: Array.isArray(step.choices)
-      ? step.choices.map((choice: any) => {
-          const scoreDelta = Number(choice?.effects?.score || 0);
-          return {
-            id: choice.id,
-            text: choice.text || "",
-            feedback: `${choice.feedback || ""}${choice.learning_explanation ? `\n\nBai hoc: ${choice.learning_explanation}` : ""}`,
-            impact: normalizeImpact(scoreDelta),
-            next_node_id: choice.next_step,
-          };
-        })
-      : [],
-  }));
-
-  // Build end nodes so existing ScenarioPlayer can render completion screens.
-  endingsById.forEach((ending, endingNodeId) => {
-    nodes.push({
-      id: endingNodeId,
-      prompt: ending.summary || "Ket thuc kich ban",
-      is_end: true,
-      result: {
-        score: 0,
-        skills_gained: (game.initial_state?.skills && Object.keys(game.initial_state.skills)) || [],
-        improvement_tips: ending.suggestion ? [ending.suggestion] : [],
-      },
-    });
-  });
-
-  return [
-    {
-      id: "scenario_main",
-      title: game.title || "Kich ban hoc tap",
-      description: "Mo phong ra quyet dinh theo tinh huong tu hoc lieu",
-      root_node_id: (game.steps[0] && game.steps[0].id) || "step1",
-      nodes,
-    },
-  ];
-}
+import { StrictScenarioPlayer } from "@/components/minigame/StrictScenarioPlayer";
 
 export default function MinigamePage() {
   const searchParams = useSearchParams();
@@ -304,15 +219,18 @@ export default function MinigamePage() {
           )}
 
           {content.game_type === "scenario_branching" && (
-            <ScenarioPlayer
-              title={content.json_content?.game?.title || content.json_content?.title || "Kịch bản học tập"}
-              scenarios={
-                Array.isArray(content.json_content?.scenarios)
-                  ? content.json_content.scenarios
-                  : mapStrictScenarioToLegacy(content.json_content || {})
-              }
-              onSubmit={handleSubmitAttempt}
-            />
+            Array.isArray(content.json_content?.game?.steps) ? (
+              <StrictScenarioPlayer
+                game={content.json_content.game}
+                onSubmit={handleSubmitAttempt}
+              />
+            ) : (
+              <ScenarioPlayer
+                title={content.json_content?.title || "Kịch bản học tập"}
+                scenarios={content.json_content?.scenarios || []}
+                onSubmit={handleSubmitAttempt}
+              />
+            )
           )}
         </div>
       )}

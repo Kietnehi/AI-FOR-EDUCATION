@@ -10,15 +10,15 @@
   --font-sans: var(--font-sans), 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: var(--font-display), 'Plus Jakarta Sans', 'Inter', sans-serif;
 
-  /* Brand colors - Education inspired */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
+  /* Brand colors - Indigo inspired */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
 
   /* Accent / Purple */
   --color-accent-50: #faf5ff;
@@ -52,30 +52,27 @@
 }
 
 :root {
-  --bg-primary: #f8faff;
-  --bg-secondary: #f0f4ff;
+  --bg-primary: #fafbfe;
+  --bg-secondary: #f3f6fc;
   --bg-elevated: #ffffff;
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-tertiary: #94a3b8;
-  --border-light: #e2e8f0;
-  --border-default: #cbd5e1;
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-  --shadow-brand: 0 4px 14px -2px rgba(59, 130, 246, 0.35);
-  --gradient-brand: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --border-light: #f1f5f9;
+  --border-default: #e2e8f0;
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+  --shadow-brand: 0 8px 20px -4px rgba(99, 102, 241, 0.3);
+  --gradient-brand: linear-gradient(135deg, #818cf8, #4f46e5);
+  --gradient-hero: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   --gradient-warm: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --gradient-mesh: radial-gradient(at 40% 20%, hsla(228,100%,74%,0.15) 0px, transparent 50%),
-                   radial-gradient(at 80% 0%, hsla(189,100%,56%,0.12) 0px, transparent 50%),
-                   radial-gradient(at 0% 50%, hsla(355,100%,93%,0.1) 0px, transparent 50%),
-                   radial-gradient(at 80% 50%, hsla(267,100%,76%,0.1) 0px, transparent 50%);
-  --sidebar-width: 260px;
+  --gradient-mesh: none;
+  --sidebar-width: 280px;
 }
 
 /* ---------- Dark Mode ---------- */

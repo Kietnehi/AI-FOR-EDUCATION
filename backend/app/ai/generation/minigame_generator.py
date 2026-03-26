@@ -137,17 +137,19 @@ class MinigameGenerator:
             "Bạn là AI Agent của nền tảng AI Learning Platform. "
             "Nhiệm vụ là tạo minigame học tập dạng role-play simulation dựa trên kiến thức thật từ tài liệu đầu vào. "
             "BẮT BUỘC: output JSON hợp lệ duy nhất, không markdown, không text thừa. "
-            "BẮT BUỘC có branching tree thực sự, không phải quiz tuyến tính. "
-            "Mỗi step có đúng 3 lựa chọn A/B/C với next_step khác nhau. "
-            "Mỗi lựa chọn phải có feedback, learning_explanation, effects(score/skills/context_state), next_step."
+            "Trò chơi phải di chuyển dọc theo 10 tình huống nối tiếp nhau (linear progression với 10 steps liên tiếp). "
+            "Mỗi step có đúng 3 lựa chọn A/B/C. "
+            "Mỗi lựa chọn phải có feedback, learning_explanation, effects(score/skills/context_state), next_step. "
+            "Quy tắc chuyển bước: Tất cả các lựa chọn của 'step X' đều phải trỏ next_step tới 'step X+1', "
+            "chỉ riêng step 10 mới trỏ next_step tới ending ('ending_good' hoặc 'ending_bad' v.v.)."
         )
         user_prompt = (
-            "Dựa trên tài liệu sau, tạo Scenario-based Learning Game theo format STRICT JSON này:\n"
+            "Dựa trên tài liệu sau, tạo Scenario-based Learning Game gồm đúng 10 câu (steps) theo format STRICT JSON này:\n"
             "{\n"
             '  "metadata": {\n'
             '    "topic": "",\n'
             '    "difficulty": "easy | medium | hard",\n'
-            '    "estimated_time": "minutes"\n'
+            '    "estimated_time": "15 minutes"\n'
             "  },\n"
             '  "game": {\n'
             '    "title": "",\n'
@@ -173,15 +175,15 @@ class MinigameGenerator:
             '              "skills": { "critical_thinking": 1 },\n'
             '              "context_state": {}\n'
             "            },\n"
-            '            "next_step": "step2A"\n'
+            '            "next_step": "step2"\n'
             "          }\n"
             "        ]\n"
             "      }\n"
             "    ],\n"
             '    "endings": [\n'
             "      {\n"
-            '        "id": "good",\n'
-            '        "condition": "score >= 10",\n'
+            '        "id": "ending_good",\n'
+            '        "condition": "score >= 15",\n'
             '        "summary": "",\n'
             '        "knowledge_recap": [],\n'
             '        "suggestion": ""\n'
@@ -199,11 +201,10 @@ class MinigameGenerator:
             "  }\n"
             "}\n\n"
             "Ràng buộc bắt buộc:\n"
-            "- Tối thiểu 6 steps để tạo cây quyết định có độ sâu >= 3.\n"
-            "- Mỗi step phải có 3 choices A/B/C.\n"
-            "- Trong cùng 1 step, 3 next_step phải khác nhau.\n"
-            "- Độ khó tăng dần theo tiến trình, step sau phản ánh quyết định trước qua context_state.\n"
-            "- Có ít nhất 2 endings dựa trên score hoặc state.\n"
+            "- BẮT BUỘC TẠO ĐÚNG 10 STEPS từ step1 đến step10.\n"
+            "- Mỗi step phải có ĐÚNG 3 choices A/B/C.\n"
+            "- next_step của step N bắt buộc là 'step(N+1)'. Ví dụ lựa chọn ở step1 đều có next_step là 'step2'.\n"
+            "- next_step của tất cả lựa chọn trong step10 phải là các id từ mảng endings (vd: 'ending_good' hoặc 'ending_bad').\n"
             "- Nội dung bám sát kiến thức tài liệu, không hư cấu rời rạc.\n\n"
             f"{context[:12000]}"
         )
@@ -539,33 +540,33 @@ class MinigameGenerator:
                     {
                         "id": "good",
                         "condition": "score >= 8",
-                        "summary": "Ban da ra quyet dinh duoc neo boi tri thuc tu tai lieu va lap luan chat che.",
+                        "summary": "Bạn đã ra quyết định được neo bởi tri thức từ tài liệu và lập luận chặt chẽ.",
                         "knowledge_recap": [
-                            "Xac minh nguon thong tin truoc khi ra quyet dinh",
-                            "Dung bang chung de bao ve ket luan",
-                            "Cai tien lien tuc dua tren phan hoi va do luong",
+                            "Xác minh nguồn thông tin trước khi ra quyết định",
+                            "Dùng bằng chứng để bảo vệ kết luận",
+                            "Cải tiến liên tục dựa trên phản hồi và đo lường",
                         ],
-                        "suggestion": "Duy tri cach tiep can data-driven va huan luyen them ky nang trinh bay hoc thuat.",
+                        "suggestion": "Duy trì cách tiếp cận data-driven và huấn luyện thêm kỹ năng trình bày học thuật.",
                     },
                     {
                         "id": "needs_improvement",
                         "condition": "score >= 4 and score < 8",
-                        "summary": "Ban dat ket qua trung binh, da co tien bo nhung chua on dinh o cac tinh huong kho.",
+                        "summary": "Bạn đạt kết quả trung bình, đã có tiến bộ nhưng chưa ổn định ở các tình huống khó.",
                         "knowledge_recap": [
-                            "Can uu tien doi chieu tai lieu goc",
-                            "Can nang cao ky nang danh gia do tin cay thong tin",
+                            "Cần ưu tiên đối chiếu tài liệu gốc",
+                            "Cần nâng cao kỹ năng đánh giá độ tin cậy thông tin",
                         ],
-                        "suggestion": "On lai cac khung danh gia va tap luyen them voi tinh huong co mau thuan du lieu.",
+                        "suggestion": "Ôn lại các khung đánh giá và tập luyện thêm với tình huống có mâu thuẫn dữ liệu.",
                     },
                     {
                         "id": "bad",
                         "condition": "score < 4",
                         "summary": "Quyet dinh hien tai chua dua tren nen tang tri thuc vung chac, ket qua chua dat muc tieu hoc tap.",
                         "knowledge_recap": [
-                            "Ra quyet dinh can dua tren bang chung",
-                            "Phan tich nguyen nhan goc giup tranh lap lai sai sot",
+                            "Ra quyết định dựa trên bằng chứng",
+                            "Phân tích nguyên nhân gốc giúp tránh lặp lại sai sót",
                         ],
-                        "suggestion": "Quay lai tai lieu, tong hop lai knowledge points va thu lai voi luu do ra quyet dinh co cau truc.",
+                        "suggestion": "Quay lại tài liệu, tổng hợp lại knowledge points và thử lại với lưu đồ ra quyết định có cấu trúc.",
                     },
                 ],
             },

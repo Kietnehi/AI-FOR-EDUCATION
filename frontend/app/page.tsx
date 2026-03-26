@@ -7,23 +7,24 @@ import {
   BookOpen,
   Sparkles,
   MessageSquareText,
-  ArrowRight,
-  TrendingUp,
   FileText,
   Gamepad2,
   Mic,
   MapPin,
+  Play,
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Bell
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { TiltCard } from "@/components/ui/tilt-card";
 import { listMaterials } from "@/lib/api";
 import { Material } from "@/types";
-import dynamic from "next/dynamic";
 
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
@@ -41,19 +42,12 @@ const GithubIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const AIVisualizer = dynamic(() => import("@/components/3d/ai-visualizer").then(mod => mod.AIVisualizer), {
-  ssr: false,
-  loading: () => <div className="absolute inset-0 z-0 bg-transparent" />
-});
-
 const statCards = [
-  { label: "Học liệu", icon: BookOpen, color: "from-brand-500 to-brand-600" },
-  { label: "Slide đã tạo", icon: FileText, color: "from-accent-500 to-accent-600" },
-  { label: "Podcast", icon: Mic, color: "from-emerald-500 to-emerald-600" },
-  { label: "Minigame", icon: Gamepad2, color: "from-amber-500 to-amber-600" },
+  { label: "Product Design", title: "Học liệu", icon: BookOpen, bg: "bg-brand-100", fg: "text-brand-600" },
+  { label: "AI Contents", title: "Slide đã tạo", icon: FileText, bg: "bg-brand-100", fg: "text-brand-600" },
+  { label: "Audio Logic", title: "Podcast", icon: Mic, bg: "bg-brand-100", fg: "text-brand-600" },
 ];
 
-// Lazy-loaded Google Maps component - only loads when scrolled into view
 function LazyMap() {
   const [show, setShow] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -75,7 +69,7 @@ function LazyMap() {
   }, []);
 
   return (
-    <div ref={ref} className="w-full h-[400px] relative">
+    <div ref={ref} className="w-full h-[250px] relative rounded-2xl overflow-hidden mt-6 shadow-sm border border-[var(--border-light)]">
       {show ? (
         <iframe
           src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d9309.215601568438!2d106.67968337575233!3d10.759917089387919!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2sus!4v1774422510403!5m2!1svi!2sus"
@@ -89,7 +83,7 @@ function LazyMap() {
           className="grayscale-[0.2] contrast-[1.1]"
         />
       ) : (
-        <div className="w-full h-full bg-[var(--bg-secondary)] rounded-lg flex items-center justify-center">
+        <div className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center">
           <MapPin className="w-8 h-8 text-[var(--text-tertiary)] animate-pulse" />
         </div>
       )}
@@ -110,305 +104,232 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      {/* Hero Section */}
-      <div>
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-accent-600 to-brand-700 p-8 sm:p-10 text-white min-h-[400px] flex flex-col justify-center">
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent-400/20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl pointer-events-none" />
-
-          {/* 3D Visualizer Background */}
-          <div className="absolute top-0 right-0 bottom-0 w-full sm:w-2/3 lg:w-1/2 min-h-[300px]">
-             <AIVisualizer />
-          </div>
-
-          <div className="relative z-10 max-w-xl pointer-events-none">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm text-sm font-medium mb-4 pointer-events-auto">
-              <Sparkles className="w-4 h-4" />
-              AI-Powered Learning
+    <div className="flex flex-col xl:flex-row gap-8 animate-fade-in-up pb-10">
+      
+      {/* LEFT COLUMN - Main Content */}
+      <div className="flex-1 space-y-8 min-w-0">
+        
+        {/* Banner Section */}
+        <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-brand-500 to-accent-400 p-10 sm:p-12 text-white shadow-brand">
+          {/* Subtle Sparkles Graphics */}
+          <Sparkles className="absolute top-8 right-32 w-24 h-24 text-white opacity-20" />
+          <Sparkles className="absolute bottom-10 right-10 w-48 h-48 text-white opacity-10" />
+          <Sparkles className="absolute top-20 right-[40%] w-10 h-10 text-white opacity-40" />
+          
+          <div className="relative z-10 max-w-xl">
+            <div className="uppercase tracking-widest text-[11px] font-bold text-white/80 mb-4">
+              AI Learning Studio
             </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-4 pointer-events-auto" style={{ fontFamily: "var(--font-display)" }}>
-              Tạo học liệu số
-              <br />
-              <span className="text-accent-200 drop-shadow-sm">thông minh với AI</span>
+            <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-bold leading-[1.2] mb-8" style={{ fontFamily: "var(--font-display)" }}>
+              Sharpen Your Skills With<br/>
+              Professional Online Courses
             </h1>
-            <p className="text-base text-brand-50 mb-8 max-w-md pointer-events-auto text-lg leading-relaxed">
-              Upload tài liệu, tự động tạo slide gốc, podcast, minigame và chatbot hỏi đáp chỉ trong vài phút.
-            </p>
-            <div className="flex flex-wrap gap-3 pointer-events-auto shadow-lg rounded-full w-fit">
-              <Link href="/materials/upload">
-                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-semibold">
-                  Tải lên học liệu
-                </Button>
-              </Link>
-              <Link href="/materials">
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  icon={<ArrowRight className="w-5 h-5" />}
-                  className="!text-white/90 hover:!bg-white/20 h-12 px-6 rounded-full backdrop-blur-sm bg-white/5 font-semibold"
-                >
-                  Xem tất cả
-                </Button>
-              </Link>
-            </div>
+            
+            <Link href="/materials/upload" className="inline-block no-underline">
+              <button className="flex items-center gap-3 bg-[var(--text-primary)] hover:bg-black text-white px-2 py-2 pr-6 rounded-full transition-colors cursor-pointer border-0">
+                <div className="w-10 h-10 rounded-full bg-white text-[var(--text-primary)] flex items-center justify-center shrink-0">
+                  <Play className="w-4 h-4 ml-1" fill="currentColor" />
+                </div>
+                <span className="font-semibold text-sm">Join Now</span>
+              </button>
+            </Link>
           </div>
         </div>
-      </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ perspective: 1000 }}>
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          const count =
-            stat.label === "Học liệu"
-              ? materials.length
-              : 0;
-          return (
-            <TiltCard key={stat.label}>
-              <Card className="!p-4 h-full shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0 shadow-inner`}>
-                    <Icon className="w-5 h-5 text-white drop-shadow-md" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[var(--text-primary)]">{count}</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">{stat.label}</p>
-                  </div>
+        {/* Quick Stats Pills */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {statCards.map((stat, i) => (
+            <div key={i} className="flex items-center justify-between p-4 px-6 bg-[var(--bg-elevated)] rounded-3xl shadow-sm border border-[var(--border-light)]">
+              <div className="flex items-center gap-4">
+                <div className={`w-[52px] h-[52px] rounded-full ${stat.bg} ${stat.fg} flex items-center justify-center shrink-0`}>
+                  <stat.icon className="w-6 h-6" strokeWidth={2.5} />
                 </div>
-              </Card>
-            </TiltCard>
-          );
-        })}
-      </div>
+                <div>
+                  <p className="text-xs font-semibold text-[var(--text-secondary)] mb-0.5 tracking-wide">
+                    {stat.title === "Học liệu" ? `${materials.length}/10 Created` : "2/8 Generated"}
+                  </p>
+                  <p className="font-bold text-[var(--text-primary)]">{stat.label}</p>
+                </div>
+              </div>
+              <button className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] bg-transparent border-0 cursor-pointer p-2">
+                <MoreVertical className="w-5 h-5" />
+              </button>
+            </div>
+          ))}
+        </div>
 
-      {/* Recent Materials */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        {/* Continue Watching / Recent Materials */}
+        <div className="pt-4">
+          <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
               Học liệu gần đây
             </h2>
-            <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-              Danh sách cập nhật mới nhất
-            </p>
+            <div className="flex gap-2">
+              <button className="w-8 h-8 rounded-full border border-[var(--border-light)] bg-white flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button className="w-8 h-8 rounded-full border border-[var(--border-light)] bg-white flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <Link href="/materials">
-            <Button variant="ghost" size="sm" icon={<ArrowRight className="w-4 h-4" />}>
-              Xem tất cả
-            </Button>
-          </Link>
+
+          {loading && (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => <CardSkeleton key={i} />)}
+            </div>
+          )}
+
+          {error && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-sm">
+              Lỗi: {error}
+            </div>
+          )}
+
+          {!loading && !error && materials.length === 0 && (
+            <EmptyState
+              icon={<BookOpen className="w-10 h-10" />}
+              title="Chưa có học liệu"
+              description="Hãy tải lên tài liệu đầu tiên để bắt đầu."
+              action={
+                <Link href="/materials/upload">
+                  <button className="mt-4 px-6 py-2.5 bg-brand-600 text-white rounded-xl font-medium border-0 cursor-pointer">
+                    Tải lên ngay
+                  </button>
+                </Link>
+              }
+            />
+          )}
+
+          {!loading && materials.length > 0 && (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {materials.slice(0, 3).map((material, index) => (
+                <div key={material.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
+                  <Link href={`/materials/${material.id}`} className="block no-underline">
+                    <div className="bg-[var(--bg-elevated)] rounded-[24px] p-5 shadow-sm border border-[var(--border-light)] hover:shadow-md hover:-translate-y-1 transition-all group">
+                      
+                      {/* Thumbnail Placeholder */}
+                      <div className="relative w-full aspect-video rounded-2xl bg-gradient-to-br from-slate-800 to-indigo-900 overflow-hidden mb-5">
+                        <div className="absolute inset-0 flex items-center justify-center text-white/20">
+                           <BookOpen className="w-12 h-12" />
+                        </div>
+                        <button className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border-0 cursor-pointer hover:bg-white/40">
+                          <Heart className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <Badge status={material.processing_status} />
+                      
+                      <h3 className="text-[15px] font-bold text-[var(--text-primary)] mt-3 mb-4 line-clamp-2 leading-snug group-hover:text-brand-600 transition-colors">
+                        {material.title}
+                      </h3>
+
+                      {/* Progress Bar Mockup */}
+                      <div className="w-full h-1.5 bg-[var(--bg-secondary)] rounded-full mb-4 overflow-hidden">
+                        <div className="h-full bg-brand-500 rounded-full w-1/3"></div>
+                      </div>
+
+                      {/* Author row */}
+                      <div className="flex items-center gap-3 pt-1 border-t border-[var(--border-light)] mt-2">
+                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src="https://github.com/Kietnehi.png" alt="Author" className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-[var(--text-primary)] mb-0">System Admin</p>
+                          <p className="text-[10px] font-medium text-[var(--text-tertiary)] mb-0 tracking-wide uppercase">Software Developer</p>
+                        </div>
+                      </div>
+
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN - Mentors & Profile (Like Your Profile & Your Mentor in image) */}
+      <div className="w-full xl:w-[320px] 2xl:w-[360px] shrink-0 space-y-8">
+        
+        {/* Profile Summary Widget */}
+        <div className="bg-[var(--bg-elevated)] rounded-[32px] p-8 flex flex-col items-center text-center shadow-sm border border-[var(--border-light)]">
+          <div className="flex justify-between w-full mb-6 relative">
+            <h3 className="font-bold text-[var(--text-primary)] text-lg" style={{ fontFamily: "var(--font-display)" }}>Your Profile</h3>
+            <button className="text-[var(--text-tertiary)] hover:text-brand-600 bg-transparent border-0 cursor-pointer absolute right-0">
+              <MoreVertical className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="w-24 h-24 rounded-full border-4 border-brand-100 p-1 mb-4 relative">
+             <div className="absolute top-0 right-0 w-36 h-36 rounded-full border-2 border-brand-500 border-t-transparent border-l-transparent border-r-transparent -translate-x-6 -translate-y-6 rotate-45 transform"></div>
+             {/* eslint-disable-next-line @next/next/no-img-element */}
+             <img src="https://github.com/Kietnehi.png" alt="Profile" className="w-full h-full rounded-full object-cover" />
+          </div>
+          
+          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-1">Good Morning Admin</h2>
+          <p className="text-xs text-[var(--text-secondary)] mb-6 px-4">Continue Your Journey And Achieve Your Target</p>
+          
+          <div className="flex gap-4 mb-2">
+             <button className="w-10 h-10 rounded-full border border-[var(--border-light)] flex items-center justify-center text-[var(--text-secondary)] hover:text-brand-600 hover:border-brand-300 bg-white shadow-xs cursor-pointer">
+                <Bell className="w-4 h-4" />
+             </button>
+             <button className="w-10 h-10 rounded-full border border-[var(--border-light)] flex items-center justify-center text-[var(--text-secondary)] hover:text-brand-600 hover:border-brand-300 bg-white shadow-xs cursor-pointer">
+                <MessageSquareText className="w-4 h-4" />
+             </button>
+             <button className="w-10 h-10 rounded-full border border-[var(--border-light)] flex items-center justify-center text-[var(--text-secondary)] hover:text-brand-600 hover:border-brand-300 bg-white shadow-xs cursor-pointer">
+                <Upload className="w-4 h-4" />
+             </button>
+          </div>
+
+          <LazyMap />
         </div>
 
-        {loading && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <CardSkeleton key={i} />
-            ))}
+        {/* Your Mentor (Cooperation Contacts Wrapper) */}
+        <div>
+          <div className="flex items-center justify-between mb-6 px-1">
+            <h3 className="font-bold text-lg text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+              Liên hệ hợp tác
+            </h3>
+            <button className="w-8 h-8 rounded-full border border-[var(--border-light)] bg-white flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
+              <Sparkles className="w-4 h-4" />
+            </button>
           </div>
-        )}
 
-        {error && (
-          <Card className="!border-rose-200 !bg-rose-50">
-            <p className="text-rose-600 text-sm">Lỗi: {error}</p>
-          </Card>
-        )}
-
-        {!loading && !error && materials.length === 0 && (
-          <EmptyState
-            icon={<BookOpen className="w-10 h-10" />}
-            title="Chưa có học liệu nào"
-            description="Bắt đầu bằng cách tải lên tài liệu đầu tiên của bạn"
-            action={
-              <Link href="/materials/upload">
-                <Button icon={<Upload className="w-4 h-4" />}>Tải lên ngay</Button>
-              </Link>
-            }
-          />
-        )}
-
-        {!loading && materials.length > 0 && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {materials.slice(0, 6).map((material, index) => (
-              <div
-                key={material.id}
-                className="animate-fade-in-up"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <Link href={`/materials/${material.id}`} className="block no-underline">
-                  <Card hover>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-accent-100 flex items-center justify-center flex-shrink-0">
-                        <BookOpen className="w-5 h-5 text-brand-600" />
-                      </div>
-                      <Badge status={material.processing_status} />
-                    </div>
-                    <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1 line-clamp-1">
-                      {material.title}
-                    </h3>
-                    <p className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-2">
-                      {material.description || "Không có mô tả"}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
-                      {material.subject && (
-                        <span className="px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] font-medium">
-                          {material.subject}
-                        </span>
-                      )}
-                      <span className="ml-auto">
-                        {new Date(material.updated_at).toLocaleDateString("vi-VN")}
-                      </span>
-                    </div>
-                  </Card>
-                </Link>
+          <div className="bg-[var(--bg-elevated)] rounded-[32px] p-6 shadow-sm border border-[var(--border-light)] flex flex-col gap-5">
+            {[
+              { name: "Kietnehi", role: "Software Developer" },
+              { name: "ductoanoxo", role: "Software Developer" },
+              { name: "phatle224", role: "Software Developer" },
+            ].map((contact, idx) => (
+              <div key={idx} className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-100 to-white border border-[var(--border-light)] object-cover overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`https://github.com/${contact.name}.png`} alt={contact.name} loading="lazy" />
+                  </div>
+                  <div>
+                    <a href={`https://github.com/${contact.name}`} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-[var(--text-primary)] no-underline hover:text-brand-600 mb-0">
+                      {contact.name}
+                    </a>
+                    <p className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-0 mt-0.5">{contact.role}</p>
+                  </div>
+                </div>
+                <a href={`https://github.com/${contact.name}`} target="_blank" rel="noopener noreferrer" className="no-underline">
+                  <button className="px-4 py-1.5 rounded-full bg-brand-600 text-white text-[11px] font-bold cursor-pointer border-0 opacity-90 group-hover:opacity-100 transition-opacity">
+                    Follow
+                  </button>
+                </a>
               </div>
             ))}
+
+            <button className="w-full mt-2 py-3 rounded-2xl bg-brand-50 text-brand-600 font-bold text-sm cursor-pointer border-0 hover:bg-brand-100 transition-colors">
+              See All
+            </button>
           </div>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)" }}>
-          Hành động nhanh
-        </h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[
-            {
-              icon: Upload,
-              title: "Tải lên tài liệu",
-              desc: "PDF, DOCX, TXT hoặc nhập trực tiếp",
-              href: "/materials/upload",
-              gradient: "from-brand-500 to-brand-600",
-            },
-            {
-              icon: Sparkles,
-              title: "Tạo nội dung AI",
-              desc: "Slides, podcast, minigame tự động",
-              href: "/materials",
-              gradient: "from-accent-500 to-accent-600",
-            },
-            {
-              icon: MessageSquareText,
-              title: "Chat với AI",
-              desc: "Hỏi đáp thông minh theo tài liệu",
-              href: "/chatbot",
-              gradient: "from-emerald-500 to-emerald-600",
-            },
-          ].map((action) => {
-            const Icon = action.icon;
-            return (
-              <Link key={action.href} href={action.href} className="no-underline">
-                <Card hover className="group">
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${action.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">
-                    {action.title}
-                  </h3>
-                  <p className="text-sm text-[var(--text-secondary)]">{action.desc}</p>
-                </Card>
-              </Link>
-            );
-          })}
         </div>
-      </div>
 
-      {/* Geography Location */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <MapPin className="w-5 h-5 text-brand-600" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-            Vị trí địa lý
-          </h2>
-        </div>
-        <Card className="overflow-hidden !p-0 border-[var(--border-light)] shadow-sm">
-          <div className="p-4 bg-[var(--bg-secondary)] border-b border-[var(--border-light)]">
-            <h3 className="font-semibold text-[var(--text-primary)]">Trường Đại học Sài Gòn</h3>
-            <p className="text-sm text-[var(--text-secondary)]">273 An Dương Vương, Phường 3, Quận 5, Thành phố Hồ Chí Minh</p>
-          </div>
-          <LazyMap />
-        </Card>
-      </div>
-
-      {/* Cooperation Contact */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <GithubIcon className="w-5 h-5 text-brand-600" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-            Liên hệ hợp tác
-          </h2>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[
-            {
-              name: "Kietnehi",
-              username: "Kietnehi",
-              role: "Developer",
-              gradient: "from-brand-500 to-brand-600",
-            },
-            {
-              name: "ductoanoxo",
-              username: "ductoanoxo",
-              role: "Developer",
-              gradient: "from-accent-500 to-accent-600",
-            },
-            {
-              name: "phatle224",
-              username: "phatle224",
-              role: "Developer",
-              gradient: "from-emerald-500 to-emerald-600",
-            },
-          ].map((contact) => (
-            <a key={contact.username} href={`https://github.com/${contact.username}`} target="_blank" rel="noopener noreferrer" className="no-underline">
-              <Card hover className="group flex flex-col items-center justify-center p-6 text-center h-full">
-                {/* Avatar with gradient border */}
-                <div className={`relative w-24 h-24 rounded-full bg-gradient-to-br ${contact.gradient} p-1 mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={`https://github.com/${contact.username}.png`} 
-                    alt={contact.username} 
-                    className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-900"
-                    loading="lazy"
-                  />
-                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-gray-700">
-                    <GithubIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                  </div>
-                </div>
-                
-                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">
-                  {contact.name}
-                </h3>
-                <p className="text-sm text-[var(--text-secondary)] font-medium mb-4">
-                  {contact.role}
-                </p>
-
-                {/* Shields.io badges - lazy loaded */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4 w-full">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={`https://img.shields.io/github/followers/${contact.username}?style=social`} 
-                    alt="Followers" 
-                    className="h-6 object-contain"
-                    loading="lazy"
-                  />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`} 
-                    alt="Stars" 
-                    className="h-6 object-contain"
-                    loading="lazy"
-                  />
-                </div>
-
-                <div className="mt-auto text-brand-600 text-sm font-medium flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                  Xem Github <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Card>
-            </a>
-          ))}
-        </div>
       </div>
     </div>
   );
