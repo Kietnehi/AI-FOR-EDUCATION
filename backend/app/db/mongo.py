@@ -12,7 +12,16 @@ async def connect_mongo() -> None:
     global _mongo_client, _database
     if _mongo_client:
         return
-    _mongo_client = AsyncIOMotorClient(settings.mongo_uri)
+    _mongo_client = AsyncIOMotorClient(
+        settings.mongo_uri,
+        maxPoolSize=100,
+        minPoolSize=10,
+        maxIdleTimeMS=60000,
+        connectTimeoutMS=5000,
+        serverSelectionTimeoutMS=5000,
+        compressors="zlib", # Enable wire compression
+        zlibCompressionLevel=1
+    )
     _database = _mongo_client[settings.mongo_db_name]
     logger.info("Connected MongoDB: %s", settings.mongo_db_name)
 

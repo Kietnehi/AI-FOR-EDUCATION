@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useMemo, Suspense, useEffect, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { memo, Suspense, useMemo, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { 
   Float, 
   Sparkles,
@@ -14,23 +14,21 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 
-// Adaptive FPS limiter - throttle rendering to save GPU
-function FPSLimiter({ fps = 30 }: { fps?: number }) {
-  const { invalidate, clock } = useThree();
-  const lastTime = useRef(0);
-  
-  useFrame(() => {
-    const elapsed = clock.getElapsedTime();
-    if (elapsed - lastTime.current >= 1 / fps) {
-      lastTime.current = elapsed;
-      invalidate();
-    }
-  });
-  
-  return null;
-}
+const DATA_PACKET_POSITIONS = Array.from({ length: 15 }, (_, i) => {
+  const angle = (i / 15) * Math.PI * 2;
+  return {
+    key: i,
+    position: [Math.cos(angle) * 2.35, Math.sin(i * 2) * 0.15, Math.sin(angle) * 2.35] as [number, number, number],
+  };
+});
 
-// The simplified Digital Planet - reduced geometry complexity
+const SPARKLE_LAYERS = [
+  { count: 70, scale: 14, size: 1.5, speed: 0.4, opacity: 0.4, color: "#38bdf8" },
+  { count: 36, scale: 10, size: 2.5, speed: 0.2, opacity: 0.6, color: "#f472b6" },
+  { count: 24, scale: 12, size: 1.2, speed: 0.1, opacity: 0.3, color: "#a78bfa" },
+] as const;
+
+// The sophisticated, high-resolution Digital Planet
 function DigitalPlanet() {
   const innerGlobeRef = useRef<THREE.Mesh>(null);
   const meshLayerRef = useRef<THREE.Mesh>(null);
@@ -196,10 +194,13 @@ function OrbitalRings() {
 
       {/* Data Packets - removed expensive pointLight per packet */}
       <group ref={dataPacketsRef}>
-        {packetPositions.map((pos, i) => (
-          <Sphere key={i} args={[0.015, 6, 6]} position={pos}>
-            <meshBasicMaterial color="#fcd34d" transparent opacity={0.9} blending={THREE.AdditiveBlending} />
-          </Sphere>
+        {DATA_PACKET_POSITIONS.map((packet) => (
+          <group key={packet.key} position={packet.position}>
+            <Sphere args={[0.015, 8, 8]}>
+              <meshBasicMaterial color="#fcd34d" transparent opacity={0.9} blending={THREE.AdditiveBlending} />
+            </Sphere>
+            <pointLight distance={0.5} color="#fcd34d" intensity={0.5} />
+          </group>
         ))}
       </group>
     </group>
@@ -278,63 +279,43 @@ function SceneModel() {
   );
 }
 
-export function AIVisualizer() {
-  const [isVisible, setIsVisible] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Only render the Canvas when it's visible in viewport
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsVisible(entry.isIntersecting),
-      { threshold: 0.1 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
+export const AIVisualizer = memo(function AIVisualizer() {
   return (
-    <div ref={containerRef} className="absolute inset-0 z-0 flex items-center justify-center">
-      {isVisible && (
-        <Canvas 
-          camera={{ position: [0, 0, 7.5], fov: 45 }} 
-          gl={{ antialias: false, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2, powerPreference: "low-power" }}
-          dpr={[1, 1]} // Fixed to 1 instead of [1, 1.5]
-          frameloop="always"
-          performance={{ min: 0.3 }}
-        >
-          <FPSLimiter fps={24} />
-          <ambientLight intensity={1.5} color="#312e81" />
-          
-          {/* Reduced lights - removed spotLight (expensive) */}
-          <directionalLight position={[10, 5, 5]} intensity={3} color="#fbcfe8" />
-          <directionalLight position={[-10, -5, -5]} intensity={2.5} color="#7dd3fc" />
-          
-          <Suspense fallback={null}>
-            <SceneModel />
-          </Suspense>
+    <div className="absolute inset-0 z-0 flex items-center justify-center">
+      {/* Use ACESFilmicToneMapping for a highly cinematic color space and realistic glows */}
+      <Canvas 
+        camera={{ position: [0, 0, 7.5], fov: 45 }} 
+        gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
+        dpr={[1, 1.25]}
+        performance={{ min: 0.5 }}
+      >
+        <ambientLight intensity={1.5} color="#312e81" />
+        
+        {/* Dynamic studio lighting setup for the translucent/glossy materials */}
+        <directionalLight position={[10, 5, 5]} intensity={3} color="#fbcfe8" />
+        <directionalLight position={[-10, -5, -5]} intensity={2.5} color="#7dd3fc" />
+        <spotLight position={[0, 5, -5]} intensity={5} color="#c084fc" distance={20} angle={0.5} penumbra={1} />
+        
+        {/* Fill light to bring out details in darker areas */}
+        <pointLight position={[0, -2, 4]} intensity={2} distance={15} color="#2dd4bf" />
+        
+        <Suspense fallback={null}>
+          <SceneModel />
+        </Suspense>
 
-          {/* Reduced sparkle counts significantly */}
-          <Sparkles 
-            count={40} 
-            scale={14} 
-            size={1.5} 
-            speed={0.4} 
-            opacity={0.4} 
-            color="#38bdf8" 
+        {/* Dense ambient digital particle field */}
+        {SPARKLE_LAYERS.map((layer) => (
+          <Sparkles
+            key={`${layer.color}-${layer.count}`}
+            count={layer.count}
+            scale={layer.scale}
+            size={layer.size}
+            speed={layer.speed}
+            opacity={layer.opacity}
+            color={layer.color}
           />
-          <Sparkles 
-            count={20} 
-            scale={10} 
-            size={2.5} 
-            speed={0.2} 
-            opacity={0.6} 
-            color="#f472b6" 
-          />
-        </Canvas>
-      )}
+        ))}
+      </Canvas>
     </div>
   );
-}
+});

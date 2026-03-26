@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useRef, useCallback } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { ReactNode, useCallback, useEffect, useRef } from "react";
 
 interface TiltCardProps {
   children: ReactNode;
@@ -9,30 +10,108 @@ interface TiltCardProps {
 
 export function TiltCard({ children, className = "" }: TiltCardProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<number | null>(null);
+  const boundsRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const xPct = (e.clientX - rect.left) / rect.width - 0.5;
-    const yPct = (e.clientY - rect.top) / rect.height - 0.5;
-    ref.current.style.transform = `perspective(600px) rotateY(${xPct * 6}deg) rotateX(${-yPct * 6}deg)`;
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const mouseXSpring = useSpring(x);
+  const mouseYSpring = useSpring(y);
+
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["7deg", "-7deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-7deg", "7deg"]);
+
+  const updateBounds = useCallback(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    boundsRef.current = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
   }, []);
+
+  useEffect(() => {
+    updateBounds();
+    const handleWindowChange = () => updateBounds();
+
+    window.addEventListener("resize", handleWindowChange);
+    window.addEventListener("scroll", handleWindowChange, { passive: true });
+
+    return () => {
+      window.removeEventListener("resize", handleWindowChange);
+      window.removeEventListener("scroll", handleWindowChange);
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, [updateBounds]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (!boundsRef.current) {
+      updateBounds();
+    }
+
+    const bounds = boundsRef.current;
+    if (!bounds || bounds.width === 0 || bounds.height === 0) {
+      return;
+    }
+
+    const nextX = e.clientX - bounds.left;
+    const nextY = e.clientY - bounds.top;
+
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    frameRef.current = requestAnimationFrame(() => {
+      x.set(nextX / bounds.width - 0.5);
+      y.set(nextY / bounds.height - 0.5);
+      frameRef.current = null;
+    });
+  }, [updateBounds, x, y]);
+
+  const handleMouseEnter = useCallback(() => {
+    updateBounds();
+  }, [updateBounds]);
 
   const handleMouseLeave = useCallback(() => {
-    if (ref.current) {
-      ref.current.style.transform = "perspective(600px) rotateY(0deg) rotateX(0deg)";
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
     }
-  }, []);
+    x.set(0);
+    y.set(0);
+  }, [x, y]);
 
   return (
-    <div
+    <motion.div
       ref={ref}
+      onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={{ transition: "transform 0.15s ease-out", willChange: "transform" }}
+      style={{
+        rotateY,
+        rotateX,
+        transformStyle: "preserve-3d",
+      }}
       className={`relative w-full ${className}`}
     >
-      {children}
-    </div>
+      <div
+        style={{
+          transform: "translateZ(30px)",
+          transformStyle: "preserve-3d",
+        }}
+        className="w-full h-full"
+      >
+        {children}
+      </div>
+    </motion.div>
   );
 }

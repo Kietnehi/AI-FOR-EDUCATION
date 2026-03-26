@@ -1,6 +1,8 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -8,6 +10,7 @@ import {
   Upload,
   MessageSquareText,
   Sparkles,
+  Clapperboard,
   ChevronLeft,
   Settings,
 } from "lucide-react";
@@ -21,11 +24,13 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/materials", label: "Học liệu", icon: BookOpen },
   { href: "/materials/upload", label: "Tải lên", icon: Upload },
+  { href: "/materials/video", label: "Tạo Video AI", icon: Clapperboard },
   { href: "/chatbot", label: "Chatbot", icon: MessageSquareText },
   { href: "/generated", label: "Nội dung AI", icon: Sparkles },
+  { href: "/converter", label: "Chuyển đổi & trích xuất PDF", icon: FileText },
 ];
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -138,6 +143,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             hover:bg-[var(--bg-secondary)] bg-transparent border-0
             transition-colors duration-200 cursor-pointer
           "
+          title={collapsed ? "Mở rộng" : "Thu gọn"}
         >
           <ChevronLeft
             className="w-5 h-5 transition-transform duration-200"
@@ -147,4 +153,4 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
     </aside>
   );
-}
+});

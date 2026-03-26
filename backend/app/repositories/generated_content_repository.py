@@ -10,8 +10,7 @@ class GeneratedContentRepository:
 
     async def create(self, payload: dict) -> dict:
         result = await self.collection.insert_one(payload)
-        created = await self.collection.find_one({"_id": result.inserted_id})
-        return serialize_document(created) or {}
+        return serialize_document({"_id": result.inserted_id, **payload}) or {}
 
     async def get_by_id(self, content_id: ObjectId) -> dict | None:
         return serialize_document(await self.collection.find_one({"_id": content_id}))
@@ -25,6 +24,16 @@ class GeneratedContentRepository:
         cursor = self.collection.find({"material_id": material_id})
         items = [serialize_document(doc) async for doc in cursor]
         return [item for item in items if item]
+
+    async def get_next_version(self, material_id: str, content_type: str) -> int:
+        latest = await self.collection.find_one(
+            {"material_id": material_id, "content_type": content_type},
+            sort=[("version", -1)],
+            projection={"version": 1},
+        )
+        if not latest:
+            return 1
+        return int(latest.get("version", 1)) + 1
 
     async def delete_by_material_id(self, material_id: str) -> None:
         await self.collection.delete_many({"material_id": material_id})
