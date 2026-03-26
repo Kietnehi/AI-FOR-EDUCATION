@@ -9,102 +9,134 @@ interface TtsMarkdownProps {
 }
 
 export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
-  const hiddenRef = useRef<HTMLDivElement>(null);
-  const visibleRef = useRef<HTMLDivElement>(null);
-  const [rendered, setRendered] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const markdownRef = useRef<HTMLDivElement>(null);
+  const displayRef = useRef<HTMLDivElement>(null);
+  const [totalWords, setTotalWords] = useState(0);
 
-  // Render markdown initially into hidden ref, then mark as rendered.
   useEffect(() => {
-    // A small delay to ensure Markdown component has finished rendering its internal React tree.
-    const timer = setTimeout(() => setRendered(true), 50);
-    return () => clearTimeout(timer);
+    let timeoutId: NodeJS.Timeout;
+
+    const updateDisplay = () => {
+      if (!markdownRef.current || !displayRef.current) return;
+      
+      const template = markdownRef.current.cloneNode(true) as HTMLDivElement;
+      
+      // Remove any interactive button like copy button
+      const buttons = template.querySelectorAll('button');
+      buttons.forEach(btn => btn.remove());
+      
+      const walker = document.createTreeWalker(template, NodeFilter.SHOW_TEXT, null);
+      const textNodes: Node[] = [];
+      let node;
+      while ((node = walker.nextNode())) {
+         if (node.nodeValue && node.nodeValue.trim() !== '') {
+           let parent = node.parentElement;
+           let inPre = false;
+           while (parent && parent !== template) {
+             if (parent.tagName.toLowerCase() === 'pre' || parent.tagName.toLowerCase() === 'code') {
+               inPre = true;
+               break;
+             }
+             parent = parent.parentElement;
+           }
+           if (!inPre) {
+             textNodes.push(node);
+           }
+         }
+      }
+
+      let currentWordIndex = 0;
+      textNodes.forEach(textNode => {
+        const text = textNode.nodeValue || "";
+        const parts = text.split(/(\s+)/);
+        const fragment = document.createDocumentFragment();
+        
+        parts.forEach(part => {
+           if (part.length === 0) return;
+           if (part.trim().length === 0) {
+              fragment.appendChild(document.createTextNode(part));
+           } else {
+              const span = document.createElement("span");
+              span.textContent = part;
+              span.dataset.ttsWordIndex = currentWordIndex.toString();
+              span.className = "transition-all duration-200 rounded px-[2px] border border-transparent";
+              fragment.appendChild(span);
+              currentWordIndex++;
+           }
+        });
+        
+        if (textNode.parentNode) {
+            textNode.parentNode.replaceChild(fragment, textNode);
+        }
+      });
+
+      displayRef.current.innerHTML = template.innerHTML;
+      setTotalWords(currentWordIndex);
+    };
+
+    // Delay slightly to let markdown subcomponents (like Prism) mount completely
+    timeoutId = setTimeout(updateDisplay, 50);
+
+    let observer: MutationObserver | null = null;
+    if (markdownRef.current) {
+      observer = new MutationObserver(() => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(updateDisplay, 100);
+      });
+      observer.observe(markdownRef.current, { childList: true, subtree: true, characterData: true });
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (observer) observer.disconnect();
+    };
   }, [content]);
 
   useEffect(() => {
-    if (!rendered || !hiddenRef.current || !visibleRef.current) return;
-
-    // Reset visible HTML
-    visibleRef.current.innerHTML = hiddenRef.current.innerHTML;
-
-    // Find text nodes
-    const textNodes: Text[] = [];
-    const walk = document.createTreeWalker(visibleRef.current, NodeFilter.SHOW_TEXT, null);
-    let node;
-    while ((node = walk.nextNode())) {
-      textNodes.push(node as Text);
-    }
-
-    // Calculate total words
-    let totalWords = 0;
-    textNodes.forEach((n) => {
-      const words = n.nodeValue?.split(/\s+/) || [];
-      totalWords += words.filter((w) => w.trim().length > 0).length;
+    if (!displayRef.current || totalWords === 0) return;
+    
+    const allHighlights = displayRef.current.querySelectorAll('.tts-highlight');
+    allHighlights.forEach(el => {
+       el.classList.remove('tts-highlight', 'bg-brand-500/30', 'text-brand-900', 'dark:text-brand-300', 'font-medium', 'border-brand-500/20');
+       el.classList.add('border-transparent');
     });
 
-    const ratio = Math.min(Math.max(progress, 0), 1);
-    const targetIndex = Math.floor(totalWords * ratio);
-
-    let currentWordIndex = 0;
-    for (const n of textNodes) {
-      const text = n.nodeValue || "";
-      const wordsArray = text.split(/(\s+)/);
-      let modified = false;
-
-      for (let i = 0; i < wordsArray.length; i++) {
-        if (wordsArray[i].trim().length > 0) {
-          if (currentWordIndex === targetIndex) {
-            wordsArray[i] = `<span class="bg-brand-500/40 text-brand-700 dark:text-brand-300 font-medium rounded px-[2px] transition-all duration-200" id="tts-highlighted-word">${wordsArray[i]}</span>`;
-            modified = true;
-          }
-          currentWordIndex++;
+    const targetIndex = Math.min(totalWords - 1, Math.floor(totalWords * progress));
+    if (targetIndex >= 0) {
+       const current = displayRef.current.querySelector(`[data-tts-word-index="${targetIndex}"]`);
+       if (current) {
+          current.classList.add('tts-highlight', 'bg-brand-500/30', 'text-brand-900', 'dark:text-brand-300', 'font-medium', 'border-brand-500/20');
+          current.classList.remove('border-transparent');
+          
         }
-      }
-
-      if (modified) {
-        const spanWrapper = document.createElement("span");
-        spanWrapper.innerHTML = wordsArray.join("");
-        n.parentNode?.replaceChild(spanWrapper, n);
-        break; // Only highlight one word
-      }
-    }
-
-    // Auto-scroll logic inside the container
-    const highlightEl = visibleRef.current.querySelector("#tts-highlighted-word");
-    if (highlightEl && visibleRef.current) {
-      const containerRect = visibleRef.current.getBoundingClientRect();
-      const elRect = highlightEl.getBoundingClientRect();
-
-      // Check if element is out of the visible bounds of the container
-      if (
-        elRect.top < containerRect.top ||
-        elRect.bottom > containerRect.bottom
-      ) {
-         // Smooth scroll the container
-         const container = visibleRef.current;
-         container.scrollTo({
-           top: container.scrollTop + (elRect.top - containerRect.top) - containerRect.height / 2,
-           behavior: "smooth"
-         });
-      }
-    }
-  }, [rendered, progress]);
+     }
+  }, [progress, totalWords]);
 
   return (
-    <div className="relative">
-      {/* Hidden React Markdown renderer */}
+    <div 
+      className="w-full relative overflow-hidden rounded-md"
+      style={{
+        minHeight: "3rem"
+      }}
+    >
       <div 
-        ref={hiddenRef} 
-        className="absolute opacity-0 pointer-events-none -z-10 h-0 w-0 overflow-hidden" 
-        aria-hidden="true"
+         ref={markdownRef} 
+         className="absolute opacity-0 pointer-events-none w-full h-[1px] overflow-hidden" 
+         aria-hidden="true"
       >
-        <Markdown content={content} />
+         <Markdown content={content} />
       </div>
 
-      {/* Visible manually managed DOM */}
-      <div
-        ref={visibleRef}
-        className="w-full max-h-[3rem] overflow-hidden pr-2 text-sm leading-6 text-[var(--text-primary)] [&_blockquote]:my-0 [&_code]:text-[0.85em] [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0 [&_li]:mb-0 [&_ol]:my-0 [&_p]:mb-0 [&_pre]:my-0 [&_ul]:my-0"
-      />
+       <div 
+         ref={containerRef}
+         className="w-full text-[13px] leading-relaxed overflow-hidden"
+       >
+        <div
+          ref={displayRef}
+          className="tts-display-container markdown-body [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+        />
+       </div>
     </div>
   );
 }

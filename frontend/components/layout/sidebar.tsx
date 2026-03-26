@@ -53,8 +53,8 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
         href="/" 
         className={`flex items-center h-[72px] border-b border-[var(--border-light)] no-underline group transition-all duration-300 ${collapsed ? "justify-center px-0" : "gap-3.5 px-5"}`}
       >
-        <div className="relative w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-[var(--border-light)] group-hover:shadow-md group-hover:ring-2 group-hover:ring-brand-500/20 group-hover:border-brand-400/50 transition-all duration-300">
-          <Image src="/logo.png" alt="AI Learning Studio Logo" width={40} height={40} className="w-full h-full object-cover scale-105 bg-[var(--bg-elevated)]" priority />
+        <div className="relative w-14 h-14 flex-shrink-0 rounded-2xl overflow-hidden shadow-sm border border-[var(--border-light)] group-hover:shadow-md group-hover:ring-2 group-hover:ring-brand-500/20 group-hover:border-brand-400/50 transition-all duration-300">
+          <Image src="/logo.png" alt="AI Learning Studio Logo" width={56} height={56} className="w-full h-full object-cover scale-105 bg-[var(--bg-elevated)]" priority />
         </div>
         <AnimatePresence>
           {!collapsed && (

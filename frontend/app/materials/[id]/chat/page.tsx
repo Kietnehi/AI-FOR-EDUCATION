@@ -176,6 +176,8 @@ export default function ChatbotPage() {
   const [ttsActiveText, setTtsActiveText] = useState("");
   const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
   const [isTtsPlaying, setIsTtsPlaying] = useState(false);
+  const [ttsPlaybackRate, setTtsPlaybackRate] = useState(1);
+  const [isTtsMuted, setIsTtsMuted] = useState(false);
   const [sttModel, setSttModel] = useState<SttModel>("local-base");
    const [selectedImage, setSelectedImage] = useState<string | null>(null);
    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -305,6 +307,13 @@ export default function ChatbotPage() {
     }
     ttsAudioRef.current.play().catch(() => undefined);
   }, [ttsAudioUrl]);
+
+  useEffect(() => {
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.playbackRate = ttsPlaybackRate;
+      ttsAudioRef.current.muted = isTtsMuted;
+    }
+  }, [ttsPlaybackRate, isTtsMuted, ttsAudioUrl]);
 
   const handleToggleSpeak = useCallback(async (messageId: string, content: string) => {
     if (speakingMessageId === messageId) {
@@ -867,26 +876,26 @@ export default function ChatbotPage() {
               {!isTtsPanelCollapsed && ttsDuration > 0 && ttsCurrentTime > 0 && ttsCurrentTime < ttsDuration && (
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl animate-pulse pointer-events-none" />
               )}
-              <div className="mb-3 flex items-center justify-between text-xs text-[var(--text-secondary)] relative z-10">
+              <div className="mb-3 flex items-center justify-between text-xs text-slate-700 relative z-10">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex w-7 h-7 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-400 shadow-inner">
+                  <span className="inline-flex w-7 h-7 items-center justify-center rounded-full bg-brand-100 text-brand-700 shadow-inner">
                     <Volume2 className="w-4 h-4" />
                   </span>
-                  <span className="font-semibold text-brand-900 dark:text-brand-300">
+                  <span className="font-semibold text-slate-900">
                     Đang phát {Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsTtsPanelCollapsed((prev) => !prev)}
-                  className="rounded-full border border-brand-200/60 bg-white/80 dark:bg-[var(--bg-elevated)] px-3 py-1.5 font-medium hover:bg-brand-50 hover:text-brand-700 hover:shadow-sm dark:border-brand-800 dark:text-brand-300 dark:hover:bg-brand-900/50 transition-all"
+                  className="rounded-full border border-brand-200/60 bg-white/90 px-3 py-1.5 font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 hover:shadow-sm transition-all"
                 >
                   {isTtsPanelCollapsed ? "Mở rộng" : "Thu gọn"}
                 </button>
               </div>
 
               {isTtsPanelCollapsed ? (
-                <div className="h-2 w-full overflow-hidden rounded-full bg-brand-100/80 dark:bg-brand-900/30 shadow-inner">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-brand-100/80 shadow-inner">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-brand-400 via-brand-500 to-accent-500 transition-all duration-300 ease-out"
                     style={{ width: `${Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%` }}
@@ -921,7 +930,7 @@ export default function ChatbotPage() {
                   />
 
                   {/* Custom Audio Player Controls */}
-                  <div className="flex items-center gap-4 w-full bg-white/60 dark:bg-black/30 border border-brand-200/50 dark:border-brand-800/50 p-2.5 rounded-full shadow-sm backdrop-blur-md mt-1">
+                  <div className="flex items-center gap-4 w-full bg-white/90 border border-brand-200/50 p-2.5 rounded-full shadow-sm backdrop-blur-md mt-1">
                     <button 
                       onClick={() => {
                         if (ttsAudioRef.current) {
@@ -935,13 +944,13 @@ export default function ChatbotPage() {
                       {isTtsPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-1 fill-current" />}
                     </button>
 
-                    <span className="text-xs font-semibold text-brand-700/80 dark:text-brand-300/80 tabular-nums w-10 text-center">
+                    <span className="text-xs font-semibold text-slate-700 tabular-nums w-10 text-center">
                       {formatTime(ttsCurrentTime)}
                     </span>
 
                     <div className="relative flex-1 h-8 flex items-center group cursor-pointer">
                       {/* Base track */}
-                      <div className="absolute w-full h-2 bg-brand-100 dark:bg-brand-900/60 rounded-full shadow-inner" />
+                      <div className="absolute w-full h-2 bg-brand-100 rounded-full shadow-inner" />
                       
                       {/* Fill track */}
                       <div 
@@ -971,16 +980,33 @@ export default function ChatbotPage() {
                       />
                     </div>
 
-                    <span className="text-xs font-semibold text-brand-700/80 dark:text-brand-300/80 tabular-nums w-10 text-center">
+                    <span className="text-xs font-semibold text-slate-700 tabular-nums w-10 text-center">
                       {formatTime(ttsDuration)}
                     </span>
+
+                    <div className="flex items-center gap-1 border-l border-brand-200/50 pl-2">
+                      <button
+                        onClick={() => setTtsPlaybackRate(r => r === 1 ? 1.25 : r === 1.25 ? 1.5 : r === 1.5 ? 2 : 1)}
+                        className="px-2 py-1 text-[10px] font-bold rounded-md bg-brand-100 text-brand-800 hover:bg-brand-200 transition-colors"
+                        title="Tốc độ phát"
+                      >
+                        {ttsPlaybackRate}x
+                      </button>
+                      <button
+                        onClick={() => setIsTtsMuted(m => !m)}
+                        className="p-1.5 rounded-md text-brand-700 hover:bg-brand-100 transition-colors"
+                        title={isTtsMuted ? "Bật âm" : "Tắt âm"}
+                      >
+                        {isTtsMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="mt-3 rounded-xl border border-brand-200/50 bg-white/80 dark:bg-black/40 p-3.5 text-left shadow-sm backdrop-blur-md">
-                    <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider font-bold text-brand-600/80 dark:text-brand-400/80">
+                  <div className="mt-3 rounded-xl border border-brand-200/50 bg-white/95 p-3.5 text-left text-slate-900 shadow-sm backdrop-blur-md">
+                    <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider font-bold text-slate-700">
                       <span>Văn bản đang đọc</span>
                     </div>
-                    <div className="max-h-[5.5rem] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="pr-2 custom-scrollbar">
                       <TtsMarkdown
                         content={ttsActiveText}
                         progress={ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0}

@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
 import { markdownToPlainText } from "@/lib/tts";
 import { Markdown } from "@/components/ui/markdown";
+import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import type { SttModel } from "@/types";
 
 type MiniChatMessage = {
@@ -125,6 +126,8 @@ export function FloatingMascot() {
   const [ttsActiveText, setTtsActiveText] = useState("");
   const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
   const [isTtsPlaying, setIsTtsPlaying] = useState(false);
+  const [ttsPlaybackRate, setTtsPlaybackRate] = useState(1);
+  const [isTtsMuted, setIsTtsMuted] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
@@ -187,33 +190,6 @@ export function FloatingMascot() {
     const start = Math.max(0, index - 14);
     const end = Math.min(normalized.length, index + 34);
     return normalized.slice(start, end);
-  };
-
-  const renderHighlightedText = (text: string, progress: number) => {
-    if (!text) return null;
-    const words = text.split(/(\s+)/);
-    const wordsOnly = words.filter(w => w.trim().length > 0);
-    const ratio = Math.min(Math.max(progress, 0), 1);
-    const targetIndex = Math.floor(wordsOnly.length * ratio);
-    
-    let wordCount = 0;
-    return (
-      <span className="whitespace-pre-wrap break-words leading-relaxed text-[13px]">
-        {words.map((w, i) => {
-          if (w.trim().length === 0) return <span key={i}>{w}</span>;
-          const isHighlighted = wordCount === targetIndex;
-          wordCount++;
-          return (
-            <span
-              key={i}
-              className={isHighlighted ? "bg-brand-500/30 text-brand-700 dark:text-brand-300 rounded px-[2px] transition-all duration-200" : ""}
-            >
-              {w}
-            </span>
-          );
-        })}
-      </span>
-    );
   };
 
   useEffect(() => {
@@ -347,6 +323,13 @@ export function FloatingMascot() {
     }
     ttsAudioRef.current.play().catch(() => undefined);
   }, [ttsAudioUrl]);
+
+  useEffect(() => {
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.playbackRate = ttsPlaybackRate;
+      ttsAudioRef.current.muted = isTtsMuted;
+    }
+  }, [ttsPlaybackRate, isTtsMuted, ttsAudioUrl]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     // Only capture left click
@@ -751,26 +734,26 @@ export function FloatingMascot() {
                   {!isTtsPanelCollapsed && ttsDuration > 0 && ttsCurrentTime > 0 && ttsCurrentTime < ttsDuration && (
                     <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-brand-500/10 rounded-full blur-xl animate-pulse pointer-events-none" />
                   )}
-                  <div className="mb-2 flex items-center justify-between text-[11px] text-[var(--text-secondary)] min-w-0 relative z-10">
+                  <div className="mb-2 flex items-center justify-between text-[11px] text-slate-700 min-w-0 relative z-10">
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                      <span className="inline-flex flex-shrink-0 w-6 h-6 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-400 shadow-inner">
+                      <span className="inline-flex flex-shrink-0 w-6 h-6 items-center justify-center rounded-full bg-brand-100 text-brand-700 shadow-inner">
                         <Volume2 className="w-3.5 h-3.5" />
                       </span>
-                      <span className="font-semibold text-brand-900 dark:text-brand-300 truncate block">
+                      <span className="font-semibold text-slate-900 truncate block">
                         Đang phát: {Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setIsTtsPanelCollapsed((prev) => !prev)}
-                      className="rounded-full flex-shrink-0 border border-brand-200/60 bg-white/80 dark:bg-[var(--bg-elevated)] px-2.5 py-1 font-medium hover:text-brand-700 transform transition-all active:scale-95 ml-2 hover:shadow-sm"
+                      className="rounded-full flex-shrink-0 border border-brand-200/60 bg-white/90 px-2.5 py-1 font-medium text-slate-700 hover:text-brand-700 transform transition-all active:scale-95 ml-2 hover:shadow-sm"
                     >
                       {isTtsPanelCollapsed ? "Mở rộng" : "Thu gọn"}
                     </button>
                   </div>
 
                   {isTtsPanelCollapsed ? (
-                    <div className="h-1.5 w-full flex-shrink-0 overflow-hidden rounded-full bg-brand-100/80 dark:bg-brand-900/30 shadow-inner mt-1.5">
+                      <div className="h-1.5 w-full flex-shrink-0 overflow-hidden rounded-full bg-brand-100/80 shadow-inner mt-1.5">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-brand-400 via-brand-500 to-accent-500 transition-all duration-300"
                         style={{ width: `${Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%` }}
@@ -805,7 +788,7 @@ export function FloatingMascot() {
                       />
 
                       {/* Custom Audio Player Controls */}
-                      <div className="flex items-center gap-3 w-full bg-white/60 dark:bg-[var(--bg-elevated)] border border-[var(--border-light)] p-2 rounded-full shadow-sm backdrop-blur-sm">
+                      <div className="flex items-center gap-3 w-full bg-white/90 border border-brand-200/60 p-2 rounded-full shadow-sm backdrop-blur-sm">
                         <button 
                           onClick={() => {
                             if (ttsAudioRef.current) {
@@ -819,11 +802,11 @@ export function FloatingMascot() {
                           {isTtsPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />}
                         </button>
 
-                        <span className="text-[10px] font-semibold text-[var(--text-secondary)] tabular-nums">{formatTime(ttsCurrentTime)}</span>
+                        <span className="text-[10px] font-semibold text-slate-700 tabular-nums">{formatTime(ttsCurrentTime)}</span>
 
                         <div className="relative flex-1 h-6 flex items-center group cursor-pointer">
                           {/* Base track */}
-                          <div className="absolute w-full h-1.5 bg-brand-100 dark:bg-brand-900/60 rounded-full shadow-inner" />
+                          <div className="absolute w-full h-1.5 bg-brand-100 rounded-full shadow-inner" />
                           
                           {/* Fill track */}
                           <div 
@@ -853,12 +836,32 @@ export function FloatingMascot() {
                           />
                         </div>
 
-                        <span className="text-[10px] font-semibold text-[var(--text-secondary)] tabular-nums">{formatTime(ttsDuration)}</span>
+                        <span className="text-[10px] font-semibold text-slate-700 tabular-nums">{formatTime(ttsDuration)}</span>
+                        
+                        <div className="flex items-center gap-1 border-l border-brand-200/50 pl-1">
+                          <button
+                            onClick={() => setTtsPlaybackRate(r => r === 1 ? 1.25 : r === 1.25 ? 1.5 : r === 1.5 ? 2 : 1)}
+                            className="px-1.5 py-1 text-[9px] font-bold rounded-md bg-brand-100 text-brand-800 hover:bg-brand-200 transition-colors"
+                            title="Tốc độ phát"
+                          >
+                            {ttsPlaybackRate}x
+                          </button>
+                          <button
+                            onClick={() => setIsTtsMuted(m => !m)}
+                            className="p-1 rounded-md text-brand-700 hover:bg-brand-100 transition-colors"
+                            title={isTtsMuted ? "Bật âm" : "Tắt âm"}
+                          >
+                            {isTtsMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="flex flex-col gap-1 w-full min-w-0 mt-3">
-                        <div className="max-h-[5.5rem] overflow-y-auto rounded-xl border border-brand-200/50 bg-white/80 dark:bg-black/40 p-2.5 text-left w-full min-w-0 shadow-sm backdrop-blur-sm custom-scrollbar">
-                          {renderHighlightedText(ttsActiveText, ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0)}
+                        <div className="rounded-xl border border-brand-200/50 bg-white/95 p-2.5 text-left text-slate-900 w-full min-w-0 shadow-sm backdrop-blur-sm custom-scrollbar">
+                          <TtsMarkdown 
+                            content={ttsActiveText} 
+                            progress={ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0} 
+                          />
                         </div>
                       </div>
                     </div>
