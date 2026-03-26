@@ -272,14 +272,16 @@ class GenerationService:
         }
         return await self.generated_repo.create(doc)
 
-    async def generate_minigame(self, material_id: str, game_types: list[str]) -> dict:
+    async def generate_minigame(self, material_id: str, game_type: str = "quiz_mixed") -> dict:
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
+        valid_game_types = {"quiz_mixed", "flashcard", "scenario_branching"}
+        selected_game_type = game_type if game_type in valid_game_types else "quiz_mixed"
         game_payload, version = await asyncio.gather(
             asyncio.to_thread(
                 self.minigame_generator.generate,
                 text,
-                game_types=game_types,
+                game_type=selected_game_type,
             ),
             self._next_version(material_id, "minigame"),
         )
@@ -287,11 +289,26 @@ class GenerationService:
         model_used = getattr(llm, "last_model_used", None) if llm else None
         fallback_applied = getattr(llm, "fallback_used", False) if llm else False
 
+        outline: list[str] = []
+        if isinstance(game_payload, dict):
+            items = game_payload.get("items")
+            if isinstance(items, list):
+                for item in items[:5]:
+                    if not isinstance(item, dict):
+                        continue
+                    snippet = item.get("question") or item.get("front") or item.get("scenario") or item.get("text")
+                    if isinstance(snippet, str) and snippet.strip():
+                        outline.append(snippet.strip()[:80])
+            if not outline:
+                title = game_payload.get("title")
+                if isinstance(title, str) and title.strip():
+                    outline = [title.strip()[:80]]
+
         now = utc_now()
         doc = {
             "material_id": material_id,
             "content_type": "minigame",
-            "game_type": game_type,
+            "game_type": selected_game_type,
             "version": version,
             "outline": outline,
             "json_content": game_payload,
