@@ -4,7 +4,6 @@ import { memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   BookOpen,
@@ -36,10 +35,11 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
   const pathname = usePathname();
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    <aside
+      style={{
+        width: collapsed ? 80 : 280,
+        transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
       className="
         fixed top-0 left-0 z-40 h-screen flex flex-col
         bg-[var(--glass-bg)] backdrop-blur-3xl
@@ -168,6 +168,6 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
           )}
         </button>
       </div>
-    </motion.aside>
+    </aside>
   );
 });
