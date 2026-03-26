@@ -13,40 +13,30 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
-type ApiFetchOptions = RequestInit & {
-  cacheTtlMs?: number;
-  skipCache?: boolean;
-};
+async function apiFetch<T>(path: string, options?: RequestInit, timeoutMs: number = 60000): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-type CacheEntry = {
-  data: unknown;
-  expiresAt: number;
-};
-
-const DEFAULT_GET_CACHE_TTL_MS = 15000;
-const responseCache = new Map<string, CacheEntry>();
-const inflightRequests = new Map<string, Promise<unknown>>();
-
-function getCacheKey(path: string): string {
-  return path;
-}
-
-function readCache<T>(key: string): T | null {
-  const cached = responseCache.get(key);
-  if (!cached) return null;
-  if (cached.expiresAt <= Date.now()) {
-    responseCache.delete(key);
-    return null;
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers || {}),
+      },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error: any) {
+    clearTimeout(timeout);
+    if (error?.name === "AbortError") {
+      throw new Error("Request timeout: Backend is taking too long to respond.");
+    }
+    throw error;
   }
-  return cached.data as T;
-}
 
-function writeCache(key: string, data: unknown, ttlMs: number): void {
-  responseCache.set(key, {
-    data,
-    expiresAt: Date.now() + ttlMs,
-  });
-}
+  clearTimeout(timeout);
 
 function invalidateCache(...prefixes: string[]): void {
   if (!prefixes.length) {
@@ -160,13 +150,11 @@ export async function generatePodcast(id: string): Promise<GeneratedContent> {
   return data;
 }
 
-export async function generateMinigame(id: string): Promise<GeneratedContent> {
-  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
+export async function generateMinigame(id: string, gameType: "quiz_mixed" | "flashcard" | "scenario_branching" = "quiz_mixed"): Promise<GeneratedContent> {
+  return apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
     method: "POST",
-    body: JSON.stringify({ game_types: ["mcq", "fill_blank", "matching", "flashcard"] }),
-  });
-  primeCache(`/generated-contents/${data.id}`, data);
-  return data;
+    body: JSON.stringify({ game_type: gameType }),
+  }, gameType === "scenario_branching" ? 180000 : 60000);
 }
 
 export async function getGeneratedContent(id: string): Promise<GeneratedContent> {
@@ -289,7 +277,7 @@ export async function synthesizeChatSpeech(text: string, lang: string = "vi"): P
 
 export async function submitGameAttempt(
   generatedContentId: string,
-  answers: Array<{ id: string; answer: string }>
+  answers: Array<{ id?: string; node_id?: string; answer: string }>
 ): Promise<any> {
   return apiFetch<any>(`/games/${generatedContentId}/submit`, {
     method: "POST",

@@ -1,7 +1,6 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -60,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-[var(--bg-primary)]" style={{ background: "var(--gradient-mesh), var(--bg-primary)" }}>
+      <div className="min-h-screen bg-[var(--bg-primary)]">
         <a
           href="#main-content"
           className="
@@ -87,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           }}
           className="pt-16 min-h-screen"
         >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
+          <div className="max-w-[1400px] mx-auto px-6 sm:px-8 py-8 relative">
             {children}
           </div>
         </main>
