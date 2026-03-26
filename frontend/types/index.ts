@@ -109,3 +109,9 @@ export type MascotChatResponse = {
   model_used?: string | null;
   fallback_applied?: boolean;
 };
+
+export type SttModel =
+  | "local-base"
+  | "local-small"
+  | "whisper-large-v3"
+  | "whisper-large-v3-turbo";

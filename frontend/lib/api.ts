@@ -8,6 +8,7 @@ import {
   NotebookLMMediaResult,
   NotebookLMResponse,
   NotebookLMSavedResult,
+  SttModel,
 } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
@@ -248,7 +249,7 @@ export async function sendMascotChatMessage(
 
 export async function transcribeChatAudio(
   audioBlob: Blob,
-  sttModel: "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo"
+  sttModel: SttModel
 ): Promise<{ text: string }> {
   const formData = new FormData();
   formData.append("file", audioBlob, "recording.webm");

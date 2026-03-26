@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
 import { markdownToPlainText } from "@/lib/tts";
 import { Markdown } from "@/components/ui/markdown";
+import type { SttModel } from "@/types";
 
 type MiniChatMessage = {
   role: "user" | "assistant";
@@ -17,6 +18,12 @@ type MiniChatMessage = {
 };
 
 const MASCOT_SESSION_STORAGE_KEY = "mascot-chat-session-id";
+const STT_MODEL_OPTIONS: SttModel[] = [
+  "local-base",
+  "local-small",
+  "whisper-large-v3",
+  "whisper-large-v3-turbo",
+];
 
 function Bot() {
   const groupRef = useRef<THREE.Group>(null);
@@ -100,7 +107,7 @@ export function FloatingMascot() {
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
+  const [sttModel, setSttModel] = useState<SttModel>("local-base");
   const [ttsLang, setTtsLang] = useState("vi");
 
   const [mascotSessionId, setMascotSessionId] = useState<string | undefined>(undefined);
@@ -278,8 +285,8 @@ export function FloatingMascot() {
       setMascotSessionId(savedSessionId);
     }
     const savedSttModel = localStorage.getItem("mascot-stt-model");
-    if (savedSttModel) {
-      setSttModel(savedSttModel as "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo");
+    if (savedSttModel && STT_MODEL_OPTIONS.includes(savedSttModel as SttModel)) {
+      setSttModel(savedSttModel as SttModel);
     }
   }, []);
 
@@ -605,10 +612,11 @@ export function FloatingMascot() {
                 <label className="text-xs font-medium text-[var(--text-secondary)] block">Model STT</label>
                 <select
                   value={sttModel}
-                  onChange={(e) => setSttModel(e.target.value as "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo")}
+                  onChange={(e) => setSttModel(e.target.value as SttModel)}
                   className="w-full text-xs rounded-lg px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-light)] text-[var(--text-primary)] focus:outline-none focus:border-brand-400"
                 >
                   <option value="local-base">Local - Whisper base</option>
+                  <option value="local-small">Local - Whisper small</option>
                   <option value="whisper-large-v3">Groq - whisper-large-v3</option>
                   <option value="whisper-large-v3-turbo">Groq - whisper-large-v3-turbo</option>
                 </select>
