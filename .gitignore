@@ -11,6 +11,8 @@ backend/storage/notebooklm/
 backend/storage/extracted/
 !backend/storage/uploads/.gitkeep
 !backend/storage/generated/.gitkeep
+!backend/storage/images/.gitkeep
+
 
 
 # Node

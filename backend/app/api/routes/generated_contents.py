@@ -27,7 +27,12 @@ async def generate_slides(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
-    result = await service.generate_slides(material_id, tone=payload.tone, max_slides=payload.max_slides)
+    result = await service.generate_slides(
+        material_id,
+        tone=payload.tone,
+        max_slides=payload.max_slides,
+        skip_refine=payload.skip_refine
+    )
     return GeneratedContentResponse(**result)
 
 

@@ -19,9 +19,20 @@ class FileParser:
     @staticmethod
     def _parse_pdf(file_path: str) -> str:
         reader = PdfReader(file_path)
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        parts = []
+        for i, page in enumerate(reader.pages):
+            parts.append(f"\n[PAGE {i+1}]\n")
+            parts.append(page.extract_text() or "")
+        return "".join(parts)
 
     @staticmethod
     def _parse_docx(file_path: str) -> str:
         document = Document(file_path)
-        return "\n".join(paragraph.text for paragraph in document.paragraphs)
+        # DOCX doesn't have strict page numbers, but we can simulate virtual pages or just return paragraphs
+        parts = []
+        for i, paragraph in enumerate(document.paragraphs):
+            # inject a fake page marker somewhat evenly, or simply leave it sequential
+            if i % 30 == 0:
+                parts.append(f"\n[DOC_PART {i // 30 + 1}]\n")
+            parts.append(paragraph.text)
+        return "\n".join(parts)

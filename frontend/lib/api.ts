@@ -142,10 +142,17 @@ export async function processMaterial(id: string): Promise<{ message: string }> 
   return result;
 }
 
-export async function generateSlides(id: string): Promise<GeneratedContent> {
+export async function generateSlides(
+  id: string,
+  options?: { max_slides?: number; tone?: string; skip_refine?: boolean }
+): Promise<GeneratedContent> {
   const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/slides`, {
     method: "POST",
-    body: JSON.stringify({ tone: "teacher", max_slides: 8 }),
+    body: JSON.stringify({
+      tone: options?.tone || "teacher",
+      max_slides: options?.max_slides || 10,
+      skip_refine: options?.skip_refine || false,
+    }),
   });
   primeCache(`/generated-contents/${data.id}`, data);
   return data;

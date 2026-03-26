@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
+    image_cache_dir: str = "./storage/images"
+    pexels_api_key: str = ""
+
     notebooklm_documents_dir: str = "./storage/notebooklm/documents"
     notebooklm_user_data_dir: str = "./storage/notebooklm/chrome-profile"
     notebooklm_generate_wait_seconds: int = 120
@@ -63,6 +66,7 @@ class Settings(BaseSettings):
         "upload_dir",
         "generated_dir",
         "chroma_persist_dir",
+        "image_cache_dir",
         "notebooklm_documents_dir",
         "notebooklm_user_data_dir",
     )
