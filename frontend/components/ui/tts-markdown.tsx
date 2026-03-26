@@ -101,10 +101,9 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
       </div>
 
       {/* Visible manually managed DOM */}
-      <div 
+      <div
         ref={visibleRef}
-        // Fixed height for ~2 lines, scrollable
-        className="text-sm text-[var(--text-secondary)] leading-relaxed max-h-[3rem] overflow-y-auto w-full custom-scrollbar pr-2"
+        className="w-full max-h-[3rem] overflow-hidden pr-2 text-sm leading-6 text-[var(--text-primary)] [&_blockquote]:my-0 [&_code]:text-[0.85em] [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0 [&_li]:mb-0 [&_ol]:my-0 [&_p]:mb-0 [&_pre]:my-0 [&_ul]:my-0"
       />
     </div>
   );
