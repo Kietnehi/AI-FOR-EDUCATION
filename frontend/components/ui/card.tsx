@@ -1,7 +1,6 @@
 "use client";
 
 import { ReactNode } from "react";
-import { motion } from "framer-motion";
 
 interface CardProps {
   children: ReactNode;
@@ -27,31 +26,18 @@ export function Card({
   onClick,
 }: CardProps) {
   const baseClasses = `
-    rounded-2xl border transition-all duration-300
+    rounded-2xl border transition-all duration-200
     ${paddingMap[padding]}
     ${glass
       ? "bg-[var(--glass-bg)] backdrop-blur-xl border-[var(--glass-border)]"
       : "bg-[var(--bg-elevated)] border-[var(--border-light)]"
     }
-    ${hover ? "cursor-pointer" : ""}
+    ${hover ? "cursor-pointer hover:-translate-y-1 hover:shadow-xl" : "shadow-[var(--shadow-sm)]"}
     ${className}
   `;
 
-  if (hover) {
-    return (
-      <motion.div
-        className={baseClasses}
-        whileHover={{ y: -4, boxShadow: "var(--shadow-xl)" }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        onClick={onClick}
-      >
-        {children}
-      </motion.div>
-    );
-  }
-
   return (
-    <div className={`${baseClasses} shadow-[var(--shadow-sm)]`} onClick={onClick}>
+    <div className={baseClasses} onClick={onClick}>
       {children}
     </div>
   );

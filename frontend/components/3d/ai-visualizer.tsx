@@ -10,7 +10,6 @@ import {
   Box,
   Cylinder,
   Ring,
-  MeshTransmissionMaterial,
   useTexture
 } from "@react-three/drei";
 import * as THREE from "three";
@@ -55,8 +54,8 @@ function DigitalPlanet() {
 
   return (
     <group>
-      {/* Core - Earth Map */}
-      <Sphere ref={innerGlobeRef} args={[1.35, 64, 64]} rotation={[0, -Math.PI / 2, 0]}>
+      {/* Core - Earth Map - reduced segments from 64 to 32 */}
+      <Sphere ref={innerGlobeRef} args={[1.35, 32, 32]} rotation={[0, -Math.PI / 2, 0]}>
         <meshStandardMaterial
           map={earthTexture}
           color="#a5b4fc"
@@ -67,8 +66,8 @@ function DigitalPlanet() {
         />
       </Sphere>
 
-      {/* Inner Data Mesh - intricate lattice of land patterns */}
-      <Icosahedron ref={meshLayerRef} args={[1.38, 8]}>
+      {/* Inner Data Mesh - reduced detail from 8 to 4 */}
+      <Icosahedron ref={meshLayerRef} args={[1.38, 4]}>
         <meshBasicMaterial
           color="#38bdf8"
           wireframe
@@ -78,8 +77,8 @@ function DigitalPlanet() {
         />
       </Icosahedron>
 
-      {/* Outer Data Mesh - glowing neural network lines */}
-      <Icosahedron ref={outerLinesRef} args={[1.42, 6]}>
+      {/* Outer Data Mesh - reduced detail from 6 to 3 */}
+      <Icosahedron ref={outerLinesRef} args={[1.42, 3]}>
         <meshStandardMaterial
           color="#c084fc"
           emissive="#8b5cf6"
@@ -91,31 +90,24 @@ function DigitalPlanet() {
         />
       </Icosahedron>
 
-      {/* Glassy Atmosphere Effect */}
-      <Sphere args={[1.48, 32, 32]}>
-        <MeshTransmissionMaterial
-          backside
-          samples={2}
-          thickness={0.1}
-          chromaticAberration={0.3}
-          anisotropy={0.1}
-          distortion={0.2}
-          distortionScale={0.1}
-          temporalDistortion={0.05}
+      {/* Removed MeshTransmissionMaterial (very expensive!) - replaced with simple transparent sphere */}
+      <Sphere args={[1.48, 16, 16]}>
+        <meshBasicMaterial
           color="#e0f2fe"
-          transmission={0.9}
-          roughness={0.2}
+          transparent
+          opacity={0.08}
+          side={THREE.BackSide}
         />
       </Sphere>
 
-      {/* Embedded glowing data nodes */}
+      {/* Reduced point count from 300 to 100 */}
       <PointsCloud globeRadius={1.39} />
     </group>
   );
 }
 
 function PointsCloud({ globeRadius }: { globeRadius: number }) {
-  const pointsCount = 300;
+  const pointsCount = 100; // Reduced from 300
   const positions = useMemo(() => {
     const pos = new Float32Array(pointsCount * 3);
     for (let i = 0; i < pointsCount; i++) {
@@ -132,10 +124,8 @@ function PointsCloud({ globeRadius }: { globeRadius: number }) {
   const pointsRef = useRef<THREE.Points>(null);
   useFrame((state) => {
     if (pointsRef.current) {
-      // Pulse size and rotate
       pointsRef.current.rotation.y = state.clock.elapsedTime * 0.06;
-      const scale = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.2;
-      pointsRef.current.scale.set(scale, scale, scale);
+      // Removed pulsing scale animation to reduce work per frame
     }
   });
 
@@ -161,7 +151,7 @@ function PointsCloud({ globeRadius }: { globeRadius: number }) {
   );
 }
 
-// Intertwined glowing data fiber pathways and abstract icons
+// Simplified orbital rings - removed pointLights (expensive!)
 function OrbitalRings() {
   const ringGroupRef = useRef<THREE.Group>(null);
   const dataPacketsRef = useRef<THREE.Group>(null);
@@ -174,29 +164,35 @@ function OrbitalRings() {
     }
     if (dataPacketsRef.current) {
       dataPacketsRef.current.rotation.y = -t * 0.3;
-      dataPacketsRef.current.rotation.z = Math.cos(t * 0.2) * 0.1;
     }
   });
 
+  // Memoize the data packet positions
+  const packetPositions = useMemo(() => {
+    return Array.from({ length: 8 }).map((_, i) => { // Reduced from 15 to 8
+      const angle = (i / 8) * Math.PI * 2;
+      return [Math.cos(angle) * 2.35, Math.sin(i * 2) * 0.15, Math.sin(angle) * 2.35] as [number, number, number];
+    });
+  }, []);
+
   return (
     <group>
-      {/* Futuristic Rings */}
+      {/* Rings - reduced segments from 64 to 32 */}
       <group ref={ringGroupRef}>
-        <Ring args={[2.2, 2.21, 64]} rotation={[Math.PI / 2.2, 0.1, 0]}>
+        <Ring args={[2.2, 2.21, 32]} rotation={[Math.PI / 2.2, 0.1, 0]}>
           <meshBasicMaterial color="#ec4899" transparent opacity={0.6} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
         </Ring>
-        <Ring args={[2.5, 2.508, 64]} rotation={[-Math.PI / 2.5, -0.2, 0]}>
+        <Ring args={[2.5, 2.508, 32]} rotation={[-Math.PI / 2.5, -0.2, 0]}>
           <meshBasicMaterial color="#38bdf8" transparent opacity={0.5} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
         </Ring>
-        <Ring args={[2.8, 2.805, 64]} rotation={[Math.PI / 2, 0, Math.PI / 6]}>
+        <Ring args={[2.8, 2.805, 32]} rotation={[Math.PI / 2, 0, Math.PI / 6]}>
           <meshBasicMaterial color="#a78bfa" transparent opacity={0.4} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
         </Ring>
 
-        {/* Orbiting Educational Resources as glowing stylized UI objects */}
         <ResourceSatellites />
       </group>
 
-      {/* Moving Data Packets */}
+      {/* Data Packets - removed expensive pointLight per packet */}
       <group ref={dataPacketsRef}>
         {DATA_PACKET_POSITIONS.map((packet) => (
           <group key={packet.key} position={packet.position}>
@@ -211,7 +207,7 @@ function OrbitalRings() {
   );
 }
 
-// High-fidelity abstract representation of educational nodes
+// Simplified satellites - reduced geometry detail
 function ResourceSatellites() {
   const groupRef = useRef<THREE.Group>(null);
   
@@ -223,79 +219,39 @@ function ResourceSatellites() {
   
   return (
     <group ref={groupRef}>
-      {/* 1. Presentation Deck (Slide) */}
-      <Float speed={2} rotationIntensity={1} floatIntensity={1} position={[2.2, 0.2, 0]}>
-        <group>
-          <Box args={[0.2, 0.12, 0.01]}>
-            <meshPhysicalMaterial color="#f472b6" emissive="#be185d" emissiveIntensity={1} transmission={0.5} />
-          </Box>
-          <Box args={[0.16, 0.08, 0.01]} position={[0, 0, 0.011]}>
-            <meshBasicMaterial color="#fdf2f8" transparent opacity={0.8} />
-          </Box>
-        </group>
+      {/* 1. Slide */}
+      <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5} position={[2.2, 0.2, 0]}>
+        <Box args={[0.2, 0.12, 0.01]}>
+          <meshStandardMaterial color="#f472b6" emissive="#be185d" emissiveIntensity={1} />
+        </Box>
       </Float>
 
-      {/* 2. Minigame Joystick */}
-      <Float speed={2.5} rotationIntensity={2} floatIntensity={1.5} position={[-2.3, -0.1, 1]}>
-        <group>
-          {/* Base */}
-          <Sphere args={[0.08, 16, 16]} scale={[1, 0.4, 1]}>
-             <meshPhysicalMaterial color="#34d399" emissive="#059669" emissiveIntensity={0.8} />
-          </Sphere>
-          {/* Stick */}
-          <Cylinder args={[0.01, 0.01, 0.1]} position={[0, 0.06, 0]} rotation={[0.2, 0, 0]}>
-             <meshStandardMaterial color="#e2e8f0" metalness={0.8} roughness={0.2} />
-          </Cylinder>
-          {/* Knob */}
-          <Sphere args={[0.04]} position={[0, 0.12, 0.02]}>
-             <meshPhysicalMaterial color="#ef4444" emissive="#b91c1c" emissiveIntensity={1.5} />
-          </Sphere>
-        </group>
+      {/* 2. Minigame */}
+      <Float speed={2.5} rotationIntensity={1} floatIntensity={0.8} position={[-2.3, -0.1, 1]}>
+        <Sphere args={[0.08, 8, 8]} scale={[1, 0.4, 1]}>
+          <meshStandardMaterial color="#34d399" emissive="#059669" emissiveIntensity={0.8} />
+        </Sphere>
       </Float>
 
       {/* 3. Podcast Mic */}
-      <Float speed={2} rotationIntensity={1.5} floatIntensity={1} position={[0.5, 0.4, -2.5]}>
-        <group>
-          {/* Mic Head */}
-          <Cylinder args={[0.04, 0.04, 0.1, 16]} position={[0, 0.05, 0]}>
-             <meshStandardMaterial color="#a78bfa" emissive="#7c3aed" emissiveIntensity={1} wireframe={true} />
-          </Cylinder>
-          <Cylinder args={[0.035, 0.035, 0.09, 16]} position={[0, 0.05, 0]}>
-             <meshPhysicalMaterial color="#4c1d95" transmission={0.9} roughness={0.1} />
-          </Cylinder>
-          {/* Stand */}
-          <Box args={[0.01, 0.08, 0.01]} position={[0, -0.04, 0]}>
-             <meshStandardMaterial color="#cbd5e1" metalness={1} roughness={0.2} />
-          </Box>
-        </group>
+      <Float speed={2} rotationIntensity={0.8} floatIntensity={0.5} position={[0.5, 0.4, -2.5]}>
+        <Cylinder args={[0.04, 0.04, 0.1, 8]} position={[0, 0.05, 0]}>
+          <meshStandardMaterial color="#a78bfa" emissive="#7c3aed" emissiveIntensity={1} wireframe />
+        </Cylinder>
       </Float>
 
-      {/* 4. Chatbot Bubble */}
-      <Float speed={3} rotationIntensity={1} floatIntensity={0.8} position={[-1.2, -0.3, -2.1]}>
-        <group>
-          <Sphere args={[0.1, 32, 32]}>
-            <MeshTransmissionMaterial color="#fbbf24" backside thickness={0.1} transmission={1} emissive="#b45309" emissiveIntensity={0.3} distortionScale={0} temporalDistortion={0} />
-          </Sphere>
-          {/* Inner dots */}
-          <Sphere args={[0.015]} position={[-0.04, 0, 0.08]}><meshBasicMaterial color="#ffffff" /></Sphere>
-          <Sphere args={[0.015]} position={[0, 0, 0.095]}><meshBasicMaterial color="#ffffff" /></Sphere>
-          <Sphere args={[0.015]} position={[0.04, 0, 0.08]}><meshBasicMaterial color="#ffffff" /></Sphere>
-        </group>
+      {/* 4. Chatbot */}
+      <Float speed={3} rotationIntensity={0.5} floatIntensity={0.4} position={[-1.2, -0.3, -2.1]}>
+        <Sphere args={[0.1, 12, 12]}>
+          <meshStandardMaterial color="#fbbf24" emissive="#b45309" emissiveIntensity={0.3} transparent opacity={0.8} />
+        </Sphere>
       </Float>
 
-      {/* 5. Stack of Digitized Books */}
-      <Float speed={1.5} rotationIntensity={1} floatIntensity={0.8} position={[1.8, -0.2, 1.5]}>
-        <group>
-          <Box args={[0.16, 0.02, 0.12]} position={[0, -0.02, 0]} rotation={[0, 0.2, 0]}>
-            <meshPhysicalMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.5} transmission={0.5} />
-          </Box>
-          <Box args={[0.15, 0.02, 0.11]} position={[0, 0.01, 0]} rotation={[0, -0.1, 0]}>
-            <meshPhysicalMaterial color="#818cf8" emissive="#4f46e5" emissiveIntensity={0.5} transmission={0.5} />
-          </Box>
-          <Box args={[0.16, 0.02, 0.12]} position={[0, 0.04, 0]} rotation={[0, 0.05, 0]}>
-            <meshPhysicalMaterial color="#e879f9" emissive="#c026d3" emissiveIntensity={0.5} transmission={0.5} />
-          </Box>
-        </group>
+      {/* 5. Books */}
+      <Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.4} position={[1.8, -0.2, 1.5]}>
+        <Box args={[0.16, 0.06, 0.12]} rotation={[0, 0.2, 0]}>
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.5} />
+        </Box>
       </Float>
     </group>
   );
@@ -306,7 +262,6 @@ function SceneModel() {
 
   useFrame((state) => {
     if (groupRef.current) {
-      // Very subtle mouse parallax to feel interactive but stable
       const targetX = state.pointer.x * 0.15;
       const targetY = state.pointer.y * 0.15;
       groupRef.current.rotation.x += 0.02 * (targetY - groupRef.current.rotation.x);

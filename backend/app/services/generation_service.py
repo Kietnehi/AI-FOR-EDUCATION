@@ -291,8 +291,9 @@ class GenerationService:
         doc = {
             "material_id": material_id,
             "content_type": "minigame",
+            "game_type": game_type,
             "version": version,
-            "outline": [game.get("title", "") for game in game_payload.get("games", [])],
+            "outline": outline,
             "json_content": game_payload,
             "file_url": None,
             "generation_status": "generated",
