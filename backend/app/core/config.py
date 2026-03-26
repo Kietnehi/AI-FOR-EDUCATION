@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
+    image_cache_dir: str = "./storage/images"
     notebooklm_documents_dir: str = "./storage/notebooklm/documents"
     notebooklm_user_data_dir: str = "./storage/notebooklm/chrome-profile"
     notebooklm_generate_wait_seconds: int = 120
@@ -59,6 +60,7 @@ class Settings(BaseSettings):
     # Number of latest mascot chat messages injected as memory.
     mascot_memory_turns: int = 10
 
+    @field_validator("upload_dir", "generated_dir", "chroma_persist_dir", "image_cache_dir")
     @field_validator(
         "upload_dir",
         "generated_dir",

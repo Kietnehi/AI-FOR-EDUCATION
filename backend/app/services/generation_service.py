@@ -4,11 +4,13 @@ from pathlib import Path
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.ai.generation.image_fetcher import ImageFetcher
 from app.ai.generation.minigame_generator import MinigameGenerator
 from app.ai.generation.podcast_generator import PodcastGenerator
 from app.ai.generation.slide_generator import SlideGenerator
 from app.ai.generation.audio_generator import AudioGenerator
 from app.core.config import settings
+from app.core.logging import logger
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.services.material_service import MaterialService
 from app.utils.object_id import parse_object_id
@@ -35,20 +37,29 @@ class GenerationService:
 
     async def generate_slides(self, material_id: str, tone: str, max_slides: int) -> dict:
         text = await self._prepare_material_text(material_id)
-        outline, version = await asyncio.gather(
-            asyncio.to_thread(
-                self.slide_generator.generate_outline,
-                text,
-                max_slides=max_slides,
-            ),
-            self._next_version(material_id, "slides"),
-        )
-        model_used = self.slide_generator.llm.last_model_used
-        fallback_applied = self.slide_generator.llm.fallback_used
+
+        # Step 1: LLM generates structured outline
+        outline = self.slide_generator.generate_outline(text, max_slides=max_slides, tone=tone)
+
+        # Step 2: Image Pipeline — fetch images from Pexels
+        image_map: dict[str, str | None] = {}
+        if self.image_fetcher.available:
+            queries = extract_image_queries(outline)
+            if queries:
+                logger.info("Fetching %d images from Pexels for slides...", len(queries))
+                image_map = self.image_fetcher.fetch_images_bulk(queries)
+                fetched = sum(1 for v in image_map.values() if v)
+                logger.info("Pexels: fetched %d / %d images successfully.", fetched, len(queries))
+        else:
+            logger.info("Pexels API key not set — slides will use placeholders.")
+
+        # Step 3: Export PPTX with embedded images
+        version = await self._next_version(material_id, "slides")
         filename = f"slides_{material_id}_v{version}.pptx"
         output_path = str(Path(settings.generated_dir) / filename)
-        await asyncio.to_thread(self.slide_generator.export_pptx, outline, output_path)
+        self.slide_generator.export_pptx(outline, output_path, image_map=image_map)
 
+        # Step 4: Save metadata to MongoDB
         now = utc_now()
         doc = {
             "material_id": material_id,
