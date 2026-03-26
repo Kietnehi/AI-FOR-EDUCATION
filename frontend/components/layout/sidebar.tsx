@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -44,21 +45,28 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
       "
     >
       {/* Brand */}
-      <Link href="/" className="flex items-center gap-3 px-4 h-16 border-b border-[var(--border-light)] no-underline hover:opacity-80 transition-opacity">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center flex-shrink-0 shadow-md">
-          <GraduationCap className="w-5 h-5 text-white" />
+      <Link href="/" className={`flex items-center h-16 border-b border-[var(--border-light)] no-underline group transition-all duration-300 ${collapsed ? "justify-center px-0" : "gap-3 px-4"}`}>
+        <div className="relative w-12 h-12 flex-shrink-0 rounded-[14px] overflow-hidden shadow-sm border border-[var(--border-light)] group-hover:shadow-md group-hover:border-brand-300 transition-all duration-300">
+          <Image src="/logo.png" alt="AI Learning Studio Logo" width={48} height={48} className="w-full h-full object-cover scale-[1.02]" priority />
         </div>
         <AnimatePresence>
           {!collapsed && (
-            <motion.span
+            <motion.div
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
-              className="font-bold text-base text-[var(--text-primary)] whitespace-nowrap"
-              style={{ fontFamily: "var(--font-display)" }}
+              className="flex flex-col justify-center whitespace-nowrap"
             >
-              AI Learning Studio
-            </motion.span>
+              <span 
+                className="font-extrabold text-[17px] leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-brand-600 via-brand-500 to-accent-600 drop-shadow-sm"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                AI Learning
+              </span>
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.2em] -mt-0.5 ml-[1px]">
+                STUDIO
+              </span>
+            </motion.div>
           )}
         </AnimatePresence>
       </Link>
