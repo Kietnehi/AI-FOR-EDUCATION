@@ -202,6 +202,9 @@ class GenerationService:
         )
 
         # Step 6: Persist without changing schema
+        llm = getattr(self.slide_generator, "llm", None)
+        model_used = getattr(llm, "last_model_used", None) if llm else None
+        fallback_applied = getattr(llm, "fallback_used", False) if llm else False
         now = utc_now()
         doc = {
             "material_id": material_id,
@@ -219,13 +222,8 @@ class GenerationService:
         return await self.generated_repo.create(doc)
 
     async def generate_podcast(self, material_id: str, style: str, target_duration_minutes: int) -> dict:
-<<<<<<< HEAD
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
-        script = self.podcast_generator.generate_script(text, style=style, target_duration_minutes=target_duration_minutes)
-        version = await self._next_version(material_id, "podcast")
-=======
-        text = await self._prepare_material_text(material_id)
         script, version = await asyncio.gather(
             asyncio.to_thread(
                 self.podcast_generator.generate_script,
@@ -235,9 +233,9 @@ class GenerationService:
             ),
             self._next_version(material_id, "podcast"),
         )
-        model_used = self.podcast_generator.llm.last_model_used
-        fallback_applied = self.podcast_generator.llm.fallback_used
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
+        llm = getattr(self.podcast_generator, "llm", None)
+        model_used = getattr(llm, "last_model_used", None) if llm else None
+        fallback_applied = getattr(llm, "fallback_used", False) if llm else False
 
         # Generate audio file from podcast segments
         audio_filename = f"podcast_{material_id}_v{version}"
@@ -275,13 +273,8 @@ class GenerationService:
         return await self.generated_repo.create(doc)
 
     async def generate_minigame(self, material_id: str, game_types: list[str]) -> dict:
-<<<<<<< HEAD
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
-        game_payload = self.minigame_generator.generate(text, game_types=game_types)
-        version = await self._next_version(material_id, "minigame")
-=======
-        text = await self._prepare_material_text(material_id)
         game_payload, version = await asyncio.gather(
             asyncio.to_thread(
                 self.minigame_generator.generate,
@@ -290,9 +283,9 @@ class GenerationService:
             ),
             self._next_version(material_id, "minigame"),
         )
-        model_used = self.minigame_generator.llm.last_model_used
-        fallback_applied = self.minigame_generator.llm.fallback_used
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
+        llm = getattr(self.minigame_generator, "llm", None)
+        model_used = getattr(llm, "last_model_used", None) if llm else None
+        fallback_applied = getattr(llm, "fallback_used", False) if llm else False
 
         now = utc_now()
         doc = {

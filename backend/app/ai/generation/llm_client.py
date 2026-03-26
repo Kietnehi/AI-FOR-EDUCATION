@@ -3,14 +3,14 @@ import threading
 import time
 
 from google import genai
-from openai import AsyncOpenAI
+from openai import OpenAI
 
 from app.core.config import settings
 from app.core.logging import logger
 
 
 class LLMClient:
-    _shared_openai_client: AsyncOpenAI | None | object = ...
+    _shared_openai_client: OpenAI | None | object = ...
     _shared_openai_extra_headers: dict[str, str] | None = None
     _shared_gemini_clients: list[tuple[str, genai.Client]] | None = None
     _gemini_key_cooldowns: dict[str, float] = {}
@@ -25,7 +25,7 @@ class LLMClient:
         self.openai_base_url = settings.openai_base_url
         if LLMClient._shared_openai_client is ...:
             LLMClient._shared_openai_client = (
-                AsyncOpenAI(api_key=self.openai_api_key, base_url=self.openai_base_url)
+                OpenAI(api_key=self.openai_api_key, base_url=self.openai_base_url)
                 if self.openai_api_key
                 else None
             )
@@ -380,7 +380,6 @@ class LLMClient:
     ) -> str | None:
         self.last_model_used = None
         self.fallback_used = False
-<<<<<<< HEAD
         try:
             result = self._generate_gemini(
                 system_prompt, user_prompt, temperature, force_json, images=images
@@ -392,20 +391,10 @@ class LLMClient:
                 "Gemini API failed with exception: %s",
                 exc,
             )
-            
+
         # Fallback to OpenAI if Gemini returns None or hits an exception
         logger.warning(
             "Gemini returned None or failed, fallback to OpenAI model %s",
-=======
-        result = self._generate_gemini(
-            system_prompt, user_prompt, temperature, force_json, images=images
-        )
-        if result is not None:
-            return result
-
-        logger.warning(
-            "All Gemini models failed, falling back to OpenAI model %s",
->>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
             self.openai_model,
         )
         self.fallback_used = True
