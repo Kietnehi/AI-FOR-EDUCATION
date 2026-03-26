@@ -1,10 +1,14 @@
 # Python
 backend/__pycache__/
+**/__pycache__/
+*.py[cod]
 backend/.pytest_cache/
+backend/.ruff_cache/
 backend/storage/chroma/
 backend/storage/uploads/*
 backend/storage/generated/*
-backend/storage/images/*
+backend/storage/notebooklm/
+backend/storage/extracted/
 !backend/storage/uploads/.gitkeep
 !backend/storage/generated/.gitkeep
 !backend/storage/images/.gitkeep
@@ -14,6 +18,8 @@ backend/storage/images/*
 # Node
 frontend/node_modules/
 frontend/.next/
+frontend/tsconfig.tsbuildinfo
+frontend/build.log
 
 # Env
 *.env
@@ -23,6 +29,7 @@ backend/.env
 # OS
 .DS_Store
 Thumbs.db
+*.mp4
 
 # Github
 .github/copilot-instructions.md

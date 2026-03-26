@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -18,7 +19,6 @@ from app.services.material_service import MaterialService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
-
 class GenerationService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.db = db
@@ -32,10 +32,7 @@ class GenerationService:
         self.image_extractor = ImageExtractor()
 
     async def _next_version(self, material_id: str, content_type: str) -> int:
-        existing = await self.generated_repo.list_by_material_and_type(material_id, content_type)
-        if not existing:
-            return 1
-        return max(item.get("version", 1) for item in existing) + 1
+        return await self.generated_repo.get_next_version(material_id, content_type)
 
     async def _prepare_material(self, material_id: str) -> dict:
         """Return the full material document (must be processed)."""
@@ -214,16 +211,33 @@ class GenerationService:
             "json_content": {"tone": tone, **outline},
             "file_url": f"/api/files/{filename}/download",
             "generation_status": "generated",
+            "model_used": model_used,
+            "fallback_applied": fallback_applied,
             "created_at": now,
             "updated_at": now,
         }
         return await self.generated_repo.create(doc)
 
     async def generate_podcast(self, material_id: str, style: str, target_duration_minutes: int) -> dict:
+<<<<<<< HEAD
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
         script = self.podcast_generator.generate_script(text, style=style, target_duration_minutes=target_duration_minutes)
         version = await self._next_version(material_id, "podcast")
+=======
+        text = await self._prepare_material_text(material_id)
+        script, version = await asyncio.gather(
+            asyncio.to_thread(
+                self.podcast_generator.generate_script,
+                text,
+                style=style,
+                target_duration_minutes=target_duration_minutes,
+            ),
+            self._next_version(material_id, "podcast"),
+        )
+        model_used = self.podcast_generator.llm.last_model_used
+        fallback_applied = self.podcast_generator.llm.fallback_used
+>>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
 
         # Generate audio file from podcast segments
         audio_filename = f"podcast_{material_id}_v{version}"
@@ -233,9 +247,10 @@ class GenerationService:
 
         if segments:
             try:
-                audio_file_path = self.audio_generator.generate_podcast_audio(
+                audio_file_path = await asyncio.to_thread(
+                    self.audio_generator.generate_podcast_audio,
                     segments=segments,
-                    output_filename=audio_filename
+                    output_filename=audio_filename,
                 )
                 # Create URL for serving the audio file
                 audio_url = f"/api/files/podcasts/{audio_filename}.mp3/download"
@@ -252,16 +267,32 @@ class GenerationService:
             "json_content": script,
             "file_url": audio_url,
             "generation_status": "generated",
+            "model_used": model_used,
+            "fallback_applied": fallback_applied,
             "created_at": now,
             "updated_at": now,
         }
         return await self.generated_repo.create(doc)
 
     async def generate_minigame(self, material_id: str, game_types: list[str]) -> dict:
+<<<<<<< HEAD
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
         game_payload = self.minigame_generator.generate(text, game_types=game_types)
         version = await self._next_version(material_id, "minigame")
+=======
+        text = await self._prepare_material_text(material_id)
+        game_payload, version = await asyncio.gather(
+            asyncio.to_thread(
+                self.minigame_generator.generate,
+                text,
+                game_types=game_types,
+            ),
+            self._next_version(material_id, "minigame"),
+        )
+        model_used = self.minigame_generator.llm.last_model_used
+        fallback_applied = self.minigame_generator.llm.fallback_used
+>>>>>>> 932f4c1de8ae5b9998da0046f0bc12ee8cd8fa75
 
         now = utc_now()
         doc = {
@@ -272,6 +303,8 @@ class GenerationService:
             "json_content": game_payload,
             "file_url": None,
             "generation_status": "generated",
+            "model_used": model_used,
+            "fallback_applied": fallback_applied,
             "created_at": now,
             "updated_at": now,
         }

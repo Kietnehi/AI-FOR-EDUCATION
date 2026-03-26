@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { ReactNode, useRef } from "react";
+import { ReactNode, useCallback, useEffect, useRef } from "react";
 
 interface TiltCardProps {
   children: ReactNode;
@@ -10,6 +10,8 @@ interface TiltCardProps {
 
 export function TiltCard({ children, className = "" }: TiltCardProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<number | null>(null);
+  const boundsRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -20,31 +22,78 @@ export function TiltCard({ children, className = "" }: TiltCardProps) {
   const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["7deg", "-7deg"]);
   const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-7deg", "7deg"]);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (!ref.current) return;
+  const updateBounds = useCallback(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
 
-    const rect = ref.current.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    const rect = element.getBoundingClientRect();
+    boundsRef.current = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+  }, []);
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+  useEffect(() => {
+    updateBounds();
+    const handleWindowChange = () => updateBounds();
 
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
+    window.addEventListener("resize", handleWindowChange);
+    window.addEventListener("scroll", handleWindowChange, { passive: true });
 
-    x.set(xPct);
-    y.set(yPct);
-  };
+    return () => {
+      window.removeEventListener("resize", handleWindowChange);
+      window.removeEventListener("scroll", handleWindowChange);
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, [updateBounds]);
 
-  const handleMouseLeave = () => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (!boundsRef.current) {
+      updateBounds();
+    }
+
+    const bounds = boundsRef.current;
+    if (!bounds || bounds.width === 0 || bounds.height === 0) {
+      return;
+    }
+
+    const nextX = e.clientX - bounds.left;
+    const nextY = e.clientY - bounds.top;
+
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    frameRef.current = requestAnimationFrame(() => {
+      x.set(nextX / bounds.width - 0.5);
+      y.set(nextY / bounds.height - 0.5);
+      frameRef.current = null;
+    });
+  }, [updateBounds, x, y]);
+
+  const handleMouseEnter = useCallback(() => {
+    updateBounds();
+  }, [updateBounds]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
     x.set(0);
     y.set(0);
-  };
+  }, [x, y]);
 
   return (
     <motion.div
       ref={ref}
+      onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={{
