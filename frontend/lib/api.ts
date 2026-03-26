@@ -160,13 +160,11 @@ export async function generatePodcast(id: string): Promise<GeneratedContent> {
   return data;
 }
 
-export async function generateMinigame(id: string): Promise<GeneratedContent> {
-  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
+export async function generateMinigame(id: string, gameType: "quiz_mixed" | "flashcard" | "scenario_branching" = "quiz_mixed"): Promise<GeneratedContent> {
+  return apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
     method: "POST",
-    body: JSON.stringify({ game_types: ["mcq", "fill_blank", "matching", "flashcard"] }),
-  });
-  primeCache(`/generated-contents/${data.id}`, data);
-  return data;
+    body: JSON.stringify({ game_type: gameType }),
+  }, gameType === "scenario_branching" ? 180000 : 60000);
 }
 
 export async function getGeneratedContent(id: string): Promise<GeneratedContent> {
@@ -289,7 +287,7 @@ export async function synthesizeChatSpeech(text: string, lang: string = "vi"): P
 
 export async function submitGameAttempt(
   generatedContentId: string,
-  answers: Array<{ id: string; answer: string }>
+  answers: Array<{ id?: string; node_id?: string; answer: string }>
 ): Promise<any> {
   return apiFetch<any>(`/games/${generatedContentId}/submit`, {
     method: "POST",
