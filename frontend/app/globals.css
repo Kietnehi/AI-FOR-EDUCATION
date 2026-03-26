@@ -221,3 +221,16 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* GPU acceleration for smoother sidebar and layout transitions */
+aside, main {
+  will-change: width, padding-left;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Optimization for off-screen heavy sections */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 400px; /* Placeholder size for better scrollbar stability */
+}

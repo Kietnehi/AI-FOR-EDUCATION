@@ -1,6 +1,8 @@
-from dataclasses import dataclass
 import tiktoken
+from dataclasses import dataclass
 
+# Global cache to reuse expensive tiktoken tokenizers
+_TOKENIZER_CACHE = {}
 
 @dataclass
 class Chunk:
@@ -21,11 +23,15 @@ class TextChunker:
         self.chunk_size = chunk_size
         self.overlap = overlap
         self.encoding_name = encoding_name
-        try:
-            self.tokenizer = tiktoken.get_encoding(encoding_name)
-        except Exception:
-            # Fallback to a common encoding if specified one fails
-            self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        
+        # Use cache for tokenizer singleton
+        if encoding_name not in _TOKENIZER_CACHE:
+            try:
+                _TOKENIZER_CACHE[encoding_name] = tiktoken.get_encoding(encoding_name)
+            except Exception:
+                _TOKENIZER_CACHE[encoding_name] = tiktoken.get_encoding("cl100k_base")
+        
+        self.tokenizer = _TOKENIZER_CACHE[encoding_name]
 
     def split(self, text: str) -> list[Chunk]:
         if not text:

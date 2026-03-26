@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sphere } from "@react-three/drei";
-import { Bot as BotIcon, Loader2, Mic, Send, Settings2, Square, Volume2, VolumeX, X, Image as ImageIcon } from "lucide-react";
+import { Bot as BotIcon, Loader2, Mic, Plus, Send, Settings2, Square, Volume2, VolumeX, X, Image as ImageIcon } from "lucide-react";
 import * as THREE from "three";
 
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
+import { markdownToPlainText } from "@/lib/tts";
 import { Markdown } from "@/components/ui/markdown";
+import type { SttModel } from "@/types";
 
 type MiniChatMessage = {
   role: "user" | "assistant";
@@ -16,6 +18,12 @@ type MiniChatMessage = {
 };
 
 const MASCOT_SESSION_STORAGE_KEY = "mascot-chat-session-id";
+const STT_MODEL_OPTIONS: SttModel[] = [
+  "local-base",
+  "local-small",
+  "whisper-large-v3",
+  "whisper-large-v3-turbo",
+];
 
 function Bot() {
   const groupRef = useRef<THREE.Group>(null);
@@ -99,7 +107,7 @@ export function FloatingMascot() {
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [sttModel, setSttModel] = useState<"local-base" | "whisper-large-v3" | "whisper-large-v3-turbo">("local-base");
+  const [sttModel, setSttModel] = useState<SttModel>("local-base");
   const [ttsLang, setTtsLang] = useState("vi");
 
   const [mascotSessionId, setMascotSessionId] = useState<string | undefined>(undefined);
@@ -129,6 +137,7 @@ export function FloatingMascot() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsUiTickRef = useRef(0);
 
   const resetTtsState = () => {
     setSpeakingMessageKey(null);
@@ -185,6 +194,10 @@ export function FloatingMascot() {
   }, []);
 
   useEffect(() => {
+    if (!isDragging && !isResizing) {
+      return;
+    }
+
     const handleMouseMove = (event: MouseEvent) => {
       if (isDragging) {
         const maxX = Math.max(viewportPadding, window.innerWidth - mascotSize - viewportPadding);
@@ -235,6 +248,16 @@ export function FloatingMascot() {
       setIsResizing(false);
     };
 
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, isResizing]);
+
+  useEffect(() => {
     const handleResize = () => {
       const maxX = Math.max(viewportPadding, window.innerWidth - mascotSize - viewportPadding);
       const maxY = Math.max(viewportPadding, window.innerHeight - mascotSize - viewportPadding);
@@ -244,16 +267,11 @@ export function FloatingMascot() {
       }));
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("resize", handleResize);
-
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("resize", handleResize);
     };
-  }, [isDragging, isResizing]);
+  }, []);
 
   useEffect(() => {
     if (messagesRef.current) {
@@ -267,8 +285,8 @@ export function FloatingMascot() {
       setMascotSessionId(savedSessionId);
     }
     const savedSttModel = localStorage.getItem("mascot-stt-model");
-    if (savedSttModel) {
-      setSttModel(savedSttModel as "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo");
+    if (savedSttModel && STT_MODEL_OPTIONS.includes(savedSttModel as SttModel)) {
+      setSttModel(savedSttModel as SttModel);
     }
   }, []);
 
@@ -355,7 +373,9 @@ export function FloatingMascot() {
       setSpeakingMessageKey(messageKey);
       setTtsActiveText(content);
       setIsTtsPanelCollapsed(true);
-      const audioBlob = await synthesizeChatSpeech(content, ttsLang);
+      // Convert markdown to plain text so TTS reads the rendered content
+      const plainText = markdownToPlainText(content);
+      const audioBlob = await synthesizeChatSpeech(plainText, ttsLang);
       const audioUrl = URL.createObjectURL(audioBlob);
       setTtsAudioUrl(audioUrl);
     } catch {
@@ -510,6 +530,28 @@ export function FloatingMascot() {
     }
   };
 
+  const handleNewChat = () => {
+    stopCurrentTtsAudio();
+    resetTtsState();
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+
+    setIsRecording(false);
+    setIsTranscribing(false);
+    setChatInput("");
+    setChatImages([]);
+    setMascotSessionId(undefined);
+    localStorage.removeItem(MASCOT_SESSION_STORAGE_KEY);
+    setMessages([
+      {
+        role: "assistant",
+        content: "Xin chào. Mình là AI Agent phục vụ cho giáo dục, bạn cần hỗ trợ gì hôm nay?",
+      },
+    ]);
+  };
+
 
   return (
     <div
@@ -539,6 +581,15 @@ export function FloatingMascot() {
               </div>
               <div className="flex items-center gap-1">
                 <button
+                  className="h-7 rounded-md px-2 inline-flex items-center justify-center gap-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"
+                  onClick={handleNewChat}
+                  disabled={isSending}
+                  aria-label="Tạo cuộc trò chuyện mới"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New chat
+                </button>
+                <button
                   className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${showSettings ? "bg-brand-100 text-brand-600" : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"}`}
                   onClick={() => setShowSettings(!showSettings)}
                   aria-label="Cài đặt chatbot"
@@ -561,10 +612,11 @@ export function FloatingMascot() {
                 <label className="text-xs font-medium text-[var(--text-secondary)] block">Model STT</label>
                 <select
                   value={sttModel}
-                  onChange={(e) => setSttModel(e.target.value as "local-base" | "whisper-large-v3" | "whisper-large-v3-turbo")}
+                  onChange={(e) => setSttModel(e.target.value as SttModel)}
                   className="w-full text-xs rounded-lg px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-light)] text-[var(--text-primary)] focus:outline-none focus:border-brand-400"
                 >
                   <option value="local-base">Local - Whisper base</option>
+                  <option value="local-small">Local - Whisper small</option>
                   <option value="whisper-large-v3">Groq - whisper-large-v3</option>
                   <option value="whisper-large-v3-turbo">Groq - whisper-large-v3-turbo</option>
                 </select>
@@ -691,6 +743,11 @@ export function FloatingMascot() {
                     className={isTtsPanelCollapsed ? "hidden" : "w-full h-8"}
                     onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
                     onTimeUpdate={(e) => {
+                      const now = performance.now();
+                      if (now - ttsUiTickRef.current < 200) {
+                        return;
+                      }
+                      ttsUiTickRef.current = now;
                       const audio = e.target as HTMLAudioElement;
                       setTtsCurrentTime(audio.currentTime || 0);
                       setTtsDuration(audio.duration || 0);
@@ -717,6 +774,7 @@ export function FloatingMascot() {
                           if (ttsAudioRef.current) {
                             ttsAudioRef.current.currentTime = nextTime;
                           }
+                          ttsUiTickRef.current = performance.now();
                           setTtsCurrentTime(nextTime);
                         }}
                         className="mt-1 w-full accent-brand-600"
@@ -865,7 +923,7 @@ export function FloatingMascot() {
         aria-label="Mascot AI có thể kéo thả"
         tabIndex={0}
       >
-        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={[1, 1.5]} performance={{ min: 0.5 }}>
+        <Canvas camera={{ position: [0, 0, 4], fov: 45 }} dpr={[1, 1.25]} performance={{ min: 0.5 }}>
           <ambientLight intensity={1} />
           <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
           <directionalLight position={[-5, -5, 2]} intensity={0.5} color="#ec4899" />

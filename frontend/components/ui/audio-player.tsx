@@ -1,7 +1,7 @@
 "use client";
 
 import { Play, Pause, Download, Volume2, VolumeX, Gauge } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { Card } from "./card";
 import { Button } from "./button";
 
@@ -15,6 +15,7 @@ const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export function AudioPlayer({ audioUrl, title = "Podcast Audio", className = "" }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const timeUpdateRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -27,18 +28,31 @@ export function AudioPlayer({ audioUrl, title = "Podcast Audio", className = "" 
     const audio = audioRef.current;
     if (!audio) return;
 
-    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateTime = () => {
+      const now = performance.now();
+      if (now - timeUpdateRef.current < 125) {
+        return;
+      }
+      timeUpdateRef.current = now;
+      setCurrentTime(audio.currentTime);
+    };
     const updateDuration = () => setDuration(audio.duration);
     const handleEnded = () => setIsPlaying(false);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
 
     audio.addEventListener("timeupdate", updateTime);
     audio.addEventListener("loadedmetadata", updateDuration);
     audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
 
     return () => {
       audio.removeEventListener("timeupdate", updateTime);
       audio.removeEventListener("loadedmetadata", updateDuration);
       audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
     };
   }, []);
 
@@ -51,7 +65,6 @@ export function AudioPlayer({ audioUrl, title = "Podcast Audio", className = "" 
     } else {
       audio.play();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,6 +125,20 @@ export function AudioPlayer({ audioUrl, title = "Podcast Audio", className = "" 
   };
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const waveformBars = useMemo(
+    () =>
+      Array.from({ length: 100 }, (_, i) => {
+        const baseHeight = 15 + Math.sin(i * 0.2) * 25 + Math.cos(i * 0.4) * 15;
+        const randomVariation = Math.sin(i * 0.7) * 10;
+        return {
+          id: i,
+          barProgress: (i / 100) * 100,
+          height: baseHeight + randomVariation,
+          delay: `${i * 0.02}s`,
+        };
+      }),
+    []
+  );
 
   return (
     <Card className={`${className} overflow-hidden relative bg-[var(--bg-primary)]`}>
@@ -157,28 +184,24 @@ export function AudioPlayer({ audioUrl, title = "Podcast Audio", className = "" 
 
             {/* Wave Bars */}
             <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-3">
-              {Array.from({ length: 100 }).map((_, i) => {
-                const barProgress = (i / 100) * 100;
-                const isPassed = barProgress <= progress;
-                const baseHeight = 15 + Math.sin(i * 0.2) * 25 + Math.cos(i * 0.4) * 15;
-                const randomVariation = Math.sin(i * 0.7) * 10;
-                const height = baseHeight + randomVariation;
+              {waveformBars.map((bar) => {
+                const isPassed = bar.barProgress <= progress;
 
                 return (
                   <div
-                    key={i}
+                    key={bar.id}
                     className={`flex-shrink-0 rounded-full transition-all duration-200 ${
                       isPlaying && isPassed ? "animate-pulse-wave" : ""
                     }`}
                     style={{
-                      height: `${height}%`,
+                      height: `${bar.height}%`,
                       backgroundColor: isPassed
-                        ? i % 2 === 0
+                        ? bar.id % 2 === 0
                           ? "rgba(99, 102, 241, 0.7)"
                           : "rgba(168, 85, 247, 0.7)"
                         : "rgba(148, 163, 184, 0.3)",
                       width: "2px",
-                      animationDelay: `${i * 0.02}s`,
+                      animationDelay: bar.delay,
                     }}
                   />
                 );
