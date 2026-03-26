@@ -31,6 +31,7 @@ class LearningMaterialDoc(TypedDict, total=False):
 class GeneratedContentDoc(TypedDict, total=False):
     material_id: str
     content_type: str
+    game_type: str
     version: int
     outline: list[str]
     json_content: dict[str, Any]
