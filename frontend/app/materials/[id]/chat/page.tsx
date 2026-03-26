@@ -20,11 +20,14 @@ import {
   Image as ImageIcon,
   X,
   AlertCircle,
+  Play,
+  Pause
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { ChatSkeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
+import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
 import { markdownToPlainText } from "@/lib/tts";
 import type { ChatMessage, SttModel } from "@/types";
@@ -171,8 +174,9 @@ export default function ChatbotPage() {
   const [ttsCurrentTime, setTtsCurrentTime] = useState(0);
   const [ttsDuration, setTtsDuration] = useState(0);
   const [ttsActiveText, setTtsActiveText] = useState("");
-   const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
-   const [sttModel, setSttModel] = useState<SttModel>("local-base");
+  const [isTtsPanelCollapsed, setIsTtsPanelCollapsed] = useState(true);
+  const [isTtsPlaying, setIsTtsPlaying] = useState(false);
+  const [sttModel, setSttModel] = useState<SttModel>("local-base");
    const [selectedImage, setSelectedImage] = useState<string | null>(null);
    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
    const [initializing, setInitializing] = useState(true);
@@ -189,6 +193,7 @@ export default function ChatbotPage() {
     setTtsCurrentTime(0);
     setTtsDuration(0);
     setTtsActiveText("");
+    setIsTtsPlaying(false);
     setTtsAudioUrl((prev) => {
       if (prev) {
         URL.revokeObjectURL(prev);
@@ -207,21 +212,6 @@ export default function ChatbotPage() {
       .padStart(2, "0");
     const secs = (total % 60).toString().padStart(2, "0");
     return `${mins}:${secs}`;
-  };
-
-  const getApproxReadingSegment = (text: string, progress: number) => {
-    if (!text) {
-      return "";
-    }
-    const normalized = text.replace(/\s+/g, " ").trim();
-    if (!normalized) {
-      return "";
-    }
-    const ratio = Math.min(Math.max(progress, 0), 1);
-    const index = Math.floor(normalized.length * ratio);
-    const start = Math.max(0, index - 18);
-    const end = Math.min(normalized.length, index + 42);
-    return normalized.slice(start, end);
   };
 
   const stopCurrentTtsAudio = useCallback(() => {
@@ -332,7 +322,7 @@ export default function ChatbotPage() {
       resetTtsState();
       setSpeakingMessageId(messageId);
       setTtsActiveText(content);
-      setIsTtsPanelCollapsed(true);
+      setIsTtsPanelCollapsed(false);
       // Convert markdown to plain text so TTS reads the rendered content
       const plainText = markdownToPlainText(content);
       const audioBlob = await synthesizeChatSpeech(plainText, ttsLang);
@@ -871,74 +861,133 @@ export default function ChatbotPage() {
             </motion.button>
             </div>
           </form>
-          {ttsAudioUrl && speakingMessageId && (
-            <div className="mt-3 rounded-2xl border border-brand-200/60 bg-gradient-to-br from-brand-50/80 to-white p-3 shadow-sm">
-              <div className="mb-2 flex items-center justify-between text-xs text-[var(--text-secondary)]">
+              {ttsAudioUrl && speakingMessageId && (
+            <div className="mt-3 relative rounded-2xl border border-brand-200/60 bg-gradient-to-br from-brand-50/80 via-white to-brand-50/30 dark:border-brand-900/50 dark:from-brand-900/20 dark:to-[var(--bg-elevated)] p-4 shadow-md backdrop-blur-sm overflow-hidden transition-all duration-300">
+              {/* Trang trí background pulse khi đang phát audio */}
+              {!isTtsPanelCollapsed && ttsDuration > 0 && ttsCurrentTime > 0 && ttsCurrentTime < ttsDuration && (
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl animate-pulse pointer-events-none" />
+              )}
+              <div className="mb-3 flex items-center justify-between text-xs text-[var(--text-secondary)] relative z-10">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-                    <Volume2 className="w-3.5 h-3.5" />
+                  <span className="inline-flex w-7 h-7 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-400 shadow-inner">
+                    <Volume2 className="w-4 h-4" />
                   </span>
-                  <span className="font-medium">Đang phát TTS: {Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%</span>
+                  <span className="font-semibold text-brand-900 dark:text-brand-300">
+                    Đang phát {Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsTtsPanelCollapsed((prev) => !prev)}
-                  className="rounded-full border border-brand-200 bg-white px-3 py-1 font-medium hover:bg-brand-50 hover:text-brand-700 transition-colors"
+                  className="rounded-full border border-brand-200/60 bg-white/80 dark:bg-[var(--bg-elevated)] px-3 py-1.5 font-medium hover:bg-brand-50 hover:text-brand-700 hover:shadow-sm dark:border-brand-800 dark:text-brand-300 dark:hover:bg-brand-900/50 transition-all"
                 >
-                  {isTtsPanelCollapsed ? "Hiện trình phát" : "Ẩn trình phát"}
+                  {isTtsPanelCollapsed ? "Mở rộng" : "Thu gọn"}
                 </button>
               </div>
-              <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-brand-100">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500 transition-all"
-                  style={{ width: `${Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%` }}
-                />
-              </div>
-              <audio
-                ref={ttsAudioRef}
-                src={ttsAudioUrl}
-                controls={!isTtsPanelCollapsed}
-                className={isTtsPanelCollapsed ? "hidden" : "w-full"}
-                onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
-                onTimeUpdate={(e) => {
-                  const now = performance.now();
-                  if (now - ttsUiTickRef.current < 200) {
-                    return;
-                  }
-                  ttsUiTickRef.current = now;
-                  const audio = e.target as HTMLAudioElement;
-                  setTtsCurrentTime(audio.currentTime || 0);
-                  setTtsDuration(audio.duration || 0);
-                }}
-                onEnded={() => resetTtsState()}
-                onError={() => resetTtsState()}
-              />
-              <div className="text-xs text-[var(--text-secondary)]">
-                {formatTime(ttsCurrentTime)} / {formatTime(ttsDuration)}
-              </div>
-              {!isTtsPanelCollapsed && (
-                <>
-                  <input
-                    type="range"
-                    min={0}
-                    max={ttsDuration || 0}
-                    step={0.1}
-                    value={Math.min(ttsCurrentTime, ttsDuration || 0)}
-                    onChange={(e) => {
-                      const nextTime = Number(e.target.value);
-                      if (ttsAudioRef.current) {
-                        ttsAudioRef.current.currentTime = nextTime;
-                      }
-                      ttsUiTickRef.current = performance.now();
-                      setTtsCurrentTime(nextTime);
-                    }}
-                    className="mt-2 w-full accent-brand-600"
-                    aria-label="Thanh tua audio"
+
+              {isTtsPanelCollapsed ? (
+                <div className="h-2 w-full overflow-hidden rounded-full bg-brand-100/80 dark:bg-brand-900/30 shadow-inner">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-brand-400 via-brand-500 to-accent-500 transition-all duration-300 ease-out"
+                    style={{ width: `${Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%` }}
                   />
-                  <p className="mt-2 text-xs text-[var(--text-tertiary)] line-clamp-2">
-                    Đoạn đang đọc: {getApproxReadingSegment(ttsActiveText, ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0)}
-                  </p>
-                </>
+                </div>
+              ) : (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <audio
+                    ref={ttsAudioRef}
+                    src={ttsAudioUrl}
+                    controls={false}
+                    className="hidden"
+                    onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
+                    onTimeUpdate={(e) => {
+                      const now = performance.now();
+                      if (now - ttsUiTickRef.current < 200) return;
+                      ttsUiTickRef.current = now;
+                      const audio = e.target as HTMLAudioElement;
+                      setTtsCurrentTime(audio.currentTime || 0);
+                      setTtsDuration(audio.duration || 0);
+                    }}
+                    onEnded={() => {
+                      setIsTtsPlaying(false);
+                      resetTtsState();
+                    }}
+                    onError={() => {
+                      setIsTtsPlaying(false);
+                      resetTtsState();
+                    }}
+                    onPlay={() => setIsTtsPlaying(true)}
+                    onPause={() => setIsTtsPlaying(false)}
+                  />
+
+                  {/* Custom Audio Player Controls */}
+                  <div className="flex items-center gap-4 w-full bg-white/60 dark:bg-black/30 border border-brand-200/50 dark:border-brand-800/50 p-2.5 rounded-full shadow-sm backdrop-blur-md mt-1">
+                    <button 
+                      onClick={() => {
+                        if (ttsAudioRef.current) {
+                          if (isTtsPlaying) ttsAudioRef.current.pause();
+                          else ttsAudioRef.current.play();
+                        }
+                      }}
+                      className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600 transition-all shadow-md active:scale-95"
+                      aria-label={isTtsPlaying ? "Dừng" : "Phát"}
+                    >
+                      {isTtsPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-1 fill-current" />}
+                    </button>
+
+                    <span className="text-xs font-semibold text-brand-700/80 dark:text-brand-300/80 tabular-nums w-10 text-center">
+                      {formatTime(ttsCurrentTime)}
+                    </span>
+
+                    <div className="relative flex-1 h-8 flex items-center group cursor-pointer">
+                      {/* Base track */}
+                      <div className="absolute w-full h-2 bg-brand-100 dark:bg-brand-900/60 rounded-full shadow-inner" />
+                      
+                      {/* Fill track */}
+                      <div 
+                        className="absolute h-2 bg-gradient-to-r from-brand-400 to-brand-600 rounded-full shadow-sm"
+                        style={{ width: `${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}%` }}
+                      />
+                      
+                      {/* Invisible Input & Custom Thumb */}
+                      <input
+                        type="range"
+                        min={0}
+                        max={ttsDuration || 0}
+                        step={0.1}
+                        value={Math.min(ttsCurrentTime, ttsDuration || 0)}
+                        onChange={(e) => {
+                          const nextTime = Number(e.target.value);
+                          if (ttsAudioRef.current) ttsAudioRef.current.currentTime = nextTime;
+                          ttsUiTickRef.current = performance.now();
+                          setTtsCurrentTime(nextTime);
+                        }}
+                        className="absolute w-full h-full opacity-0 cursor-pointer z-10"
+                        title="Tua âm thanh"
+                      />
+                      <div 
+                        className="absolute h-4 w-4 bg-white border-[3px] border-brand-500 rounded-full shadow-md transition-transform duration-100 group-hover:scale-125 z-0"
+                        style={{ left: `calc(${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}% - 8px)` }}
+                      />
+                    </div>
+
+                    <span className="text-xs font-semibold text-brand-700/80 dark:text-brand-300/80 tabular-nums w-10 text-center">
+                      {formatTime(ttsDuration)}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-brand-200/50 bg-white/80 dark:bg-black/40 p-3.5 text-left shadow-sm backdrop-blur-md">
+                    <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider font-bold text-brand-600/80 dark:text-brand-400/80">
+                      <span>Văn bản đang đọc</span>
+                    </div>
+                    <div className="max-h-[5.5rem] overflow-y-auto pr-2 custom-scrollbar">
+                      <TtsMarkdown
+                        content={ttsActiveText}
+                        progress={ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0}
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
