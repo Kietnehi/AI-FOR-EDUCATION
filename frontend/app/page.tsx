@@ -60,6 +60,8 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN");
+
 const statCards = [
   { label: "Học liệu", icon: BookOpen, color: "from-brand-500 to-brand-600" },
   { label: "Slide đã tạo", icon: FileText, color: "from-accent-500 to-accent-600" },
@@ -71,12 +73,36 @@ export default function DashboardPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showVisualizer, setShowVisualizer] = useState(false);
 
   useEffect(() => {
     listMaterials()
       .then((res) => setMaterials(res.items))
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const enableVisualizer = () => {
+      if (!cancelled) {
+        setShowVisualizer(true);
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(enableVisualizer, { timeout: 1500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timeoutId = globalThis.setTimeout(enableVisualizer, 400);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timeoutId);
+    };
   }, []);
 
   return (
@@ -95,7 +121,7 @@ export default function DashboardPage() {
 
           {/* 3D Visualizer Background */}
           <div className="absolute top-0 right-0 bottom-0 w-full sm:w-2/3 lg:w-1/2 min-h-[300px]">
-             <AIVisualizer />
+             {showVisualizer ? <AIVisualizer /> : null}
           </div>
 
           <div className="relative z-10 max-w-xl pointer-events-none">
@@ -233,7 +259,7 @@ export default function DashboardPage() {
                         </span>
                       )}
                       <span className="ml-auto">
-                        {new Date(material.updated_at).toLocaleDateString("vi-VN")}
+                        {DATE_FORMATTER.format(new Date(material.updated_at))}
                       </span>
                     </div>
                   </Card>
@@ -292,7 +318,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Geography Location */}
-      <motion.div variants={item}>
+      <motion.div variants={item} className="content-auto">
         <div className="flex items-center gap-2 mb-4">
           <MapPin className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -321,7 +347,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Cooperation Contact */}
-      <motion.div variants={item}>
+      <motion.div variants={item} className="content-auto">
         <div className="flex items-center gap-2 mb-4">
           <GithubIcon className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -357,6 +383,8 @@ export default function DashboardPage() {
                   <img 
                     src={`https://github.com/${contact.username}.png`} 
                     alt={contact.username} 
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-900"
                   />
                   <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -377,12 +405,16 @@ export default function DashboardPage() {
                   <img 
                     src={`https://img.shields.io/github/followers/${contact.username}?style=social`} 
                     alt="Followers" 
+                    loading="lazy"
+                    decoding="async"
                     className="h-6 object-contain"
                   />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
                     src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`} 
                     alt="Stars" 
+                    loading="lazy"
+                    decoding="async"
                     className="h-6 object-contain"
                   />
                 </div>

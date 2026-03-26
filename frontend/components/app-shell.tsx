@@ -15,6 +15,7 @@ const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").t
 export function AppShell({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mascotEnabled, setMascotEnabled] = useState(true);
+  const [shouldRenderMascot, setShouldRenderMascot] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("mascot-enabled");
@@ -22,6 +23,34 @@ export function AppShell({ children }: { children: ReactNode }) {
       setMascotEnabled(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!mascotEnabled) {
+      setShouldRenderMascot(false);
+      return;
+    }
+
+    let cancelled = false;
+    const scheduleRender = () => {
+      if (!cancelled) {
+        setShouldRenderMascot(true);
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(scheduleRender, { timeout: 1200 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timeoutId = globalThis.setTimeout(scheduleRender, 300);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [mascotEnabled]);
 
   const handleToggleMascot = () => {
     const next = !mascotEnabled;
@@ -50,20 +79,21 @@ export function AppShell({ children }: { children: ReactNode }) {
           onToggleMascot={handleToggleMascot}
         />
 
-        <motion.main
+        <main
           id="main-content"
-          initial={false}
-          animate={{ paddingLeft: sidebarCollapsed ? 72 : 260 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          style={{ 
+            paddingLeft: sidebarCollapsed ? 72 : 260,
+            transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+          }}
           className="pt-16 min-h-screen"
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
             {children}
           </div>
-        </motion.main>
+        </main>
         
         {/* Floating AI Mascot */}
-        {mascotEnabled && <FloatingMascot />}
+        {mascotEnabled && shouldRenderMascot && <FloatingMascot />}
       </div>
     </ThemeProvider>
   );

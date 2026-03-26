@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 import uuid
 from pathlib import Path
 
@@ -21,6 +22,13 @@ from app.services.material_guardrail_service import MaterialGuardrailService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
+_SHARED_CHUNKER = TextChunker(
+    chunk_size=settings.chunk_size, overlap=settings.chunk_overlap
+)
+_SHARED_EMBEDDER = OpenAIEmbedder()
+_SHARED_VECTOR_STORE = ChromaVectorStore()
+_SHARED_GUARDRAIL = MaterialGuardrailService()
+
 
 class MaterialService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
@@ -30,12 +38,21 @@ class MaterialService:
         self.chat_repo = ChatRepository(db)
         self.game_repo = GameRepository(db)
         self.generated_repo = GeneratedContentRepository(db)
-        self.chunker = TextChunker(
-            chunk_size=settings.chunk_size, overlap=settings.chunk_overlap
-        )
-        self.embedder = OpenAIEmbedder()
-        self.vector_store = ChromaVectorStore()
-        self.guardrail = MaterialGuardrailService()
+        self.chunker = _SHARED_CHUNKER
+        self.embedder = _SHARED_EMBEDDER
+        self.vector_store = _SHARED_VECTOR_STORE
+        self.guardrail = _SHARED_GUARDRAIL
+
+    @staticmethod
+    async def _persist_upload_file(file: UploadFile, destination: Path) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        await file.seek(0)
+
+        def _copy_file() -> None:
+            with destination.open("wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+        await asyncio.to_thread(_copy_file)
 
     async def create_material(self, payload: dict) -> dict:
         decision = self.guardrail.assert_allowed(
@@ -84,11 +101,10 @@ class MaterialService:
 
         file_name = f"{uuid.uuid4().hex}{extension}"
         destination = Path(settings.upload_dir) / file_name
-        content = await file.read()
-        destination.write_bytes(content)
+        await self._persist_upload_file(file, destination)
 
         try:
-            raw_text = FileParser.parse(str(destination))
+            raw_text = await asyncio.to_thread(FileParser.parse, str(destination))
             decision = self.guardrail.assert_allowed(
                 raw_text=raw_text,
                 title=metadata.get("title") or Path(file.filename or "material").stem,
@@ -131,11 +147,10 @@ class MaterialService:
 
         file_name = f"guardrail-{uuid.uuid4().hex}{extension}"
         destination = Path(settings.upload_dir) / file_name
-        content = await file.read()
-        destination.write_bytes(content)
+        await self._persist_upload_file(file, destination)
 
         try:
-            raw_text = FileParser.parse(str(destination))
+            raw_text = await asyncio.to_thread(FileParser.parse, str(destination))
             decision = self.guardrail.evaluate(
                 raw_text=raw_text,
                 title=metadata.get("title") or Path(file.filename or "material").stem,
@@ -165,6 +180,7 @@ class MaterialService:
     async def process_material(
         self, material_id: str, force_reprocess: bool = False
     ) -> None:
+        material_object_id = parse_object_id(material_id)
         job_id = uuid.uuid4().hex
         await self.job_repo.create(
             {
@@ -186,14 +202,14 @@ class MaterialService:
                 return
 
             await self.material_repo.update(
-                parse_object_id(material_id),
+                material_object_id,
                 {"processing_status": "processing", "updated_at": utc_now()},
             )
 
             cleaned = TextCleaner.clean(material.get("raw_text", ""))
             chunks = self.chunker.split(cleaned)
             texts = [chunk.chunk_text for chunk in chunks]
-            embeddings = self.embedder.embed_texts(texts)
+            embeddings = await asyncio.to_thread(self.embedder.embed_texts, texts)
 
             chunk_ids = [f"{material_id}:{chunk.chunk_index}" for chunk in chunks]
             metadatas = [
@@ -201,8 +217,9 @@ class MaterialService:
                 for chunk in chunks
             ]
 
-            self.vector_store.delete_material_chunks(material_id)
-            self.vector_store.upsert_chunks(
+            await asyncio.to_thread(self.vector_store.delete_material_chunks, material_id)
+            await asyncio.to_thread(
+                self.vector_store.upsert_chunks,
                 material_id=material_id,
                 chunk_ids=chunk_ids,
                 texts=texts,
@@ -210,6 +227,7 @@ class MaterialService:
                 metadatas=metadatas,
             )
 
+            chunk_created_at = utc_now()
             mongo_chunks = [
                 {
                     "material_id": material_id,
@@ -217,18 +235,19 @@ class MaterialService:
                     "chunk_text": chunk.chunk_text,
                     "metadata": {"length": len(chunk.chunk_text)},
                     "chroma_id": chunk_ids[idx],
-                    "created_at": utc_now(),
+                    "created_at": chunk_created_at,
                 }
                 for idx, chunk in enumerate(chunks)
             ]
             await self.material_repo.replace_chunks(material_id, mongo_chunks)
 
+            completed_at = utc_now()
             await self.material_repo.update(
-                parse_object_id(material_id),
+                material_object_id,
                 {
                     "cleaned_text": cleaned,
                     "processing_status": "processed",
-                    "updated_at": utc_now(),
+                    "updated_at": completed_at,
                 },
             )
             await self.job_repo.update_status(
@@ -239,7 +258,7 @@ class MaterialService:
             )
         except Exception as exc:  # noqa: BLE001
             await self.material_repo.update(
-                parse_object_id(material_id),
+                material_object_id,
                 {"processing_status": "failed", "updated_at": utc_now()},
             )
             await self.job_repo.update_status(job_id, "failed", {"error": str(exc)})
@@ -309,7 +328,7 @@ class MaterialService:
 
         # 3. Delete from Vector Store (ChromaDB)
         try:
-            self.vector_store.delete_material_chunks(material_id)
+            await asyncio.to_thread(self.vector_store.delete_material_chunks, material_id)
         except Exception as e:
             logger.warning(
                 "Failed to delete vector embeddings for material %s: %s", material_id, e
