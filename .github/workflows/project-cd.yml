@@ -298,21 +298,24 @@ jobs:
       - release-bundle
     if: always()
     steps:
-      - name: Tạo tóm tắt công việc CD (CD Job Summary)
+      - name: Tạo tóm tắt công việc CD chi tiết (Detailed CD Job Summary)
         uses: actions/github-script@v8
         with:
           script: |
             const results = {
-              prepare: "${{ needs.prepare-release.result }}" === "success" ? "✅" : "❌",
-              frontend: "${{ needs.build-frontend-artifact.result }}" === "success" ? "✅" : "❌",
-              backend: "${{ needs.package-backend-artifact.result }}" === "success" ? "✅" : "❌",
-              docker: "${{ needs.package-docker-bundle.result }}" === "success" ? "✅" : "❌",
-              deploy: "${{ needs.deploy-placeholder.result }}" === "success" ? "✅" : "❌",
-              bundle: "${{ needs.release-bundle.result }}" === "success" ? "✅" : "❌"
+              prepare: "${{ needs.prepare-release.result }}",
+              frontend: "${{ needs.build-frontend-artifact.result }}",
+              backend: "${{ needs.package-backend-artifact.result }}",
+              docker: "${{ needs.package-docker-bundle.result }}",
+              deploy: "${{ needs.deploy-placeholder.result }}",
+              bundle: "${{ needs.release-bundle.result }}"
             };
             
+            const statusIcon = (res) => res === "success" ? "✅" : (res === "failure" ? "❌" : "⏭️");
+            const statusText = (res) => res === "success" ? "Thành công" : (res === "failure" ? "Thất bại" : "Bỏ qua");
+
             const summary = `
-            # 🚢 Báo cáo Tóm tắt CD (Dự Án AI Learning Studio)
+            # 🚢 Báo cáo Tóm tắt CD Chi tiết (Dự Án AI Learning Studio)
             
             | Thông tin | Chi tiết |
             | :--- | :--- |
@@ -322,18 +325,27 @@ jobs:
             | **Người thực hiện** | @${context.actor} |
             | **Thời điểm** | ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} |
             
-            ## 📦 Trạng thái đóng gói & Triển khai
-            | Job | Trạng thái |
-            | :--- | :---: |
-            | 🛠️ **Chuẩn bị Metadata** | ${results.prepare} |
-            | 🖥️ **Build Frontend** | ${results.frontend} |
-            | ⚙️ **Package Backend** | ${results.backend} |
-            | 🐳 **Resolve Docker** | ${results.docker} |
-            | 🚀 **Deploy Placeholder** | ${results.deploy} |
-            | 📚 **Tổng hợp Release Bundle** | ${results.bundle} |
+            ---
+
+            ## 📦 Trạng thái quy trình (Pipeline Status)
+            | Thành phần | Trạng thái | Chi tiết |
+            | :--- | :---: | :--- |
+            | 🛠️ **Chuẩn bị Metadata** | ${statusIcon(results.prepare)} | ${statusText(results.prepare)} |
+            | 🖥️ **Build Frontend** | ${statusIcon(results.frontend)} | ${statusText(results.frontend)} |
+            | ⚙️ **Package Backend** | ${statusIcon(results.backend)} | ${statusText(results.backend)} |
+            | 🐳 **Resolve Docker** | ${statusIcon(results.docker)} | ${statusText(results.docker)} |
+            | 🚀 **Deploy Placeholder** | ${statusIcon(results.deploy)} | ${statusText(results.deploy)} |
+            | 📚 **Tổng hợp Release Bundle** | ${statusIcon(results.bundle)} | ${statusText(results.bundle)} |
             
             ---
-            *Ghi chú: Bản phát hành đã được đóng gói thành công dưới dạng Artifact: \`full-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`.*
+
+            ### 🖇️ Artifacts liên quan
+            - **Full Release Bundle:** \`full-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
+            - **Frontend Build:** \`frontend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
+            - **Backend Package:** \`backend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
+            
+            ---
+            *Ghi chú: Bản phát hành này là một bước triển khai tượng trưng để kiểm tra luồng phát hành.*
             `;
             
             core.summary.addRaw(summary).write();
@@ -386,7 +398,7 @@ jobs:
             ];
 
             const toStatus = (value) => value === 'success' ? '✅ THÀNH CÔNG' : value === 'failure' ? '❌ THẤT BẠI' : '⏭️ BỎ QUA';
-            const failedJobs = rows.filter(([, result]) => result === 'failure').map(([name]) => `- ${name}`).join('\n');
+            const failedJobs = rows.filter(([(name), result]) => result === 'failure').map(([name]) => `- ${name}`).join('\n');
             const table = rows.map(([name, result]) => `| ${name} | ${toStatus(result)} |`).join('\n');
 
             const body = [

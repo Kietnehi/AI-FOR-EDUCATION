@@ -5,11 +5,17 @@ on:
     paths:
       - "frontend/**"
       - "backend/**"
+      - "docker-compose.yml"
+      - "docker-compose.ci.yml"
+      - ".env.docker.example"
       - ".github/workflows/project-ci.yml"
   pull_request:
     paths:
       - "frontend/**"
       - "backend/**"
+      - "docker-compose.yml"
+      - "docker-compose.ci.yml"
+      - ".env.docker.example"
       - ".github/workflows/project-ci.yml"
 
 permissions:
@@ -23,7 +29,9 @@ jobs:
       run:
         working-directory: frontend
     outputs:
-      coverage: ${{ steps.extract-coverage.outputs.coverage }}
+      coverage: ${{ steps.extract-metrics.outputs.coverage }}
+      coverage_details: ${{ steps.extract-metrics.outputs.coverage_details }}
+      test_metrics: ${{ steps.extract-metrics.outputs.test_metrics }}
 
     steps:
       - name: Tải mã nguồn
@@ -42,18 +50,35 @@ jobs:
       - name: Chạy lint
         run: npm run lint
 
-      - name: Chạy kiểm thử với coverage
-        run: npm run test:coverage
+      - name: Chạy kiểm thử với coverage và xuất báo cáo JSON
+        run: npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json
 
-      - name: Trích xuất độ phủ (coverage)
-        id: extract-coverage
+      - name: Trích xuất chỉ số (Metrics)
+        id: extract-metrics
         if: always()
         run: |
+          # Trích xuất độ phủ (Coverage)
           if [ -f coverage/coverage-summary.json ]; then
-            COVERAGE=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
-            echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+            TOTAL_LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+            TOTAL_STMT=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
+            TOTAL_FUNC=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
+            TOTAL_BRANCH=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
+            echo "coverage=$TOTAL_LINES" >> "$GITHUB_OUTPUT"
+            echo "coverage_details={\"lines\":$TOTAL_LINES,\"statements\":$TOTAL_STMT,\"functions\":$TOTAL_FUNC,\"branches\":$TOTAL_BRANCH}" >> "$GITHUB_OUTPUT"
           else
             echo "coverage=0" >> "$GITHUB_OUTPUT"
+            echo "coverage_details={\"lines\":0,\"statements\":0,\"functions\":0,\"branches\":0}" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Trích xuất kết quả kiểm thử (Test Results)
+          if [ -f test-results.json ]; then
+            PASSED=$(jq '.numPassedTests' test-results.json)
+            FAILED=$(jq '.numFailedTests' test-results.json)
+            TOTAL=$(jq '.numTotalTests' test-results.json)
+            SKIPPED=$(jq '.numPendingTests' test-results.json)
+            echo "test_metrics={\"passed\":$PASSED,\"failed\":$FAILED,\"total\":$TOTAL,\"skipped\":$SKIPPED}" >> "$GITHUB_OUTPUT"
+          else
+            echo "test_metrics={\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Tải artifact coverage frontend lên
@@ -70,7 +95,8 @@ jobs:
       run:
         working-directory: backend
     outputs:
-      coverage: ${{ steps.extract-coverage.outputs.coverage }}
+      coverage: ${{ steps.extract-metrics.outputs.coverage }}
+      test_metrics: ${{ steps.extract-metrics.outputs.test_metrics }}
 
     steps:
       - name: Tải mã nguồn
@@ -86,18 +112,38 @@ jobs:
       - name: Cài đặt dependencies kiểm thử backend
         run: pip install -r requirements-test.txt
 
-      - name: Chạy kiểm thử backend với coverage
-        run: pytest
+      - name: Chạy kiểm thử backend với coverage và JUnit XML
+        run: pytest --junitxml=junit.xml
 
-      - name: Trích xuất độ phủ (coverage)
-        id: extract-coverage
+      - name: Trích xuất chỉ số (Metrics)
+        id: extract-metrics
         if: always()
         run: |
+          # Trích xuất độ phủ (Coverage)
           if [ -f coverage.xml ]; then
             COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(round(float(root.attrib['line-rate']) * 100, 2))")
             echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
           else
             echo "coverage=0" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Trích xuất kết quả kiểm thử (Test Results)
+          if [ -f junit.xml ]; then
+            python -c "
+            import xml.etree.ElementTree as ET
+            import json
+            tree = ET.parse('junit.xml')
+            root = tree.getroot()
+            # JUnit XML structure can vary; root is often <testsuites> or <testsuite>
+            total = int(root.attrib.get('tests', 0))
+            failed = int(root.attrib.get('failures', 0))
+            errors = int(root.attrib.get('errors', 0))
+            skipped = int(root.attrib.get('skipped', 0))
+            passed = total - failed - errors - skipped
+            print(f'test_metrics={json.dumps({\"passed\":passed,\"failed\":failed + errors,\"total\":total,\"skipped\":skipped})}')
+            " >> "$GITHUB_OUTPUT"
+          else
+            echo "test_metrics={\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Tải artifact coverage backend lên
@@ -159,19 +205,25 @@ jobs:
     needs: [frontend, backend, docker-compose-smoke]
     if: always()
     steps:
-      - name: Tạo tóm tắt công việc (Job Summary)
+      - name: Tạo tóm tắt công việc chi tiết (Detailed Job Summary)
         uses: actions/github-script@v8
         with:
           script: |
-            const frontendStatus = "${{ needs.frontend.result }}" === "success" ? "✅ Thành công" : "❌ Thất bại";
-            const backendStatus = "${{ needs.backend.result }}" === "success" ? "✅ Thành công" : "❌ Thất bại";
-            const dockerStatus = "${{ needs.docker-compose-smoke.result }}" === "success" ? "✅ Thành công" : "❌ Thất bại";
+            const frontendRes = "${{ needs.frontend.result }}";
+            const backendRes = "${{ needs.backend.result }}";
+            const dockerRes = "${{ needs.docker-compose-smoke.result }}";
+
+            const frontendCov = JSON.parse('${{ needs.frontend.outputs.coverage_details }}' || '{"lines":0,"statements":0,"functions":0,"branches":0}');
+            const frontendTests = JSON.parse('${{ needs.frontend.outputs.test_metrics }}' || '{"passed":0,"failed":0,"total":0,"skipped":0}');
             
-            const frontendCov = "${{ needs.frontend.outputs.coverage }}" || "0";
             const backendCov = "${{ needs.backend.outputs.coverage }}" || "0";
-            
+            const backendTests = JSON.parse('${{ needs.backend.outputs.test_metrics }}' || '{"passed":0,"failed":0,"total":0,"skipped":0}');
+
+            const statusIcon = (res) => res === "success" ? "✅" : (res === "failure" ? "❌" : "⏭️");
+            const statusText = (res) => res === "success" ? "Thành công" : (res === "failure" ? "Thất bại" : "Bỏ qua");
+
             const summary = `
-            # 🚀 Báo cáo Tóm tắt CI (Dự Án AI Learning Studio)
+            # 🚀 Báo cáo Tóm tắt CI Chi tiết (Dự Án AI Learning Studio)
             
             | Thông tin | Chi tiết |
             | :--- | :--- |
@@ -180,12 +232,43 @@ jobs:
             | **Commit** | [\`${context.sha.substring(0, 7)}\`](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}) |
             | **Thời điểm** | ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} (HCMC) |
             
-            ## 📊 Trạng thái các Job
-            | Thành phần | Trạng thái | Độ phủ (Coverage) |
-            | :--- | :---: | :---: |
-            | 🖥️ **Frontend** | ${frontendStatus} | \`${frontendCov}%\` |
-            | ⚙️ **Backend** | ${backendStatus} | \`${backendCov}%\` |
-            | 🐳 **Docker Smoke** | ${dockerStatus} | - |
+            ---
+
+            ## 🖥️ Frontend (Vitest)
+            **Trạng thái:** ${statusIcon(frontendRes)} ${statusText(frontendRes)}
+
+            ### 📊 Thống kê Kiểm thử
+            | Tổng số | ✅ Thành công | ❌ Thất bại | ⏭️ Bỏ qua |
+            | :---: | :---: | :---: | :---: |
+            | ${frontendTests.total} | ${frontendTests.passed} | ${frontendTests.failed} | ${frontendTests.skipped} |
+
+            ### 📦 Độ phủ mã nguồn (Coverage)
+            | Loại | Tỷ lệ | Tiến trình |
+            | :--- | :---: | :--- |
+            | **Lines** | \`${frontendCov.lines}%\` | ${'🟩'.repeat(Math.round(frontendCov.lines/10))}${'⬜'.repeat(10-Math.round(frontendCov.lines/10))} |
+            | **Statements** | \`${frontendCov.statements}%\` | ${'🟩'.repeat(Math.round(frontendCov.statements/10))}${'⬜'.repeat(10-Math.round(frontendCov.statements/10))} |
+            | **Functions** | \`${frontendCov.functions}%\` | ${'🟩'.repeat(Math.round(frontendCov.functions/10))}${'⬜'.repeat(10-Math.round(frontendCov.functions/10))} |
+            | **Branches** | \`${frontendCov.branches}%\` | ${'🟩'.repeat(Math.round(frontendCov.branches/10))}${'⬜'.repeat(10-Math.round(frontendCov.branches/10))} |
+
+            ---
+
+            ## ⚙️ Backend (Pytest)
+            **Trạng thái:** ${statusIcon(backendRes)} ${statusText(backendRes)}
+
+            ### 📊 Thống kê Kiểm thử
+            | Tổng số | ✅ Thành công | ❌ Thất bại | ⏭️ Bỏ qua |
+            | :---: | :---: | :---: | :---: |
+            | ${backendTests.total} | ${backendTests.passed} | ${backendTests.failed} | ${backendTests.skipped} |
+
+            ### 📦 Độ phủ mã nguồn (Coverage)
+            | Loại | Tỷ lệ | Tiến trình |
+            | :--- | :---: | :--- |
+            | **Lines** | \`${backendCov}%\` | ${'🟩'.repeat(Math.round(backendCov/10))}${'⬜'.repeat(10-Math.round(backendCov/10))} |
+
+            ---
+
+            ## 🐳 Docker Smoke Test
+            **Trạng thái:** ${statusIcon(dockerRes)} ${statusText(dockerRes)}
             
             ---
             *Ghi chú: Xem chi tiết logs tại tab Actions hoặc tải các Artifacts để xem báo cáo chi tiết.*
