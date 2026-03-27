@@ -16,9 +16,6 @@ permissions:
   contents: read
   issues: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   frontend:
     runs-on: ubuntu-latest
@@ -28,10 +25,10 @@ jobs:
 
     steps:
       - name: Tải mã nguồn
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cài đặt Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -48,7 +45,7 @@ jobs:
 
       - name: Tải artifact coverage frontend lên
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage-report
           path: frontend/coverage
@@ -62,10 +59,10 @@ jobs:
 
     steps:
       - name: Tải mã nguồn
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cài đặt Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -79,7 +76,7 @@ jobs:
 
       - name: Tải artifact coverage backend lên
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage-report
           path: |
@@ -92,7 +89,7 @@ jobs:
 
     steps:
       - name: Tải mã nguồn
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cài đặt Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -144,7 +141,7 @@ jobs:
 
     steps:
       - name: Tạo hoặc cập nhật GitHub Issue khi CI lỗi
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
