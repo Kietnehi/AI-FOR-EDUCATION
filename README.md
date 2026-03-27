@@ -507,6 +507,7 @@ Hiện tại dự án có **CI** cho toàn bộ repo và **chưa có CD**.
 - Trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/` hoặc file workflow
 - Frontend: chạy `lint` + `test` + `coverage`
 - Backend: chạy `pytest` + `coverage`
+- Docker: chạy smoke test `docker compose`
 - Khi `push` fail, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
 
 ### 6.1 Cách chạy CI local
@@ -519,12 +520,18 @@ npm run test:ci
 cd ../backend
 python -m pip install -r requirements-test.txt
 python -m pytest
+
+cp .env.docker.example .env
+docker compose up -d --build
+curl http://localhost:8000/health
+docker compose down -v
 ```
 
 Coverage report sau khi chạy:
 
 - Frontend: `frontend/coverage/index.html`
 - Backend: `backend/htmlcov/index.html`
+- Docker: kiểm tra `http://localhost:8000/health` và `docker compose ps`
 
 ### 6.2 Ghi chú
 
