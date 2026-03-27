@@ -32,6 +32,7 @@ jobs:
       coverage: ${{ steps.extract-metrics.outputs.coverage }}
       coverage_details: ${{ steps.extract-metrics.outputs.coverage_details }}
       test_metrics: ${{ steps.extract-metrics.outputs.test_metrics }}
+      ci_logs: ${{ steps.capture-logs.outputs.ci_logs }}
 
     steps:
       - name: Tải mã nguồn
@@ -45,19 +46,18 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Cài đặt dependencies
-        run: npm ci
+        run: npm ci 2>&1 | tee npm_ci.log
 
       - name: Chạy lint
         run: npm run lint
 
       - name: Chạy kiểm thử với coverage và xuất báo cáo JSON
-        run: npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json
+        run: npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json 2>&1 | tee vitest.log
 
       - name: Trích xuất chỉ số (Metrics)
         id: extract-metrics
         if: always()
         run: |
-          # Trích xuất độ phủ (Coverage)
           if [ -f coverage/coverage-summary.json ]; then
             TOTAL_LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
             TOTAL_STMT=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
@@ -70,7 +70,6 @@ jobs:
             echo "coverage_details={\"lines\":0,\"statements\":0,\"functions\":0,\"branches\":0}" >> "$GITHUB_OUTPUT"
           fi
 
-          # Trích xuất kết quả kiểm thử (Test Results)
           if [ -f test-results.json ]; then
             PASSED=$(jq '.numPassedTests' test-results.json)
             FAILED=$(jq '.numFailedTests' test-results.json)
@@ -80,6 +79,25 @@ jobs:
           else
             echo "test_metrics={\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0}" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Thu thập Logs Frontend
+        id: capture-logs
+        if: always()
+        run: |
+          echo "CI_LOGS_FE<<EOF" >> "$GITHUB_OUTPUT"
+          echo "### 📦 npm ci output" >> "$GITHUB_OUTPUT"
+          echo '```' >> "$GITHUB_OUTPUT"
+          tail -n 20 npm_ci.log || echo "No logs" >> "$GITHUB_OUTPUT"
+          echo '```' >> "$GITHUB_OUTPUT"
+          echo "" >> "$GITHUB_OUTPUT"
+          echo "### 🧪 vitest output" >> "$GITHUB_OUTPUT"
+          echo '```' >> "$GITHUB_OUTPUT"
+          tail -n 50 vitest.log || echo "No logs" >> "$GITHUB_OUTPUT"
+          echo '```' >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          # Encode for safe passing
+          LOGS_VAL=$(tail -n 100 vitest.log | base64 -w 0)
+          echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
 
       - name: Tải artifact coverage frontend lên
         if: always()
@@ -97,6 +115,7 @@ jobs:
     outputs:
       coverage: ${{ steps.extract-metrics.outputs.coverage }}
       test_metrics: ${{ steps.extract-metrics.outputs.test_metrics }}
+      ci_logs: ${{ steps.capture-logs.outputs.ci_logs }}
 
     steps:
       - name: Tải mã nguồn
@@ -110,16 +129,15 @@ jobs:
           cache-dependency-path: backend/requirements-test.txt
 
       - name: Cài đặt dependencies kiểm thử backend
-        run: pip install -r requirements-test.txt
+        run: pip install -r requirements-test.txt 2>&1 | tee pip_install.log
 
       - name: Chạy kiểm thử backend với coverage và JUnit XML
-        run: pytest --junitxml=junit.xml
+        run: pytest --junitxml=junit.xml 2>&1 | tee pytest.log
 
       - name: Trích xuất chỉ số (Metrics)
         id: extract-metrics
         if: always()
         run: |
-          # Trích xuất độ phủ (Coverage)
           if [ -f coverage.xml ]; then
             COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(round(float(root.attrib['line-rate']) * 100, 2))")
             echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
@@ -127,24 +145,32 @@ jobs:
             echo "coverage=0" >> "$GITHUB_OUTPUT"
           fi
 
-          # Trích xuất kết quả kiểm thử (Test Results)
           if [ -f junit.xml ]; then
             python -c "
-            import xml.etree.ElementTree as ET
-            import json
-            tree = ET.parse('junit.xml')
-            root = tree.getroot()
-            # JUnit XML structure can vary; root is often <testsuites> or <testsuite>
-            total = int(root.attrib.get('tests', 0))
-            failed = int(root.attrib.get('failures', 0))
-            errors = int(root.attrib.get('errors', 0))
-            skipped = int(root.attrib.get('skipped', 0))
-            passed = total - failed - errors - skipped
-            print(f'test_metrics={json.dumps({\"passed\":passed,\"failed\":failed + errors,\"total\":total,\"skipped\":skipped})}')
+import xml.etree.ElementTree as ET
+import json
+try:
+    tree = ET.parse('junit.xml')
+    root = tree.getroot()
+    total = int(root.attrib.get('tests', 0))
+    failed = int(root.attrib.get('failures', 0))
+    errors = int(root.attrib.get('errors', 0))
+    skipped = int(root.attrib.get('skipped', 0))
+    passed = total - failed - errors - skipped
+    print(f'test_metrics={json.dumps({\"passed\":passed,\"failed\":failed + errors,\"total\":total,\"skipped\":skipped})}')
+except Exception as e:
+    print(f'test_metrics={json.dumps({\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0})}')
             " >> "$GITHUB_OUTPUT"
           else
             echo "test_metrics={\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0}" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Thu thập Logs Backend
+        id: capture-logs
+        if: always()
+        run: |
+          LOGS_VAL=$(tail -n 100 pytest.log | base64 -w 0)
+          echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
 
       - name: Tải artifact coverage backend lên
         if: always()
@@ -161,6 +187,8 @@ jobs:
     env:
       DOCKER_BUILDKIT: 0
       COMPOSE_DOCKER_CLI_BUILD: 0
+    outputs:
+      ci_logs: ${{ steps.capture-logs.outputs.ci_logs }}
 
     steps:
       - name: Tải mã nguồn
@@ -170,31 +198,32 @@ jobs:
         run: cp .env.docker.example .env
 
       - name: Build và khởi động docker compose
-        run: docker compose -f docker-compose.ci.yml up -d --build --wait
+        run: docker compose -f docker-compose.ci.yml up -d --build --wait 2>&1 | tee docker_up.log
 
       - name: Chờ backend sẵn sàng
         run: |
+          echo "### Health Check logs" > health.log
           for i in {1..15}; do
-            if curl -fsS http://127.0.0.1:8000/health; then
+            if curl -fsS http://127.0.0.1:8000/health | tee -a health.log; then
               exit 0
             fi
             sleep 3
           done
-          echo "Kiểm tra health của backend thất bại"
-          docker compose -f docker-compose.ci.yml ps
-          docker compose -f docker-compose.ci.yml logs backend
+          echo "Kiểm tra health của backend thất bại" | tee -a health.log
+          docker compose -f docker-compose.ci.yml ps >> health.log
+          docker compose -f docker-compose.ci.yml logs backend >> health.log
           exit 1
 
       - name: Kiểm tra frontend phản hồi
         run: curl -fsS http://127.0.0.1:3000 > /dev/null
 
-      - name: Hiển thị trạng thái docker compose khi lỗi
-        if: failure()
-        run: docker compose -f docker-compose.ci.yml ps
-
-      - name: Hiển thị log docker compose khi lỗi
-        if: failure()
-        run: docker compose -f docker-compose.ci.yml logs --no-color
+      - name: Thu thập Logs Docker
+        id: capture-logs
+        if: always()
+        run: |
+          docker compose -f docker-compose.ci.yml logs --no-color > docker_full.log
+          LOGS_VAL=$(tail -n 100 docker_full.log | base64 -w 0)
+          echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
 
       - name: Dừng docker compose
         if: always()
@@ -218,6 +247,19 @@ jobs:
             
             const backendCov = "${{ needs.backend.outputs.coverage }}" || "0";
             const backendTests = JSON.parse('${{ needs.backend.outputs.test_metrics }}' || '{"passed":0,"failed":0,"total":0,"skipped":0}');
+
+            const decodeLogs = (b64) => {
+              if (!b64) return "Không có log.";
+              try {
+                return Buffer.from(b64, 'base64').toString('utf-8');
+              } catch (e) {
+                return "Lỗi giải mã log.";
+              }
+            };
+
+            const feLogs = decodeLogs("${{ needs.frontend.outputs.ci_logs }}");
+            const beLogs = decodeLogs("${{ needs.backend.outputs.ci_logs }}");
+            const dockerLogs = decodeLogs("${{ needs.docker-compose-smoke.outputs.ci_logs }}");
 
             const statusIcon = (res) => res === "success" ? "✅" : (res === "failure" ? "❌" : "⏭️");
             const statusText = (res) => res === "success" ? "Thành công" : (res === "failure" ? "Thất bại" : "Bỏ qua");
@@ -250,6 +292,14 @@ jobs:
             | **Functions** | \`${frontendCov.functions}%\` | ${'🟩'.repeat(Math.round(frontendCov.functions/10))}${'⬜'.repeat(10-Math.round(frontendCov.functions/10))} |
             | **Branches** | \`${frontendCov.branches}%\` | ${'🟩'.repeat(Math.round(frontendCov.branches/10))}${'⬜'.repeat(10-Math.round(frontendCov.branches/10))} |
 
+            <details>
+            <summary>🔍 Xem Logs Frontend</summary>
+
+            \`\`\`
+            ${feLogs}
+            \`\`\`
+            </details>
+
             ---
 
             ## ⚙️ Backend (Pytest)
@@ -265,10 +315,26 @@ jobs:
             | :--- | :---: | :--- |
             | **Lines** | \`${backendCov}%\` | ${'🟩'.repeat(Math.round(backendCov/10))}${'⬜'.repeat(10-Math.round(backendCov/10))} |
 
+            <details>
+            <summary>🔍 Xem Logs Backend</summary>
+
+            \`\`\`
+            ${beLogs}
+            \`\`\`
+            </details>
+
             ---
 
             ## 🐳 Docker Smoke Test
             **Trạng thái:** ${statusIcon(dockerRes)} ${statusText(dockerRes)}
+
+            <details>
+            <summary>🔍 Xem Logs Docker</summary>
+
+            \`\`\`
+            ${dockerLogs}
+            \`\`\`
+            </details>
             
             ---
             *Ghi chú: Xem chi tiết logs tại tab Actions hoặc tải các Artifacts để xem báo cáo chi tiết.*
