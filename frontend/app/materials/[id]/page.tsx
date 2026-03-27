@@ -139,9 +139,13 @@ export default function MaterialDetailPage() {
     // For other types, generate directly
     setBusyAction(type);
     try {
-      if (type === "podcast") {
-        const generated = await generatePodcast(materialId);
-        router.push(`/materials/${materialId}/podcast?contentId=${generated.id}`);
+      let generated;
+      if (type === "podcast") generated = await generatePodcast(materialId);
+      else {
+        // Minigame: navigate to minigame page without contentId
+        // User will select game type there
+        router.push(`/materials/${materialId}/minigame`);
+        setBusyAction("");
         return;
       }
 

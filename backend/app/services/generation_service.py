@@ -275,7 +275,7 @@ class GenerationService:
     async def generate_minigame(self, material_id: str, game_type: str = "quiz_mixed") -> dict:
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
-        valid_game_types = {"quiz_mixed", "flashcard", "scenario_branching"}
+        valid_game_types = {"quiz_mixed", "flashcard", "shooting_quiz"}
         selected_game_type = game_type if game_type in valid_game_types else "quiz_mixed"
         game_payload, version = await asyncio.gather(
             asyncio.to_thread(

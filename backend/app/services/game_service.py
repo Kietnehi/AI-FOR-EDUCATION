@@ -24,6 +24,10 @@ class GameService:
             scored_items, score, max_score = self._score_scenario(json_content, answers)
             skills_gained = self._extract_skills_from_scenario(json_content, answers)
             improvement_tips = self._extract_tips_from_scenario(json_content, answers)
+        elif game_type == "shooting_quiz":
+            scored_items, score, max_score = self._score_shooting_quiz(json_content, answers)
+            skills_gained = self._extract_skills_from_shooting(json_content)
+            improvement_tips = self._extract_tips_from_shooting(score, max_score)
         else:
             # quiz_mixed or flashcard
             scored_items = self._score_quiz(json_content, answers, game_type)
@@ -176,6 +180,53 @@ class GameService:
         final_score = min(total_score, max_score)
 
         return feedback, final_score, max_score
+
+    def _score_shooting_quiz(self, json_content: dict, answers: list[dict]) -> tuple[list[dict], float, float]:
+        """Score shooting quiz game with +10 for each correct answer."""
+        game = json_content.get("game", {}) if isinstance(json_content, dict) else {}
+        questions = game.get("questions", []) if isinstance(game, dict) else []
+        tracking = json_content.get("tracking", {}) if isinstance(json_content, dict) else {}
+
+        score_per_correct = float(tracking.get("score_per_correct", 10) or 10)
+        answer_map = {item.get("id"): item for item in answers if item.get("id")}
+        feedback: list[dict] = []
+
+        total_score = 0.0
+        for question in questions:
+            question_id = question.get("id")
+            if not question_id:
+                continue
+
+            options = question.get("answers", [])
+            correct_option = next((opt for opt in options if opt.get("is_correct") is True), None)
+            correct_answer_id = correct_option.get("id") if isinstance(correct_option, dict) else None
+            correct_answer_text = correct_option.get("text") if isinstance(correct_option, dict) else None
+
+            user_answer = answer_map.get(question_id, {}).get("answer")
+            is_correct = bool(user_answer and correct_answer_id and str(user_answer).strip().upper() == str(correct_answer_id).strip().upper())
+            gained = score_per_correct if is_correct else 0.0
+            total_score += gained
+
+            feedback.append(
+                {
+                    "id": question_id,
+                    "question": question.get("question", ""),
+                    "user_answer": user_answer,
+                    "correct_answer": correct_answer_id,
+                    "correct_answer_text": correct_answer_text,
+                    "is_correct": is_correct,
+                    "score_gained": gained,
+                    "explanation": question.get("explanation", ""),
+                }
+            )
+
+        declared_max = tracking.get("max_score")
+        if isinstance(declared_max, (int, float)) and declared_max > 0:
+            max_score = float(declared_max)
+        else:
+            max_score = float(len(questions) * score_per_correct) if questions else 100.0
+
+        return feedback, float(total_score), float(max(max_score, 1.0))
 
     def _score_scenario_strict(self, json_content: dict, answers: list[dict]) -> tuple[list[dict], float, float]:
         """Score strict schema scenario game. answers accepts step_id/node_id + answer/choice_id."""
@@ -334,3 +385,27 @@ class GameService:
             if suggestion:
                 tips.append(suggestion)
         return tips
+
+    def _extract_skills_from_shooting(self, json_content: dict) -> list[str]:
+        tracking = json_content.get("tracking", {}) if isinstance(json_content, dict) else {}
+        skills = tracking.get("skills", []) if isinstance(tracking, dict) else []
+        if isinstance(skills, list):
+            return [str(skill) for skill in skills if str(skill).strip()]
+        return ["rag_knowledge", "critical_thinking"]
+
+    def _extract_tips_from_shooting(self, score: float, max_score: float) -> list[str]:
+        accuracy = (score / max_score) if max_score > 0 else 0.0
+        if accuracy >= 0.8:
+            return [
+                "Tuyet voi. Hay tang do kho bang cach tai tao minigame voi tai lieu nang cao hon.",
+                "Thu giai thich lai tung dap an dung theo cach cua ban de cu cung kien thuc.",
+            ]
+        if accuracy >= 0.5:
+            return [
+                "On lai cac phan ban hay nham va choi lai de tang toc do nhan dien dap an dung.",
+                "Tap trung vao tu khoa trong cau hoi truoc khi ban de han che chon sai.",
+            ]
+        return [
+            "Doc lai tai lieu va ghi chu cac y chinh, sau do choi lai de cung co tri nho.",
+            "Sau moi cau sai, xem explanation de hieu vi sao dap an do la dung.",
+        ]
