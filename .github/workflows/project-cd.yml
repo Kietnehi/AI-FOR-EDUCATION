@@ -23,6 +23,7 @@ on:
 permissions:
   contents: read
   issues: write
+  packages: write
 
 env:
   SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
@@ -37,10 +38,17 @@ jobs:
       release_name: ${{ steps.meta.outputs.release_name }}
       release_version: ${{ steps.meta.outputs.release_version }}
       release_sha_short: ${{ steps.meta.outputs.release_sha_short }}
+      image_namespace: ${{ steps.meta.outputs.image_namespace }}
+      repository_name: ${{ steps.meta.outputs.repository_name }}
+      backend_image: ${{ steps.meta.outputs.backend_image }}
+      frontend_image: ${{ steps.meta.outputs.frontend_image }}
+      publish_latest: ${{ steps.meta.outputs.publish_latest }}
 
     steps:
       - name: Tải mã nguồn
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Tạo metadata phát hành
         id: meta
@@ -49,6 +57,14 @@ jobs:
           SHA_SHORT="${SOURCE_SHA::7}"
           RELEASE_VERSION="placeholder-${SHA_SHORT}"
           RELEASE_NAME="AI Learning Studio ${RELEASE_VERSION}"
+          IMAGE_NAMESPACE="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          REPOSITORY_NAME="$(echo "${GITHUB_REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]')"
+          BACKEND_IMAGE="ghcr.io/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-backend"
+          FRONTEND_IMAGE="ghcr.io/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-frontend"
+          PUBLISH_LATEST="false"
+          if [ "${SOURCE_BRANCH}" = "main" ]; then
+            PUBLISH_LATEST="true"
+          fi
           mkdir -p release
           cat > release/release-metadata.json <<EOF
           {
@@ -60,6 +76,8 @@ jobs:
             "workflow": "${GITHUB_WORKFLOW}",
             "runId": "${GITHUB_RUN_ID}",
             "targetEnvironment": "${TARGET_ENVIRONMENT}",
+            "backendImage": "${BACKEND_IMAGE}",
+            "frontendImage": "${FRONTEND_IMAGE}",
             "generatedAt": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           }
           EOF
@@ -71,11 +89,18 @@ jobs:
           - Nhánh: ${SOURCE_BRANCH}
           - Commit: ${SOURCE_SHA}
           - Môi trường đích: ${TARGET_ENVIRONMENT}
+          - Ảnh Docker backend: ${BACKEND_IMAGE}:${RELEASE_VERSION}
+          - Ảnh Docker frontend: ${FRONTEND_IMAGE}:${RELEASE_VERSION}
           - Trạng thái: Sẵn sàng cho bước triển khai tượng trưng
           EOF
           echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
           echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_sha_short=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "image_namespace=${IMAGE_NAMESPACE}" >> "$GITHUB_OUTPUT"
+          echo "repository_name=${REPOSITORY_NAME}" >> "$GITHUB_OUTPUT"
+          echo "backend_image=${BACKEND_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=${FRONTEND_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "publish_latest=${PUBLISH_LATEST}" >> "$GITHUB_OUTPUT"
 
       - name: Tải artifact metadata phát hành lên
         uses: actions/upload-artifact@v7
@@ -93,6 +118,8 @@ jobs:
     steps:
       - name: Tải mã nguồn
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Cài đặt Node.js
         uses: actions/setup-node@v6
@@ -133,6 +160,8 @@ jobs:
     steps:
       - name: Tải mã nguồn
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Cài đặt Python
         uses: actions/setup-python@v6
@@ -165,6 +194,8 @@ jobs:
     steps:
       - name: Tải mã nguồn
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Chuẩn bị file môi trường Docker
         run: cp .env.docker.example .env
@@ -186,6 +217,132 @@ jobs:
           name: docker-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
           path: release/docker
 
+  publish-container-images:
+    runs-on: ubuntu-latest
+    needs: prepare-release
+
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Cài đặt Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Đăng nhập GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tạo metadata ảnh backend
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.prepare-release.outputs.backend_image }}
+          tags: |
+            type=raw,value=${{ needs.prepare-release.outputs.release_version }}
+            type=raw,value=sha-${{ needs.prepare-release.outputs.release_sha_short }}
+            type=raw,value=latest,enable=${{ needs.prepare-release.outputs.publish_latest == 'true' }}
+          labels: |
+            org.opencontainers.image.title=AI-FOR-EDUCATION Backend
+            org.opencontainers.image.description=Ảnh Docker backend của dự án AI-FOR-EDUCATION
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.SOURCE_SHA }}
+
+      - name: Build và đẩy ảnh backend lên GHCR
+        id: backend-build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+          cache-from: type=gha,scope=backend-ghcr
+          cache-to: type=gha,mode=max,scope=backend-ghcr
+
+      - name: Tạo metadata ảnh frontend
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.prepare-release.outputs.frontend_image }}
+          tags: |
+            type=raw,value=${{ needs.prepare-release.outputs.release_version }}
+            type=raw,value=sha-${{ needs.prepare-release.outputs.release_sha_short }}
+            type=raw,value=latest,enable=${{ needs.prepare-release.outputs.publish_latest == 'true' }}
+          labels: |
+            org.opencontainers.image.title=AI-FOR-EDUCATION Frontend
+            org.opencontainers.image.description=Ảnh Docker frontend của dự án AI-FOR-EDUCATION
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.SOURCE_SHA }}
+
+      - name: Build và đẩy ảnh frontend lên GHCR
+        id: frontend-build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api
+            NEXT_PUBLIC_API_HOST=http://localhost:8000
+          cache-from: type=gha,scope=frontend-ghcr
+          cache-to: type=gha,mode=max,scope=frontend-ghcr
+
+      - name: Tạo báo cáo publish ảnh Docker
+        shell: bash
+        run: |
+          mkdir -p release/images
+          cat > release/images/published-images.md <<EOF
+          # Báo cáo publish ảnh Docker
+
+          ## Backend
+
+          - Ảnh: `${{ needs.prepare-release.outputs.backend_image }}`
+          - Tag phát hành: `${{ needs.prepare-release.outputs.release_version }}`
+          - Tag SHA: `sha-${{ needs.prepare-release.outputs.release_sha_short }}`
+          - Tag latest: `${{ needs.prepare-release.outputs.publish_latest == 'true' && 'có' || 'không' }}`
+          - Digest: `${{ steps.backend-build.outputs.digest }}`
+
+          ## Frontend
+
+          - Ảnh: `${{ needs.prepare-release.outputs.frontend_image }}`
+          - Tag phát hành: `${{ needs.prepare-release.outputs.release_version }}`
+          - Tag SHA: `sha-${{ needs.prepare-release.outputs.release_sha_short }}`
+          - Tag latest: `${{ needs.prepare-release.outputs.publish_latest == 'true' && 'có' || 'không' }}`
+          - Digest: `${{ steps.frontend-build.outputs.digest }}`
+          EOF
+          cat > release/images/published-images.json <<EOF
+          {
+            "backend": {
+              "image": "${{ needs.prepare-release.outputs.backend_image }}",
+              "releaseTag": "${{ needs.prepare-release.outputs.release_version }}",
+              "shaTag": "sha-${{ needs.prepare-release.outputs.release_sha_short }}",
+              "latestTagPublished": ${{ needs.prepare-release.outputs.publish_latest == 'true' }},
+              "digest": "${{ steps.backend-build.outputs.digest }}"
+            },
+            "frontend": {
+              "image": "${{ needs.prepare-release.outputs.frontend_image }}",
+              "releaseTag": "${{ needs.prepare-release.outputs.release_version }}",
+              "shaTag": "sha-${{ needs.prepare-release.outputs.release_sha_short }}",
+              "latestTagPublished": ${{ needs.prepare-release.outputs.publish_latest == 'true' }},
+              "digest": "${{ steps.frontend-build.outputs.digest }}"
+            }
+          }
+          EOF
+          cat release/images/published-images.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tải artifact thông tin ảnh Docker lên
+        uses: actions/upload-artifact@v7
+        with:
+          name: published-container-images-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release/images
+
   deploy-placeholder:
     runs-on: ubuntu-latest
     needs:
@@ -193,6 +350,7 @@ jobs:
       - build-frontend-artifact
       - package-backend-artifact
       - package-docker-bundle
+      - publish-container-images
     environment:
       name: ${{ github.event.inputs.target_environment || 'staging-placeholder' }}
 
@@ -218,6 +376,8 @@ jobs:
           - Người kích hoạt: ${GITHUB_ACTOR}
           - Lần chạy workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           - URL công khai: chưa-cấu-hình
+          - Ảnh backend trên GHCR: ${{ needs.prepare-release.outputs.backend_image }}:${{ needs.prepare-release.outputs.release_version }}
+          - Ảnh frontend trên GHCR: ${{ needs.prepare-release.outputs.frontend_image }}:${{ needs.prepare-release.outputs.release_version }}
           - Chế độ triển khai: chỉ tượng trưng
 
           Trạng thái hiện tại:
@@ -225,6 +385,7 @@ jobs:
           - Frontend đã build xong và đã tải bundle artifact lên
           - Backend đã kiểm tra cú pháp và đã tải bundle artifact lên
           - Cấu hình docker compose đã được resolve thành công
+          - Ảnh Docker backend và frontend đã được publish lên GHCR
           - Chưa thực hiện triển khai lên server thật
           EOF
           cat release/deploy/deployment-summary.md >> "$GITHUB_STEP_SUMMARY"
@@ -245,6 +406,7 @@ jobs:
       - build-frontend-artifact
       - package-backend-artifact
       - package-docker-bundle
+      - publish-container-images
       - deploy-placeholder
 
     steps:
@@ -278,6 +440,12 @@ jobs:
           name: deployment-summary-${{ needs.prepare-release.outputs.release_sha_short }}
           path: release-bundle/deploy
 
+      - name: Tải artifact thông tin ảnh Docker xuống
+        uses: actions/download-artifact@v7
+        with:
+          name: published-container-images-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release-bundle/container-images
+
       - name: Tải artifact bundle phát hành tổng hợp lên
         uses: actions/upload-artifact@v7
         with:
@@ -291,6 +459,7 @@ jobs:
       - build-frontend-artifact
       - package-backend-artifact
       - package-docker-bundle
+      - publish-container-images
       - deploy-placeholder
       - release-bundle
     if: >-
@@ -300,6 +469,7 @@ jobs:
         needs.build-frontend-artifact.result == 'failure' ||
         needs.package-backend-artifact.result == 'failure' ||
         needs.package-docker-bundle.result == 'failure' ||
+        needs.publish-container-images.result == 'failure' ||
         needs.deploy-placeholder.result == 'failure' ||
         needs.release-bundle.result == 'failure'
       )
@@ -312,6 +482,7 @@ jobs:
           FRONTEND_RESULT: ${{ needs.build-frontend-artifact.result }}
           BACKEND_RESULT: ${{ needs.package-backend-artifact.result }}
           DOCKER_RESULT: ${{ needs.package-docker-bundle.result }}
+          GHCR_RESULT: ${{ needs.publish-container-images.result }}
           DEPLOY_RESULT: ${{ needs.deploy-placeholder.result }}
           BUNDLE_RESULT: ${{ needs.release-bundle.result }}
         with:
@@ -327,6 +498,7 @@ jobs:
               ['Bundle frontend', process.env.FRONTEND_RESULT],
               ['Bundle backend', process.env.BACKEND_RESULT],
               ['Bundle Docker', process.env.DOCKER_RESULT],
+              ['Publish ảnh Docker lên GHCR', process.env.GHCR_RESULT],
               ['Triển khai tượng trưng', process.env.DEPLOY_RESULT],
               ['Bundle phát hành tổng hợp', process.env.BUNDLE_RESULT],
             ];
