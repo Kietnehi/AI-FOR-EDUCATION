@@ -244,12 +244,28 @@ export async function sendChatMessage(sessionId: string, message: string, images
 export async function sendMascotChatMessage(
   message: string,
   sessionId?: string,
-  images?: string[]
+  images?: string[],
+  options?: { useWebSearch?: boolean; useGoogle?: boolean }
 ): Promise<MascotChatResponse> {
   return apiFetch<MascotChatResponse>("/chat/mascot/message", {
     method: "POST",
-    body: JSON.stringify({ message, session_id: sessionId || null, images: images || [] }),
+    body: JSON.stringify({
+      message,
+      session_id: sessionId || null,
+      images: images || [],
+      use_web_search: options?.useWebSearch ?? false,
+      use_google: options?.useGoogle ?? true,
+    }),
   });
+}
+
+export async function webSearch(sessionId: string, query: string, useGoogle: boolean = true): Promise<any> {
+  const result = await apiFetch<any>(`/chat/sessions/${sessionId}/web-search`, {
+    method: "POST",
+    body: JSON.stringify({ query, use_google: useGoogle }),
+  });
+  invalidateCache(`/chat/sessions/${sessionId}`);
+  return result;
 }
 
 export async function transcribeChatAudio(

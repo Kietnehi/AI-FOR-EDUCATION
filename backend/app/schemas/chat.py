@@ -28,6 +28,14 @@ class MascotChatRequest(BaseModel):
     message: str
     session_id: str | None = None
     images: list[str] = Field(default_factory=list, description="Base64 encoded images")
+    use_web_search: bool = Field(
+        default=False,
+        description="Bật tìm kiếm web cho tin nhắn mascot",
+    )
+    use_google: bool = Field(
+        default=True,
+        description="Nếu bật web search, thử Google trước",
+    )
 
 
 class ChatMessageResponse(BaseModel):
@@ -65,3 +73,67 @@ class MascotChatResponse(BaseModel):
     session_id: str
     model_used: str | None = None
     fallback_applied: bool = False
+    is_web_search: bool = False
+    search_provider: str | None = None
+
+
+class WebSearchSource(BaseModel):
+    """Thông tin nguồn từ tìm kiếm web"""
+
+    index: int
+    title: str
+    uri: str
+    snippet: str
+
+
+class WebSearchCitation(BaseModel):
+    """Siêu dữ liệu trích dẫn từ tìm kiếm web"""
+
+    index: int
+    title: str
+    url: str
+    source: str = Field(description="google_search hoặc tavily")
+
+
+class WebSearchRequest(BaseModel):
+    """Yêu cầu tìm kiếm web với sinh tạo câu trả lời"""
+
+    query: str = Field(description="Câu hỏi tìm kiếm")
+    use_google: bool = Field(
+        default=True, description="Thử Tìm kiếm Google trước (yêu cầu mô hình Gemini)"
+    )
+
+
+class WebSearchResponse(BaseModel):
+    """Phản hồi với kết quả tìm kiếm và câu trả lời được định dạng"""
+
+    answer: str = Field(description="Văn bản câu trả lời với trích dẫn nội tuyến")
+    raw_text: str = Field(description="Câu trả lời thô mà không có định dạng")
+    sources: list[WebSearchSource] = Field(description="Danh sách các nguồn từ tìm kiếm")
+    citations: list[WebSearchCitation] = Field(
+        description="Siêu dữ liệu trích dẫn cho các nguồn"
+    )
+    search_provider: str = Field(
+        description="Nhà cung cấp được sử dụng: google_search hoặc tavily"
+    )
+    model: str = Field(description="Mô hình được sử dụng để sinh tạo")
+    search_queries: list[str] = Field(
+        default_factory=list, description="Các câu hỏi tìm kiếm được sử dụng"
+    )
+
+
+class SessionWebSearchRequest(WebSearchRequest):
+    """Yêu cầu tìm kiếm web cho một phiên chatbot"""
+
+    session_id: str = Field(description="ID phiên chat")
+
+
+class ChatMessageWithSearchResponse(ChatMessageResponse):
+    """Phản hồi tin nhắn chat với kết quả tìm kiếm tùy chọn"""
+
+    search_results: dict | None = Field(
+        default=None, description="Kết quả tìm kiếm web nếu tìm kiếm được sử dụng"
+    )
+    is_web_search: bool = Field(
+        default=False, description="Liệu tin nhắn này có sử dụng tìm kiếm web hay không"
+    )

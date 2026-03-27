@@ -17,6 +17,8 @@ from app.schemas.chat import (
     MascotChatResponse,
     TextToSpeechRequest,
     TranscriptionResponse,
+    WebSearchRequest,
+    WebSearchResponse,
 )
 from app.services.chat_service import ChatService
 from app.services.groq_speech_service import GroqSpeechToTextService
@@ -71,7 +73,13 @@ async def send_mascot_message(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MascotChatResponse:
     service = ChatService(db)
-    response = await service.answer_mascot_no_rag(payload.message, payload.session_id, payload.images)
+    response = await service.answer_mascot_no_rag(
+        payload.message,
+        payload.session_id,
+        payload.images,
+        use_web_search=payload.use_web_search,
+        use_google=payload.use_google,
+    )
     return MascotChatResponse(**response)
 
 
@@ -143,4 +151,53 @@ async def text_to_speech(payload: TextToSpeechRequest) -> Response:
         content=audio_bytes,
         media_type="audio/mpeg",
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.post("/chat/sessions/{session_id}/web-search", response_model=WebSearchResponse)
+async def web_search(
+    session_id: str,
+    payload: WebSearchRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> WebSearchResponse:
+    """
+    Tìm kiếm trên web sử dụng Tìm kiếm Google (với grounding) hoặc Tavily (dự phòng)
+    và trả về câu trả lời được định dạng với trích dẫn đầy đủ.
+
+    - **session_id**: ID phiên chat
+    - **query**: Câu hỏi tìm kiếm (ví dụ: "Giá vàng hôm nay 2026")
+    - **use_google**: Nếu True, thử Tìm kiếm Google trước (yêu cầu hỗ trợ mô hình Gemini)
+    """
+    service = ChatService(db)
+    result = await service.web_search_answer(session_id, payload.query, payload.use_google)
+
+    # Trích xuất kết quả tìm kiếm từ siêu dữ liệu tin nhắn
+    search_results = result.get("search_results", {})
+    sources = search_results.get("sources", [])
+    citations = [
+        {
+            "index": src["index"],
+            "title": src["title"],
+            "url": src["uri"],
+            "source": search_results.get("search_provider", "unknown"),
+        }
+        for src in sources
+    ]
+
+    return WebSearchResponse(
+        answer=result["message"],
+        raw_text=search_results.get("raw_text", result["message"]),
+        sources=[
+            {
+                "index": src["index"],
+                "title": src["title"],
+                "uri": src["uri"],
+                "snippet": src["snippet"],
+            }
+            for src in sources
+        ],
+        citations=citations,
+        search_provider=search_results.get("search_provider", "unknown"),
+        model=result.get("model_used", "unknown"),
+        search_queries=search_results.get("search_queries", []),
     )
