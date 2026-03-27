@@ -265,6 +265,51 @@ AI-FOR-EDUCATION/
 
 ---
 
+## Chay Toan Bo Bang Docker Compose
+
+Du an da duoc bo sung day du Docker cho `frontend` + `backend` + `mongo`.
+
+### Cac file lien quan
+- `docker-compose.yml`
+- `backend/Dockerfile`
+- `frontend/Dockerfile`
+- `.env.docker.example`
+
+### Cach chay nhanh
+
+1. Tao file env:
+
+```bash
+cp .env.docker.example .env
+```
+
+2. Dien cac API key can thiet trong `.env` (OpenAI, Gemini, Groq... tuy nhu cau).
+
+3. Build va chay toan bo he thong:
+
+```bash
+docker compose up -d --build
+```
+
+4. Truy cap:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000`
+- Swagger: `http://localhost:8000/docs`
+
+5. Dung he thong:
+
+```bash
+docker compose down
+```
+
+Neu muon xoa ca du lieu MongoDB + storage volume:
+
+```bash
+docker compose down -v
+```
+
+---
+
 ## 5. Hướng dẫn chạy local chi tiết
 
 ### 5.1 Yêu cầu trước khi chạy

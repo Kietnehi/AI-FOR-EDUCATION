@@ -28,10 +28,16 @@ export function SlideGenerationDialog({
     onGenerate(maxSlides, skipRefine);
   };
 
+  const handleClose = () => {
+    if (!loading) {
+      onClose();
+    }
+  };
+
   const estimatedTime = maxSlides <= 10 ? "30-60s" : maxSlides <= 20 ? "60-90s" : "90-120s";
 
   return (
-    <Dialog open={open} onClose={loading ? undefined : onClose} title="Tạo Slides" maxWidth="md">
+    <Dialog open={open} onClose={handleClose} title="Tạo Slides" maxWidth="md">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Max Slides Input */}
         <div>
@@ -118,7 +124,7 @@ export function SlideGenerationDialog({
           <Button
             type="button"
             variant="secondary"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={loading}
             className="flex-1"
           >
