@@ -13,7 +13,7 @@ export default defineConfig({
     exclude: [".next/**", "node_modules/**"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "json-summary", "lcov"],
+      reporter: ["text", "html", "json-summary", "lcov", "json"],
       reportsDirectory: "./coverage",
       thresholds: {
         statements: 70,
