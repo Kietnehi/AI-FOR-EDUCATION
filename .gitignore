@@ -33,3 +33,6 @@ Thumbs.db
 
 # Github
 .github/copilot-instructions.md
+
+__pycache__/
+*.pyc
