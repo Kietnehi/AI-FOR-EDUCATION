@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -130,7 +130,7 @@ export default function DashboardPage() {
               AI-Powered Learning
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-4 pointer-events-auto" style={{ fontFamily: "var(--font-display)" }}>
-              Tạo học liệu số
+              Tạo học liệu 
               <br />
               <span className="text-accent-200 drop-shadow-sm">thông minh với AI</span>
             </h1>
