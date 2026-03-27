@@ -268,6 +268,84 @@ AI-FOR-EDUCATION/
 
 ---
 
+
+## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose
+
+Dự án đã được cấu hình đầy đủ Docker cho các service:
+
+* `frontend`
+* `backend`
+* `mongo`
+
+
+
+## 📁 Các file liên quan
+
+* `docker-compose.yml`
+* `backend/Dockerfile`
+* `frontend/Dockerfile`
+* `.env.docker.example`
+
+
+## ⚙️ Hướng dẫn chạy nhanh
+
+### 1. Tạo file môi trường
+
+```bash
+cp .env.docker.example .env
+```
+
+---
+
+### 2. Cấu hình biến môi trường
+
+Mở file `.env` và điền các API key cần thiết, ví dụ:
+
+* OpenAI
+* Gemini
+* Groq
+  *(tùy theo nhu cầu sử dụng của bạn)*
+
+
+### 3. Build và chạy toàn bộ hệ thống
+
+```bash
+docker compose up -d --build
+```
+
+
+
+### 4. Truy cập hệ thống
+
+* 🌐 Frontend: [http://localhost:3000](http://localhost:3000)
+* 🔧 Backend API: [http://localhost:8000](http://localhost:8000)
+* 📄 Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+
+### 5. Dừng hệ thống
+
+```bash
+docker compose down
+```
+
+---
+
+### 🧹 Xóa toàn bộ dữ liệu (bao gồm MongoDB + volume)
+
+```bash
+docker compose down -v
+```
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* Viết thêm phần **troubleshooting (lỗi hay gặp Docker)**
+* Hoặc tối ưu luôn file `docker-compose.yml` cho production 🚀
+
+
+---
+
 ## 5. Hướng dẫn chạy local chi tiết
 
 ### 5.1 Yêu cầu trước khi chạy
