@@ -37,7 +37,7 @@
 - Khuyến nghị:
   - Tách builder/runtime multi-stage cho backend (đặc biệt khi build production image).
 
-### 4) Low - Compose chính hiện thiên về dev mode, có thể gây nhầm lẫn khi deploy
+### 4) Mức thấp - Compose chính hiện thiên về chế độ phát triển, có thể gây nhầm lẫn khi triển khai
 - Vị trí: 
   - `docker-compose.yml:60` (`frontend` dùng `Dockerfile.dev`)
   - `docker-compose.yml:46` (`./backend:/app` bind mount + reload)

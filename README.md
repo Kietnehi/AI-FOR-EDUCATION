@@ -28,6 +28,14 @@
     <img src="https://img.shields.io/github/license/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=0088FF&logo=github&logoColor=white&label=License" alt="License"/>
   </a>
 
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml">
+    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml/badge.svg" alt="CI Dự Án"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml">
+    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml/badge.svg" alt="CD Dự Án"/>
+  </a>
+
   <br/><br/>
 
   <a href="https://skillicons.dev">
@@ -501,19 +509,180 @@ npm run dev
 
 ## 6. CI / CD
 
-Hiện tại dự án có **CI** đầy đủ và **CD placeholder** để chuẩn bị trước cho giai đoạn chưa có server thật.
+Hiện tại dự án có **CI** đầy đủ và **CD bán thật**: đã publish Docker image lên GitHub Container Registry nhưng vẫn chưa triển khai lên server thật.
 
 - Workflow: `.github/workflows/project-ci.yml`
-- CD placeholder: `.github/workflows/project-cd.yml`
+- CD tượng trưng: `.github/workflows/project-cd.yml`
 - Trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/` hoặc file workflow
-- CD trigger: `push` vào `main` hoặc chạy tay bằng `workflow_dispatch`
+- CD trigger: tự chạy sau khi `CI Dự Án` trên `main` thành công, hoặc chạy tay bằng `workflow_dispatch`
+- Flow hiện tại: `CI` pass trên `main` -> `CD Dự Án` build artifact -> publish Docker image lên `ghcr.io` -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
 - Frontend: chạy `lint` + `test` + `coverage`
 - Backend: chạy `pytest` + `coverage`
 - Docker: chạy smoke test `docker compose`
 - Khi `push` fail, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
-- CD hiện mới build, đóng gói artifact và tạo `deploy-placeholder`, chưa deploy lên server thật
+- CD hiện build, đóng gói artifact, publish ảnh Docker lên `ghcr.io` và tạo `deploy-placeholder`, nhưng chưa triển khai lên server thật
+- Nếu CD fail, workflow cũng sẽ tự tạo hoặc cập nhật GitHub Issue
+- Tóm tắt CD: `markdown_docs/TOM_TAT_CD_2026-03-28.md`
+- Artifact CD quan trọng nhất: `full-release-bundle-<sha>` trong tab Actions Artifacts của workflow `CD Dự Án`
+- Ảnh Docker phát hành: `ghcr.io/<owner>/<repo>-backend` và `ghcr.io/<owner>/<repo>-frontend`
 
-### 6.1 Cách chạy CI local
+### 6.1 Sơ đồ Pipeline CI/CD
+
+```mermaid
+flowchart TD
+    subgraph CI["🔄 CI Pipeline - Project CI"]
+        A[Push / PR<br/>frontend/, backend/] --> B{CI Trigger}
+
+        B --> C[Frontend Job]
+        B --> D[Backend Job]
+        B --> E[Docker Compose Smoke]
+
+        C --> C1[Checkout]
+        C1 --> C2[Setup Node.js 20]
+        C2 --> C3[npm ci]
+        C3 --> C4[npm run lint]
+        C4 --> C5[npm run test:coverage]
+        C5 --> C6[Upload Coverage Artifact]
+
+        D --> D1[Checkout]
+        D1 --> D2[Setup Python 3.11]
+        D2 --> D3[Install Dependencies]
+        D3 --> D4[pytest + coverage]
+        D4 --> D5[Upload Coverage Artifact]
+
+        E --> E1[Checkout]
+        E1 --> E2[Prepare .env]
+        E2 --> E3[Docker Buildx Setup]
+        E3 --> E4[docker compose up -d --build --wait]
+        E4 --> E5[Backend Health Check<br/>15 iterations × 3s]
+        E5 --> E6[Frontend Health Check]
+        E6 --> E7[docker compose down]
+
+        C6 --> F{All Jobs Pass?}
+        D5 --> F
+        E7 --> F
+    end
+
+    F -->|Yes ✅| G[Merge to main]
+    F -->|No ❌| H[Create/Update GitHub Issue]
+
+    subgraph CD["🚀 CD Pipeline - CD Dự Án"]
+        G --> I{CD Trigger}
+        I -->|main success| J[Prepare Release]
+        I -->|workflow_dispatch| J
+
+        J --> J1[Checkout]
+        J1 --> J2[Generate Metadata]
+        J2 --> J3[Create Release Notes]
+        J3 --> J4[Upload Metadata Artifact]
+
+        J4 --> K[Build Frontend Artifact]
+        J4 --> L[Package Backend Artifact]
+        J4 --> M[Package Docker Bundle]
+        J4 --> P[Publish Docker Images]
+
+        K --> K1[Checkout + Node.js Setup]
+        K1 --> K2[npm ci]
+        K2 --> K3[npm run build]
+        K3 --> K4[Copy .next, public, package.json]
+        K4 --> K5[Upload Frontend Bundle]
+
+        L --> L1[Checkout + Python Setup]
+        L1 --> L2[python -m compileall app]
+        L2 --> L3[Copy app, requirements.txt]
+        L3 --> L4[Upload Backend Bundle]
+
+        M --> M1[Checkout]
+        M1 --> M2[Prepare .env]
+        M2 --> M3[docker compose config]
+        M3 --> M4[Upload Docker Bundle]
+
+        P --> P1[Login GHCR]
+        P1 --> P2[Build Backend Image]
+        P2 --> P3[Push Backend Tags]
+        P3 --> P4[Build Frontend Image]
+        P4 --> P5[Push Frontend Tags]
+
+        K5 --> N[Deploy Placeholder]
+        L4 --> N
+        M4 --> N
+        P5 --> N
+
+        N --> N1[Download Metadata]
+        N1 --> N2[Generate Deployment Summary]
+        N2 --> N3[Upload Deploy Report]
+
+        N3 --> O[Release Bundle]
+        O --> O1[Download All Artifacts]
+        O1 --> O2[Merge: Frontend + Backend + Docker + GHCR + Deploy]
+        O2 --> O3[Upload full-release-bundle-<sha>]
+    end
+
+    H -.-> A
+
+    style CI fill:#1e3a5f,stroke:#00d9ff,stroke-width:2px,color:#fff
+    style CD fill:#2d5016,stroke:#00ff88,stroke-width:2px,color:#fff
+    style F fill:#ff9800,stroke:#fff,stroke-width:2px,color:#000
+    style H fill:#f44336,stroke:#fff,stroke-width:2px,color:#fff
+```
+
+### 6.2 Luồng Health Check Docker Compose
+
+```mermaid
+sequenceDiagram
+    participant GH as GitHub Actions
+    participant DC as Docker Compose
+    participant BE as Backend :8000
+    participant FE as Frontend :3000
+
+    GH->>DC: docker compose up -d --build --wait
+    Note over DC: Build Backend + Frontend<br/>with Buildx caching
+
+    DC-->>GH: Containers started
+
+    loop Health Check Backend (max 45s)
+        GH->>BE: curl /health (every 3s)
+        alt Backend ready
+            BE-->>GH: 200 OK
+        else Backend not ready
+            BE-->>GH: Connection refused
+        end
+    end
+
+    alt Backend healthy
+        GH->>FE: curl :3000
+        alt Frontend ready
+            FE-->>GH: 200 OK
+            GH->>DC: docker compose down -v
+            Note over GH: ✅ Smoke test passed
+        else Frontend not ready
+            FE-->>GH: Connection refused
+            GH->>DC: docker compose logs
+            Note over GH: ❌ Frontend failed
+        end
+    else Backend unhealthy
+        GH->>DC: docker compose logs backend
+        Note over GH: ❌ Backend failed
+        GH->>DC: docker compose down -v
+    end
+```
+
+### 6.3 Các job chính và thời gian ước tính
+
+| Job | Thời gian (lần đầu) | Thời gian (có cache) | Mô tả |
+|-----|---------------------|----------------------|-------|
+| **Frontend** | 2-3 phút | 1-2 phút | Install deps + lint + test + coverage |
+| **Backend** | 1-2 phút | 30-60 giây | Install deps + pytest + coverage |
+| **Docker Compose Smoke** | 3-5 phút | 1-2 phút | Build images + health check |
+| **CD Prepare Release** | 30 giây | 30 giây | Generate metadata + release notes |
+| **CD Build Frontend** | 2-3 phút | 1-2 phút | npm build + bundle |
+| **CD Package Backend** | 30 giây | 30 giây | Syntax check + bundle |
+| **CD Package Docker** | 30 giây | 30 giây | Compose config + bundle |
+| **CD Release Bundle** | 1 phút | 1 phút | Download + merge all artifacts |
+
+> 💡 **Lưu ý:** Thời gian có thể thay đổi tùy thuộc vào kích thước code changes và tình trạng cache của GitHub Actions.
+
+### 6.4 Cách chạy CI local
 
 ```bash
 cd frontend
@@ -536,11 +705,21 @@ Coverage report sau khi chạy:
 - Backend: `backend/htmlcov/index.html`
 - Docker: kiểm tra `http://localhost:8000/health` và `docker compose ps`
 
-### 6.2 Ghi chú
+### 6.5 Ghi chú
 
 - Frontend có coverage threshold trong `frontend/vitest.config.ts`
 - Backend có coverage threshold trong `backend/pytest.ini`
 - Tài liệu chi tiết hơn: `markdown_docs/CI_SUMMARY_2026-03-28.md`
+
+### 6.6 Hướng dẫn tải full-release-bundle từ CD
+
+1. Vào tab **Actions** trên GitHub
+2. Chọn workflow **CD Dự Án**
+3. Click vào lần chạy gần nhất (có status ✅ thành công)
+4. Kéo xuống phần **Artifacts** ở cuối trang
+5. Click vào `full-release-bundle-<sha>` để tải về
+
+> 💡 **Lưu ý:** Artifact chỉ được lưu trong **90 ngày**. Tải về ngay sau khi CD chạy thành công.
 
 ---
 

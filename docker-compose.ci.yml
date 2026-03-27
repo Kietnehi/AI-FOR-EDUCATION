@@ -1,0 +1,97 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: any2-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://127.0.0.1:27017/admin", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: any2-backend
+    restart: unless-stopped
+    environment:
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/ai_learning_platform}
+      APP_ENV: ci
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-ai_learning_platform}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_GUARDRAIL_MODEL: ${OPENAI_GUARDRAIL_MODEL:-gpt-4o-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS:-[]}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3-flash-preview}
+      MASCOT_CHAT_MODEL: ${MASCOT_CHAT_MODEL:-openai/gpt-4o-mini}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-en}
+      OPENROUTER_SITE_URL: ${OPENROUTER_SITE_URL:-}
+      OPENROUTER_SITE_NAME: ${OPENROUTER_SITE_NAME:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      CHROMA_COLLECTION_NAME: ${CHROMA_COLLECTION_NAME:-material_chunks}
+      CHROMA_PERSIST_DIR: /app/storage/chroma
+      UPLOAD_DIR: /app/storage/uploads
+      GENERATED_DIR: /app/storage/generated
+      IMAGE_CACHE_DIR: /app/storage/images
+      NOTEBOOKLM_DOCUMENTS_DIR: /app/storage/notebooklm/documents
+      NOTEBOOKLM_USER_DATA_DIR: /app/storage/notebooklm/chrome-profile
+      CHUNK_SIZE: ${CHUNK_SIZE:-2500}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-500}
+      RETRIEVAL_TOP_K: ${RETRIEVAL_TOP_K:-6}
+      CHAT_MEMORY_TURNS: ${CHAT_MEMORY_TURNS:-8}
+      MASCOT_MEMORY_TURNS: ${MASCOT_MEMORY_TURNS:-10}
+      MATERIAL_GUARDRAIL_EXCERPT_CHARS: ${MATERIAL_GUARDRAIL_EXCERPT_CHARS:-12000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+    volumes:
+      - backend_storage:/app/storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api
+        NEXT_PUBLIC_API_HOST: http://localhost:8000
+    container_name: any2-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api}
+      NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST:-http://localhost:8000}
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: production
+      WARMUP_ROUTES_ON_START: "0"
+      WARMUP_BASE_URL: http://127.0.0.1:3000
+      WARMUP_BACKEND_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
+  backend_storage:
