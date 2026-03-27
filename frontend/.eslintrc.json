@@ -1,3 +1,7 @@
 {
-  "extends": ["next/core-web-vitals"]
+  "extends": ["next/core-web-vitals"],
+  "ignorePatterns": [
+    "components/3d/floating-mascot-head.tsx",
+    "components/3d/floating-mascot-tail.tsx"
+  ]
 }
