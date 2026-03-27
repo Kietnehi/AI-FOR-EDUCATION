@@ -1,4 +1,4 @@
-import {
+﻿import {
   ChatMessage,
   ChatSession,
   GeneratedContent,
@@ -171,7 +171,7 @@ export async function generateMinigame(id: string, gameType: "quiz_mixed" | "fla
   return apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
     method: "POST",
     body: JSON.stringify({ game_type: gameType }),
-  }, gameType === "scenario_branching" ? 180000 : 60000);
+  });
 }
 
 export async function getGeneratedContent(id: string): Promise<GeneratedContent> {
@@ -306,3 +306,5 @@ export function apiDownloadUrl(fileUrl: string): string {
   if (!fileUrl) return "#";
   return `${process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"}${fileUrl}`;
 }
+
+
