@@ -21,8 +21,7 @@ import { getGeneratedContent, generateMinigame, submitGameAttempt } from "@/lib/
 import { GeneratedContent } from "@/types";
 import { QuizMixedPlayer } from "@/components/minigame/QuizMixedPlayer";
 import { FlashcardPlayer } from "@/components/minigame/FlashcardPlayer";
-import { ScenarioPlayer } from "@/components/minigame/ScenarioPlayer";
-import { StrictScenarioPlayer } from "@/components/minigame/StrictScenarioPlayer";
+import { ShootingQuizPlayer } from "@/components/minigame/ShootingQuizPlayer";
 
 export default function MinigamePage() {
   const searchParams = useSearchParams();
@@ -52,7 +51,7 @@ export default function MinigamePage() {
   }, [contentId]);
 
   async function handleSelectGameType(
-    gameType: "quiz_mixed" | "flashcard" | "scenario_branching"
+    gameType: "quiz_mixed" | "flashcard" | "shooting_quiz"
   ) {
     setGeneratingGame(true);
     try {
@@ -81,10 +80,10 @@ export default function MinigamePage() {
       icon: Brain,
       color: "from-amber-500 to-amber-600",
     },
-    scenario_branching: {
-      title: "Game nhập vai",
-      description: "Kịch bản giả lập với rẽ nhánh quyết định",
-      icon: Sparkles,
+    shooting_quiz: {
+      title: "Bắn gà ôn tập",
+      description: "Aim + bắn đáp án đúng theo từng round",
+      icon: Zap,
       color: "from-accent-500 to-accent-600",
     },
   };
@@ -134,7 +133,7 @@ export default function MinigamePage() {
                 {(
                   Object.entries(gameTypeConfig) as Array<
                     [
-                      "quiz_mixed" | "flashcard" | "scenario_branching",
+                      "quiz_mixed" | "flashcard" | "shooting_quiz",
                       typeof gameTypeConfig.quiz_mixed,
                     ]
                   >
@@ -218,19 +217,11 @@ export default function MinigamePage() {
             />
           )}
 
-          {content.game_type === "scenario_branching" && (
-            Array.isArray(content.json_content?.game?.steps) ? (
-              <StrictScenarioPlayer
-                game={content.json_content.game}
-                onSubmit={handleSubmitAttempt}
-              />
-            ) : (
-              <ScenarioPlayer
-                title={content.json_content?.title || "Kịch bản học tập"}
-                scenarios={content.json_content?.scenarios || []}
-                onSubmit={handleSubmitAttempt}
-              />
-            )
+          {content.game_type === "shooting_quiz" && (
+            <ShootingQuizPlayer
+              payload={content.json_content || {}}
+              onSubmit={handleSubmitAttempt}
+            />
           )}
         </div>
       )}

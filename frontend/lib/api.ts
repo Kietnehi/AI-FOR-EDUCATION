@@ -167,10 +167,11 @@ export async function generatePodcast(id: string): Promise<GeneratedContent> {
   return data;
 }
 
-export async function generateMinigame(id: string, gameType: "quiz_mixed" | "flashcard" | "scenario_branching" = "quiz_mixed"): Promise<GeneratedContent> {
+export async function generateMinigame(id: string, gameType: "quiz_mixed" | "flashcard" | "shooting_quiz" = "quiz_mixed"): Promise<GeneratedContent> {
   return apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
     method: "POST",
     body: JSON.stringify({ game_type: gameType }),
+    cacheTtlMs: gameType === "shooting_quiz" ? 180000 : 60000,
   });
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sphere } from "@react-three/drei";
-import { Bot as BotIcon, Globe, Loader2, Mic, Plus, Send, Settings2, Square, Volume2, VolumeX, X, Image as ImageIcon, Play, Pause } from "lucide-react";
+import { Bot as BotIcon, Loader2, Mic, Plus, Send, Settings2, Square, Volume2, VolumeX, X, Image as ImageIcon, Play, Pause } from "lucide-react";
 import * as THREE from "three";
 
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
@@ -108,8 +108,6 @@ export function FloatingMascot() {
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
-  const [useGoogleSearch, setUseGoogleSearch] = useState(true);
   const [sttModel, setSttModel] = useState<SttModel>("local-base");
   const [ttsLang, setTtsLang] = useState("vi");
 
@@ -469,10 +467,7 @@ export function FloatingMascot() {
     setIsSending(true);
 
     try {
-      const response = await sendMascotChatMessage(trimmed, mascotSessionId, currentImages, {
-        useWebSearch: isWebSearchEnabled,
-        useGoogle: useGoogleSearch,
-      });
+      const response = await sendMascotChatMessage(trimmed, mascotSessionId, currentImages);
       setMascotSessionId(response.session_id);
       setMessages((prev) => [...prev, { role: "assistant", content: response.message }]);
     } catch {
@@ -612,19 +607,6 @@ export function FloatingMascot() {
                   New chat
                 </button>
                 <button
-                  className={`h-7 rounded-md px-2 inline-flex items-center justify-center gap-1 text-xs transition-colors ${
-                    isWebSearchEnabled
-                      ? "bg-brand-100 text-brand-700"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"
-                  }`}
-                  onClick={() => setIsWebSearchEnabled((prev) => !prev)}
-                  disabled={isSending}
-                  aria-label={isWebSearchEnabled ? "Tắt tìm kiếm web cho mascot" : "Bật tìm kiếm web cho mascot"}
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  Search
-                </button>
-                <button
                   className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${showSettings ? "bg-brand-100 text-brand-600" : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"}`}
                   onClick={() => setShowSettings(!showSettings)}
                   aria-label="Cài đặt chatbot"
@@ -644,16 +626,6 @@ export function FloatingMascot() {
             {/* Settings panel */}
             {showSettings && (
               <div className="p-3 bg-[var(--bg-secondary)] border-b border-[var(--border-light)] space-y-2 flex-shrink-0">
-                <label className="text-xs font-medium text-[var(--text-secondary)] block">Công cụ tìm kiếm web</label>
-                <select
-                  value={useGoogleSearch ? "google" : "tavily"}
-                  onChange={(e) => setUseGoogleSearch(e.target.value === "google")}
-                  className="w-full text-xs rounded-lg px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-light)] text-[var(--text-primary)] focus:outline-none focus:border-brand-400"
-                >
-                  <option value="google">Google Search (Nhanh)</option>
-                  <option value="tavily">Tavily Search (Chi tiết)</option>
-                </select>
-
                 <label className="text-xs font-medium text-[var(--text-secondary)] block">Model STT</label>
                 <select
                   value={sttModel}
@@ -900,11 +872,6 @@ export function FloatingMascot() {
 
             {/* Input area */}
             <div className="p-3 border-t border-[var(--border-light)] bg-[var(--bg-elevated)] flex flex-col gap-2 flex-shrink-0 w-full min-w-0">
-              {isWebSearchEnabled && (
-                <div className="rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-[11px] text-brand-700">
-                  Mascot đang ở chế độ tìm kiếm web.
-                </div>
-              )}
                {chatImages.length > 0 && (
                  <div className="flex items-center gap-2 flex-wrap pb-1">
                    {chatImages.map((img, idx) => (
