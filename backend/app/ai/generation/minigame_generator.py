@@ -5,17 +5,344 @@ class MinigameGenerator:
     def __init__(self) -> None:
         self.llm = LLMClient()
 
-    def generate(self, context: str, game_type: str) -> dict:
+    def generate(self, context: str, game_type: str, source_language: str = "auto") -> dict:
         """Generate minigame with specified type."""
         if game_type == "quiz_mixed":
             return self.generate_quiz_mixed(context)
         elif game_type == "flashcard":
             return self.generate_flashcard(context)
         elif game_type == "scenario_branching":
-            return self.generate_scenario(context)
+            return self.generate_scenario(context, source_language=source_language)
         else:
             # Fallback to quiz_mixed
             return self.generate_quiz_mixed(context)
+
+    @staticmethod
+    def _normalize_lang(source_language: str) -> str:
+        lang = str(source_language or "").strip().lower()
+        if lang.startswith("vi"):
+            return "vi"
+        if lang.startswith("en"):
+            return "en"
+        return "vi"
+
+    @staticmethod
+    def _scenario_fallback_by_lang(lang: str) -> dict:
+        if lang == "en":
+            return {
+                "game": {
+                    "title": "RAG Emergency Shift",
+                    "initial_state": {"score": 0, "skills": {}},
+                    "steps": [
+                        {
+                            "id": "step1",
+                            "scenario": "Live class starts in 2 minutes. The QA bot returns blank answers. Students are already asking questions.",
+                            "knowledge_point": "Incident triage under pressure",
+                            "choices": [
+                                {
+                                    "id": "A",
+                                    "text": "Check retrieval service logs first",
+                                    "feedback": "Good call. You spot failing vector queries.",
+                                    "learning_explanation": "Triage starts with finding the failing layer fast.",
+                                    "next_step": "step2",
+                                    "effects": {"score": 2, "skills": {"critical_thinking": 1}},
+                                },
+                                {
+                                    "id": "B",
+                                    "text": "Rewrite prompts during the outage",
+                                    "feedback": "Too slow. Students keep waiting.",
+                                    "learning_explanation": "Prompt tuning cannot fix infrastructure downtime.",
+                                    "next_step": "step2",
+                                    "effects": {"score": 0, "skills": {"critical_thinking": 0}},
+                                },
+                                {
+                                    "id": "C",
+                                    "text": "Disable citations to respond faster",
+                                    "feedback": "Risky move. Trust drops quickly.",
+                                    "learning_explanation": "Learning tools need grounded answers, not speed alone.",
+                                    "next_step": "step2",
+                                    "effects": {"score": -1, "skills": {"domain_knowledge": 0}},
+                                },
+                            ],
+                        },
+                        {
+                            "id": "step2",
+                            "scenario": "You recovered partial service. Answers now appear, but many cite the wrong chunks. The teacher asks for a quick fix.",
+                            "knowledge_point": "RAG quality control",
+                            "choices": [
+                                {
+                                    "id": "A",
+                                    "text": "Tighten chunk filters by metadata",
+                                    "feedback": "Nice. Wrong citations drop immediately.",
+                                    "learning_explanation": "Filtering context improves retrieval precision before generation.",
+                                    "next_step": "step3",
+                                    "effects": {"score": 2, "skills": {"domain_knowledge": 1}},
+                                },
+                                {
+                                    "id": "B",
+                                    "text": "Increase context window only",
+                                    "feedback": "Mixed result. Noise still leaks in.",
+                                    "learning_explanation": "More context is useless if ranking is weak.",
+                                    "next_step": "step3",
+                                    "effects": {"score": 0, "skills": {"critical_thinking": 0}},
+                                },
+                                {
+                                    "id": "C",
+                                    "text": "Ship now and fix tomorrow",
+                                    "feedback": "Ouch. Class confidence keeps dropping.",
+                                    "learning_explanation": "In teaching scenarios, reliability beats rushed release.",
+                                    "next_step": "step3",
+                                    "effects": {"score": -1, "skills": {"communication": 0}},
+                                },
+                            ],
+                        },
+                        {
+                            "id": "step3",
+                            "scenario": "Final decision. You can deploy one policy before the next class starts in 5 minutes.",
+                            "knowledge_point": "Safe rollout strategy",
+                            "choices": [
+                                {
+                                    "id": "A",
+                                    "text": "Enable fallback answers with verified sources",
+                                    "feedback": "Great. System stabilizes and students trust it.",
+                                    "learning_explanation": "Safe fallback preserves learning continuity with verifiable output.",
+                                    "next_step": "ending_good",
+                                    "effects": {"score": 2, "skills": {"critical_thinking": 1, "communication": 1}},
+                                },
+                                {
+                                    "id": "B",
+                                    "text": "Limit scope to covered lessons only",
+                                    "feedback": "Solid recovery. Learning flow survives the session.",
+                                    "learning_explanation": "Scope control reduces failure surface during incidents.",
+                                    "next_step": "ending_neutral",
+                                    "effects": {"score": 1, "skills": {"critical_thinking": 1}},
+                                },
+                                {
+                                    "id": "C",
+                                    "text": "Keep full access with no guardrails",
+                                    "feedback": "Bad outcome. Errors spread in class.",
+                                    "learning_explanation": "Ungrounded output in class can harm learning quality.",
+                                    "next_step": "ending_bad",
+                                    "effects": {"score": -1, "skills": {"domain_knowledge": 0}},
+                                },
+                            ],
+                        },
+                    ],
+                    "endings": [
+                        {
+                            "id": "ending_good",
+                            "summary": "Your RAG system runs stable. Students trust the platform again.",
+                            "knowledge_recap": [
+                                "Debug retrieval before prompt tuning",
+                                "Use citations and safe fallback policies",
+                            ],
+                            "suggestion": "Keep monitoring retrieval quality each week.",
+                        },
+                        {
+                            "id": "ending_neutral",
+                            "summary": "The class continues, but the system still has blind spots.",
+                            "knowledge_recap": [
+                                "Controlled scope can save a session",
+                                "Quality checks are needed before full rollout",
+                            ],
+                            "suggestion": "Prepare an evaluation set before expanding again.",
+                        },
+                        {
+                            "id": "ending_bad",
+                            "summary": "The bot misleads students, and confidence drops fast.",
+                            "knowledge_recap": [
+                                "Do not skip grounding and guardrails",
+                                "Rushed deployment increases classroom risk",
+                            ],
+                            "suggestion": "Roll back and re-enable verified retrieval constraints.",
+                        },
+                    ],
+                }
+            }
+
+        return {
+            "game": {
+                "title": "Ca Truc RAG",
+                "initial_state": {"score": 0, "skills": {}},
+                "steps": [
+                    {
+                        "id": "step1",
+                        "scenario": "Lớp học trực tiếp sắp bắt đầu. Chatbot bỗng trả lời trống. Sinh viên đang chờ ngay trước màn hình.",
+                        "knowledge_point": "Xử lý sự cố dưới áp lực",
+                        "choices": [
+                            {
+                                "id": "A",
+                                "text": "Kiểm tra log retrieval trước",
+                                "feedback": "Chuẩn rồi. Bạn thấy truy vấn vector đang lỗi.",
+                                "learning_explanation": "Khi sự cố xảy ra, cần khoanh vùng lớp lỗi nhanh nhất.",
+                                "next_step": "step2",
+                                "effects": {"score": 2, "skills": {"critical_thinking": 1}},
+                            },
+                            {
+                                "id": "B",
+                                "text": "Viết lại prompt ngay",
+                                "feedback": "Hơi chậm. Sinh viên vẫn phải chờ.",
+                                "learning_explanation": "Prompt không thể cứu hạ tầng đang lỗi.",
+                                "next_step": "step2",
+                                "effects": {"score": 0, "skills": {"critical_thinking": 0}},
+                            },
+                            {
+                                "id": "C",
+                                "text": "Tắt trích dẫn cho nhanh",
+                                "feedback": "Nguy hiểm. Niềm tin tụt rất nhanh.",
+                                "learning_explanation": "Hệ học tập cần câu trả lời có nguồn rõ ràng.",
+                                "next_step": "step2",
+                                "effects": {"score": -1, "skills": {"domain_knowledge": 0}},
+                            },
+                        ],
+                    },
+                    {
+                        "id": "step2",
+                        "scenario": "Hệ thống đã chạy lại một phần. Nhưng nhiều câu trả lời trích sai tài liệu. Giảng viên cần bạn xử lý ngay.",
+                        "knowledge_point": "Kiểm soát chất lượng RAG",
+                        "choices": [
+                            {
+                                "id": "A",
+                                "text": "Siết lọc metadata cho chunk",
+                                "feedback": "Đẹp. Trích dẫn sai giảm thấy rõ.",
+                                "learning_explanation": "Lọc ngữ cảnh tốt giúp tăng precision trước khi model sinh câu trả lời.",
+                                "next_step": "step3",
+                                "effects": {"score": 2, "skills": {"domain_knowledge": 1}},
+                            },
+                            {
+                                "id": "B",
+                                "text": "Chỉ tăng context window",
+                                "feedback": "Đỡ chút thôi. Nhiễu vẫn còn.",
+                                "learning_explanation": "Nhiều ngữ cảnh hơn không giúp nếu xếp hạng chưa tốt.",
+                                "next_step": "step3",
+                                "effects": {"score": 0, "skills": {"critical_thinking": 0}},
+                            },
+                            {
+                                "id": "C",
+                                "text": "Đẩy bản hiện tại lên luôn",
+                                "feedback": "Toang nhẹ. Lớp bắt đầu mất niềm tin.",
+                                "learning_explanation": "Trong lớp học, độ tin cậy quan trọng hơn phát hành vội.",
+                                "next_step": "step3",
+                                "effects": {"score": -1, "skills": {"communication": 0}},
+                            },
+                        ],
+                    },
+                    {
+                        "id": "step3",
+                        "scenario": "Còn 5 phút trước tiết kế tiếp. Bạn chỉ được bật một chính sách cuối cùng cho hệ thống.",
+                        "knowledge_point": "Chiến lược rollout an toàn",
+                        "choices": [
+                            {
+                                "id": "A",
+                                "text": "Bật fallback có nguồn xác minh",
+                                "feedback": "Quá ổn. Hệ thống vững lại ngay.",
+                                "learning_explanation": "Fallback an toàn giúp giữ nhịp học mà vẫn kiểm chứng được kiến thức.",
+                                "next_step": "ending_good",
+                                "effects": {"score": 2, "skills": {"critical_thinking": 1, "communication": 1}},
+                            },
+                            {
+                                "id": "B",
+                                "text": "Giới hạn phạm vi bài học",
+                                "feedback": "Ổn áp. Buổi học vẫn chạy mượt.",
+                                "learning_explanation": "Giảm phạm vi giúp giảm rủi ro trong giai đoạn bất ổn.",
+                                "next_step": "ending_neutral",
+                                "effects": {"score": 1, "skills": {"critical_thinking": 1}},
+                            },
+                            {
+                                "id": "C",
+                                "text": "Giữ full mode không rào chắn",
+                                "feedback": "Không ổn. Lỗi lan ra cả lớp.",
+                                "learning_explanation": "Không rào chắn khi dữ liệu nhiễu dễ làm sai lệch kiến thức.",
+                                "next_step": "ending_bad",
+                                "effects": {"score": -1, "skills": {"domain_knowledge": 0}},
+                            },
+                        ],
+                    },
+                ],
+                "endings": [
+                    {
+                        "id": "ending_good",
+                        "summary": "Hệ RAG chạy ổn định. Sinh viên tin lại nền tảng của bạn.",
+                        "knowledge_recap": [
+                            "Ưu tiên sửa retrieval trước prompt",
+                            "Dùng citation và fallback an toàn",
+                        ],
+                        "suggestion": "Tiếp tục theo dõi chất lượng retrieval theo tuần.",
+                    },
+                    {
+                        "id": "ending_neutral",
+                        "summary": "Buổi học được cứu, nhưng hệ thống vẫn còn điểm mù.",
+                        "knowledge_recap": [
+                            "Giới hạn phạm vi giúp kiểm soát rủi ro",
+                            "Cần bộ đánh giá trước khi mở rộng",
+                        ],
+                        "suggestion": "Chuẩn bị bộ test mới trước đợt rollout tiếp theo.",
+                    },
+                    {
+                        "id": "ending_bad",
+                        "summary": "Bot trả lời lệch, niềm tin người học giảm mạnh.",
+                        "knowledge_recap": [
+                            "Không bỏ qua grounding và guardrails",
+                            "Phát hành vội dễ làm hỏng trải nghiệm lớp học",
+                        ],
+                        "suggestion": "Rollback và bật lại ràng buộc truy xuất có nguồn.",
+                    },
+                ],
+            }
+        }
+
+    def generate_scenario(self, context: str, source_language: str = "auto") -> dict:
+        """Generate fast-paced card-based role-play game with language matching source material."""
+        lang = self._normalize_lang(source_language)
+        language_instruction = (
+            "Use Vietnamese naturally with concise conversational tone."
+            if lang == "vi"
+            else "Use English naturally with concise conversational tone."
+        )
+
+        system_prompt = (
+            "You are creating a CARD-BASED ROLE-PLAY GAME (like Reigns or Tinder), NOT an academic quiz. "
+            "The user must feel they are playing under pressure, with short immersive cards and quick decisions. "
+            "Use short sentences, action-oriented options, and one-sentence natural feedback. "
+            f"{language_instruction} "
+            "Return strict JSON only."
+        )
+
+        user_prompt = (
+            "TOPIC: AI Learning Studio / RAG system / teaching scenario.\n"
+            "MANDATORY STRUCTURE:\n"
+            "- At least 3 steps: step1, step2, step3.\n"
+            "- Flow must be step1 -> step2 -> step3 -> ending.\n"
+            "- Each step has exactly 3 choices A/B/C.\n"
+            "- Choice text max 10-12 words, action-oriented.\n"
+            "- Feedback max 1 sentence, natural tone.\n"
+            "- Each choice MUST include next_step and effects(score, skills).\n"
+            "- Scenario must be short, immersive, and urgent (max 2 lines).\n\n"
+            "OUTPUT JSON SCHEMA:\n"
+            "{\n"
+            "  \"game\": {\n"
+            "    \"title\": \"\",\n"
+            "    \"initial_state\": {\"score\": 0, \"skills\": {}},\n"
+            "    \"steps\": [\n"
+            "      {\"id\": \"step1\", \"scenario\": \"\", \"knowledge_point\": \"\", \"choices\": []},\n"
+            "      {\"id\": \"step2\", \"scenario\": \"\", \"knowledge_point\": \"\", \"choices\": []},\n"
+            "      {\"id\": \"step3\", \"scenario\": \"\", \"knowledge_point\": \"\", \"choices\": []}\n"
+            "    ],\n"
+            "    \"endings\": [\n"
+            "      {\"id\": \"ending_good\", \"summary\": \"\", \"knowledge_recap\": [\"\",\"\"], \"suggestion\": \"\"},\n"
+            "      {\"id\": \"ending_neutral\", \"summary\": \"\", \"knowledge_recap\": [\"\",\"\"], \"suggestion\": \"\"},\n"
+            "      {\"id\": \"ending_bad\", \"summary\": \"\", \"knowledge_recap\": [\"\",\"\"], \"suggestion\": \"\"}\n"
+            "    ]\n"
+            "  }\n"
+            "}\n\n"
+            f"Source material:\n{context[:12000]}"
+        )
+
+        fallback = self._scenario_fallback_by_lang(lang)
+        result = self.llm.json_response(system_prompt, user_prompt, fallback)
+        if isinstance(result, dict) and isinstance(result.get("game"), dict):
+            return result
+        return fallback
 
     def generate_quiz_mixed(self, context: str) -> dict:
         """Generate 10 mixed quiz questions (true/false, mcq, multiple select, fill blank)."""
