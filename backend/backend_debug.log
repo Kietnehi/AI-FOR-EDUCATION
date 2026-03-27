@@ -1,0 +1,16 @@
+2026-03-27 15:42:46,000 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 15:42:47,637 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 15:42:47,638 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 15:49:21,016 | INFO | ai-learning-platform | Application shutdown complete
+2026-03-27 15:49:44,195 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 15:49:45,670 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 15:49:45,671 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 15:52:30,767 | INFO | ai-learning-platform | Application shutdown complete
+2026-03-27 15:52:48,367 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 15:52:49,962 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 15:52:49,962 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 15:55:52,047 | INFO | ai-learning-platform | Application shutdown complete
+2026-03-27 15:56:10,887 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 15:56:12,308 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 15:56:12,309 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 15:57:34,566 | INFO | ai-learning-platform | Application shutdown complete
