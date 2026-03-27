@@ -1,0 +1,149 @@
+name: Project CI
+
+on:
+  push:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/project-ci.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/project-ci.yml"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run test suite with coverage
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-report
+          path: frontend/coverage
+          if-no-files-found: ignore
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements-test.txt
+
+      - name: Install backend test dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run backend test suite with coverage
+        run: pytest
+
+      - name: Upload backend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: |
+            backend/coverage.xml
+            backend/htmlcov
+          if-no-files-found: ignore
+
+  report-failure:
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      (needs.frontend.result == 'failure' || needs.backend.result == 'failure')
+
+    steps:
+      - name: Create or update GitHub issue on failed push
+        uses: actions/github-script@v7
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = context.ref.replace('refs/heads/', '');
+            const title = `[CI] Project CI failed on ${branch}`;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const failedJobs = [
+              process.env.FRONTEND_RESULT === 'failure' ? 'frontend' : null,
+              process.env.BACKEND_RESULT === 'failure' ? 'backend' : null,
+            ].filter(Boolean);
+            const body = [
+              'CI toàn dự án vừa thất bại sau khi push code.',
+              '',
+              `- Branch: \`${branch}\``,
+              `- Commit: \`${context.sha}\``,
+              `- Workflow: \`${context.workflow}\``,
+              `- Failed jobs: ${failedJobs.map((job) => `\`${job}\``).join(', ')}`,
+              `- Run: ${runUrl}`,
+              '',
+              'Vui lòng kiểm tra log lint, test và coverage của các job bị lỗi trong run đính kèm.',
+            ].join('\n');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const existingIssue = issues.find((issue) => issue.title === title);
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existingIssue.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+              });
+            }

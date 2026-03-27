@@ -1,0 +1,14 @@
+fastapi
+httpx
+motor
+openai
+orjson
+pydantic
+pydantic-settings
+pymongo
+pytest
+pytest-asyncio
+pytest-cov
+python-dotenv
+google-genai
+tiktoken

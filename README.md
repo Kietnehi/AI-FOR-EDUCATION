@@ -146,84 +146,67 @@ flowchart LR
 
 ```text
 AI-FOR-EDUCATION/
-├─ backend/
-│  ├─ app/
-│  │  ├─ ai/
-│  │  │  ├─ chatbot/
-│  │  │  ├─ chunking/
-│  │  │  ├─ embeddings/
-│  │  │  ├─ generation/
-│  │  │  ├─ ingestion/
-│  │  │  ├─ parsing/
-│  │  │  ├─ retrieval/
-│  │  │  └─ vector_store/
-│  │  ├─ api/
-│  │  │  └─ routes/
-│  │  ├─ core/
-│  │  ├─ db/
-│  │  ├─ models/
-│  │  ├─ repositories/
-│  │  ├─ schemas/
-│  │  ├─ services/
-│  │  ├─ utils/
-│  │  └─ main.py
-│  ├─ storage/
-│  │  ├─ chroma/
-│  │  ├─ generated/
-│  │  ├─ notebooklm/
-│  │  └─ uploads/
-│  ├─ requirements.txt
-│  └─ .env.example
-├─ frontend/
-│  ├─ app/
-│  │  ├─ globals.css               ← Design system (TailwindCSS v4)
-│  │  ├─ layout.tsx                ← Root layout
-│  │  ├─ page.tsx                  ← Dashboard
-│  │  ├─ chatbot/
-│  │  │  └─ page.tsx               ← Chatbot index
-│  │  ├─ generated/
-│  │  │  └─ page.tsx               ← Generated content index
-│  │  └─ materials/
-│  │     ├─ page.tsx               ← Materials listing
-│  │     ├─ upload/
-│  │     │  └─ page.tsx            ← Upload (Drag & Drop + Text)
-│  │     └─ [id]/
-│  │        ├─ page.tsx            ← Material detail
-│  │        ├─ slides/page.tsx     ← Slide preview
-│  │        ├─ podcast/page.tsx    ← Podcast timeline
-│  │        ├─ minigame/page.tsx   ← Quiz interactive
-│  │        └─ chat/page.tsx       ← Chatbot AI
-│  ├─ components/
-│  │  ├─ app-shell.tsx             ← Layout shell (Sidebar + Topbar)
-│  │  ├─ theme-provider.tsx        ← Dark/Light mode context
-│  │  ├─ 3d/
-│  │  ├─ layout/
-│  │  │  ├─ sidebar.tsx           ← Collapsible sidebar
-│  │  │  └─ topbar.tsx            ← Search + theme + user
-│  │  └─ ui/
-│  │     ├─ audio-player.tsx       ← Audio playback
-│  │     ├─ badge.tsx              ← Status badges
-│  │     ├─ button.tsx             ← Button variants
-│  │     ├─ card.tsx               ← Glass/hover cards
-│  │     ├─ empty-state.tsx        ← Empty state illustration
-│  │     ├─ markdown.tsx           ← Markdown renderer
-│  │     ├─ skeleton.tsx           ← Loading skeletons
-│  │     ├─ tabs.tsx               ← Animated tabs
-│  │     ├─ tilt-card.tsx          ← 3D tilt effect card
-│  │     └─ toast.tsx              ← Toast notifications
-│  ├─ lib/
-│  │  ├─ api.ts                    ← API client
-│  │  ├─ diacritize.ts             ← Vietnamese diacritics
-│  │  └─ tts.ts                    ← Text-to-speech
-│  ├─ types/
-│  │  └─ index.ts                  ← TypeScript types
-│  ├─ next.config.mjs
-│  ├─ postcss.config.mjs
-│  ├─ tsconfig.json
-│  ├─ package.json
-│  └─ .env.example
-├─ .env.example
-└─ README.md
+├─ backend/                     ← Mã nguồn Server (FastAPI + AI Pipeline)
+│  ├─ app/                      ← Logic ứng dụng chính
+│  │  ├─ ai/                    ← Các module xử lý AI (RAG, Chatbot, Embeddings,...)
+│  │  │  ├─ chatbot/            ← Điều phối chatbot và logic hội thoại
+│  │  │  ├─ chunking/           ← Chia nhỏ tài liệu để xử lý RAG
+│  │  │  ├─ embeddings/         ← Chuyển đổi văn bản thành vector
+│  │  │  ├─ generation/         ← Tạo nội dung (Slides, Podcast, Minigame,...)
+│  │  │  ├─ ingestion/          ← Làm sạch và nạp dữ liệu đầu vào
+│  │  │  ├─ parsing/            ← Trích xuất text từ các định dạng file (PDF, Word,...)
+│  │  │  ├─ retrieval/          ← Truy xuất thông tin từ Vector DB
+│  │  │  └─ vector_store/       ← Quản lý lưu trữ vector (ChromaDB)
+│  │  ├─ api/                   ← Định nghĩa các Endpoints REST API
+│  │  ├─ core/                  ← Cấu hình hệ thống, biến môi trường, logging
+│  │  ├─ db/                    ← Kết nối Database (MongoDB, ChromaDB)
+│  │  ├─ models/                ← Định nghĩa Schema Database (Pydantic/Mongo)
+│  │  ├─ repositories/          ← Lớp tương tác trực tiếp với Database
+│  │  ├─ schemas/               ← Data Transfer Objects (DTO) cho API request/response
+│  │  ├─ services/              ← Business logic xử lý yêu cầu nghiệp vụ
+│  │  ├─ utils/                 ← Các hàm tiện ích dùng chung
+│  │  └─ main.py                ← File chạy chính của FastAPI
+│  ├─ storage/                  ← Thư mục lưu trữ dữ liệu cục bộ
+│  │  ├─ chroma/                ← Cơ sở dữ liệu Vector (Persistent)
+│  │  ├─ extracted/             ← Dữ liệu text trích xuất từ file
+│  │  ├─ generated/             ← Sản phẩm AI tạo ra (Slides, Audio,...)
+│  │  ├─ images/                ← Hình ảnh trích xuất từ tài liệu
+│  │  ├─ notebooklm/            ← File tạm xử lý cho NotebookLM
+│  │  ├─ outputs/               ← Kết quả xử lý tổng hợp
+│  │  └─ uploads/               ← Tài liệu người dùng tải lên
+│  ├─ tests/                    ← Unit tests và Integration tests backend
+│  ├─ Dockerfile                ← Docker cấu hình cho backend
+│  ├─ requirements.txt          ← Danh sách thư viện Python
+│  └─ .env.example              ← Mẫu file biến môi trường backend
+├─ frontend/                    ← Mã nguồn Giao diện (Next.js + TailwindCSS)
+│  ├─ app/                      ← Các trang và Layout (Next.js App Router)
+│  │  ├─ chatbot/               ← Giao diện chat hỏi đáp
+│  │  ├─ converter/             ← Công cụ chuyển đổi định dạng
+│  │  ├─ generated/             ← Quản lý các nội dung đã tạo
+│  │  ├─ materials/             ← Quản lý và xem chi tiết học liệu
+│  │  ├─ globals.css            ← Cấu hình Tailwind v4 và styles toàn cục
+│  │  ├─ layout.tsx             ← Cấu trúc khung trang chính
+│  │  └─ page.tsx               ← Trang chủ Dashboard
+│  ├─ components/               ← Các thành phần UI dùng chung
+│  │  ├─ 3d/                    ← Các hiệu ứng 3D (nếu có)
+│  │  ├─ converter/             ← UI cho phần converter
+│  │  ├─ layout/                ← Sidebar, Topbar, AppShell
+│  │  ├─ minigame/              ← Các component trò chơi tương tác
+│  │  ├─ ui/                    ← Các UI nguyên tử (Button, Card, Toast,...)
+│  ├─ lib/                      ← Thư viện hỗ trợ, API Client, utils frontend
+│  ├─ public/                   ← Tài nguyên tĩnh (Logo, Icons, Fonts)
+│  ├─ test/                     ← Kiểm thử frontend (Unit/Integration)
+│  ├─ types/                    ← Định nghĩa kiểu dữ liệu TypeScript
+│  ├─ Dockerfile                ← Docker cấu hình cho frontend
+│  ├─ package.json              ← Quản lý thư viện Node.js
+│  └─ .env.example              ← Mẫu file biến môi trường frontend
+├─ Document_PRD/                ← Tài liệu đặc tả yêu cầu và thiết kế dự án
+├─ image/                       ← Ảnh minh họa cho README và hệ thống
+├─ markdown_docs/               ← Các tài liệu hướng dẫn chi tiết (.md)
+├─ TESTING_CODE/                ← Code test mẫu và tài liệu API bên thứ 3
+├─ docker-compose.yml           ← Cấu hình triển khai toàn bộ hệ thống bằng Docker
+├─ README.md                    ← Hướng dẫn dự án chính
+└─ .env.example                 ← Mẫu file môi trường tổng cho Docker
 ```
 
 ---
@@ -231,6 +214,21 @@ AI-FOR-EDUCATION/
 ## 4. API chính (MVP)
 
 > **API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
+
+<p align="center">
+<table style="margin: 0 auto;">
+  <tr>
+    <td align="center" style="padding:8px;">
+      <img src="image/docs_8000.png" alt="Swagger UI" width="540" style="border:1px solid #e6e6e6; border-radius:6px;" />
+      <div style="margin-top:8px; font-weight:600;">Swagger UI — <a href="http://localhost:8000/docs">/docs</a></div>
+    </td>
+    <td align="center" style="padding:8px;">
+      <img src="image/health_8000.png" alt="Health Check" width="260" style="border:1px solid #e6e6e6; border-radius:6px;" />
+      <div style="margin-top:8px; font-weight:600;">Health Check — <a href="http://localhost:8000/health">/health</a></div>
+    </td>
+  </tr>
+</table>
+</p>
 
 ### 4.1 Materials
 - `POST /api/materials` — Tạo học liệu từ text
@@ -501,7 +499,42 @@ npm run dev
 
 ---
 
-## 6. Troubleshooting
+## 6. CI / CD
+
+Hiện tại dự án có **CI** cho toàn bộ repo và **chưa có CD**.
+
+- Workflow: `.github/workflows/project-ci.yml`
+- Trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/` hoặc file workflow
+- Frontend: chạy `lint` + `test` + `coverage`
+- Backend: chạy `pytest` + `coverage`
+- Khi `push` fail, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
+
+### 6.1 Cách chạy CI local
+
+```bash
+cd frontend
+npm ci
+npm run test:ci
+
+cd ../backend
+python -m pip install -r requirements-test.txt
+python -m pytest
+```
+
+Coverage report sau khi chạy:
+
+- Frontend: `frontend/coverage/index.html`
+- Backend: `backend/htmlcov/index.html`
+
+### 6.2 Ghi chú
+
+- Frontend có coverage threshold trong `frontend/vitest.config.ts`
+- Backend có coverage threshold trong `backend/pytest.ini`
+- Tài liệu chi tiết hơn: `markdown_docs/CI_SUMMARY_2026-03-28.md`
+
+---
+
+## 7. Troubleshooting
 
 ### Lỗi không có lệnh `python`
 Trên Windows, dùng `py` thay cho `python`.
@@ -566,9 +599,23 @@ Lưu ý vận hành:
 
 ---
 
-## Tài liệu bổ sung
+## Minigame
 
-- [WEB_SEARCH_GUIDE_VI.md](markdown_docs/WEB_SEARCH_GUIDE_VI.md) — tài liệu mô tả chi tiết chức năng web search cho **chatbot RAG** và **mascot**, bao gồm cấu hình `.env`, logic chọn provider giữa Google Search grounding và Tavily, bước refinement kết quả, API liên quan, cách frontend hiển thị nguồn tham khảo và checklist kiểm thử nhanh.
+- Tạo minigame tự động từ học liệu (MCQ, điền từ, ghép cặp).
+- API: `POST /api/materials/{material_id}/generate/minigame` — tạo minigame.
+- Chơi & nộp: `POST /api/games/{generated_content_id}/submit` — nộp kết quả.
+- Frontend: trang minigame tại `frontend/app/materials/[id]/minigame`.
+
+---
+
+## 8. Tài liệu bổ sung
+
+- [WEB_SEARCH_GUIDE_VI.md](markdown_docs/WEB_SEARCH_GUIDE_VI.md) — Hướng dẫn Web Search.
+- [DOCKER_REVIEW_2026-03-27.md](markdown_docs/DOCKER_REVIEW_2026-03-27.md) — Docker review.
+- [LLM_API_FLOW.md](markdown_docs/LLM_API_FLOW.md) — Luồng API LLM.
+- [MINIGAME.md](markdown_docs/MINIGAME.md) — Thiết kế minigame.
+- [NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md) — NotebookLM media notes.
+- [CI_SUMMARY_2026-03-28.md](markdown_docs/CI_SUMMARY_2026-03-28.md) — Tóm tắt đầy đủ phần CI hiện tại của dự án.
 
 ---
 
