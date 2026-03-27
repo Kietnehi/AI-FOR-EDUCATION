@@ -1,49 +1,52 @@
-name: Project CD
+name: CD Dự Án
 
 on:
   workflow_dispatch:
     inputs:
       target_environment:
-        description: "Placeholder CD environment"
+        description: "Môi trường CD tượng trưng"
         required: false
         default: "staging-placeholder"
         type: choice
         options:
           - staging-placeholder
           - production-placeholder
-  push:
+  workflow_run:
+    workflows:
+      - CI Dự Án
+    types:
+      - completed
     branches:
       - main
-    paths:
-      - "frontend/**"
-      - "backend/**"
-      - "docker-compose.yml"
-      - ".env.docker.example"
-      - ".github/workflows/project-cd.yml"
+      - kiet
 
 permissions:
   contents: read
+  issues: write
 
 env:
+  SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+  SOURCE_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
   TARGET_ENVIRONMENT: ${{ github.event.inputs.target_environment || 'staging-placeholder' }}
 
 jobs:
   prepare-release:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       release_name: ${{ steps.meta.outputs.release_name }}
       release_version: ${{ steps.meta.outputs.release_version }}
       release_sha_short: ${{ steps.meta.outputs.release_sha_short }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Tải mã nguồn
+        uses: actions/checkout@v6
 
-      - name: Generate release metadata
+      - name: Tạo metadata phát hành
         id: meta
         shell: bash
         run: |
-          SHA_SHORT="${GITHUB_SHA::7}"
+          SHA_SHORT="${SOURCE_SHA::7}"
           RELEASE_VERSION="placeholder-${SHA_SHORT}"
           RELEASE_NAME="AI Learning Studio ${RELEASE_VERSION}"
           mkdir -p release
@@ -51,9 +54,9 @@ jobs:
           {
             "releaseName": "${RELEASE_NAME}",
             "releaseVersion": "${RELEASE_VERSION}",
-            "commitSha": "${GITHUB_SHA}",
+            "commitSha": "${SOURCE_SHA}",
             "commitShaShort": "${SHA_SHORT}",
-            "branch": "${GITHUB_REF_NAME}",
+            "branch": "${SOURCE_BRANCH}",
             "workflow": "${GITHUB_WORKFLOW}",
             "runId": "${GITHUB_RUN_ID}",
             "targetEnvironment": "${TARGET_ENVIRONMENT}",
@@ -61,21 +64,21 @@ jobs:
           }
           EOF
           cat > release/release-notes.md <<EOF
-          # Placeholder Release Notes
+          # Ghi chú phát hành tượng trưng
 
-          - Release: ${RELEASE_NAME}
-          - Version: ${RELEASE_VERSION}
-          - Branch: ${GITHUB_REF_NAME}
-          - Commit: ${GITHUB_SHA}
-          - Target environment: ${TARGET_ENVIRONMENT}
-          - Status: Ready for placeholder deploy step
+          - Bản phát hành: ${RELEASE_NAME}
+          - Phiên bản: ${RELEASE_VERSION}
+          - Nhánh: ${SOURCE_BRANCH}
+          - Commit: ${SOURCE_SHA}
+          - Môi trường đích: ${TARGET_ENVIRONMENT}
+          - Trạng thái: Sẵn sàng cho bước triển khai tượng trưng
           EOF
           echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
           echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_sha_short=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload release metadata artifact
-        uses: actions/upload-artifact@v4
+      - name: Tải artifact metadata phát hành lên
+        uses: actions/upload-artifact@v7
         with:
           name: cd-release-metadata
           path: release
@@ -88,23 +91,23 @@ jobs:
         working-directory: frontend
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Tải mã nguồn
+        uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cài đặt Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Cài đặt dependencies
         run: npm ci
 
       - name: Build frontend
         run: npm run build
 
-      - name: Assemble frontend release bundle
+      - name: Đóng gói bundle phát hành frontend
         shell: bash
         run: |
           mkdir -p ../release/frontend
@@ -114,8 +117,8 @@ jobs:
           cp package-lock.json ../release/frontend/package-lock.json
           cp next.config.mjs ../release/frontend/next.config.mjs
 
-      - name: Upload frontend bundle artifact
-        uses: actions/upload-artifact@v4
+      - name: Tải artifact frontend lên
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
           path: release/frontend
@@ -128,18 +131,18 @@ jobs:
         working-directory: backend
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Tải mã nguồn
+        uses: actions/checkout@v6
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Cài đặt Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
-      - name: Verify backend source syntax
+      - name: Kiểm tra cú pháp mã nguồn backend
         run: python -m compileall app
 
-      - name: Assemble backend release bundle
+      - name: Đóng gói bundle phát hành backend
         shell: bash
         run: |
           mkdir -p ../release/backend
@@ -149,8 +152,8 @@ jobs:
           cp Dockerfile ../release/backend/Dockerfile
           cp pytest.ini ../release/backend/pytest.ini
 
-      - name: Upload backend bundle artifact
-        uses: actions/upload-artifact@v4
+      - name: Tải artifact backend lên
+        uses: actions/upload-artifact@v7
         with:
           name: backend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
           path: release/backend
@@ -160,16 +163,16 @@ jobs:
     needs: prepare-release
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Tải mã nguồn
+        uses: actions/checkout@v6
 
-      - name: Prepare docker environment file
+      - name: Chuẩn bị file môi trường Docker
         run: cp .env.docker.example .env
 
-      - name: Validate docker compose configuration
+      - name: Kiểm tra cấu hình docker compose
         run: docker compose config > release-docker-compose.resolved.yml
 
-      - name: Assemble docker release bundle
+      - name: Đóng gói bundle phát hành Docker
         shell: bash
         run: |
           mkdir -p release/docker
@@ -177,8 +180,8 @@ jobs:
           cp .env.docker.example release/docker/.env.docker.example
           cp release-docker-compose.resolved.yml release/docker/docker-compose.resolved.yml
 
-      - name: Upload docker bundle artifact
-        uses: actions/upload-artifact@v4
+      - name: Tải artifact Docker lên
+        uses: actions/upload-artifact@v7
         with:
           name: docker-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
           path: release/docker
@@ -194,42 +197,192 @@ jobs:
       name: ${{ github.event.inputs.target_environment || 'staging-placeholder' }}
 
     steps:
-      - name: Download release metadata artifact
-        uses: actions/download-artifact@v4
+      - name: Tải artifact metadata phát hành xuống
+        uses: actions/download-artifact@v7
         with:
           name: cd-release-metadata
           path: release/metadata
 
-      - name: Generate deployment summary
+      - name: Tạo báo cáo triển khai tượng trưng
         shell: bash
         run: |
           mkdir -p release/deploy
           cat > release/deploy/deployment-summary.md <<EOF
-          # Deployment Placeholder Summary
+          # Báo cáo triển khai tượng trưng
 
-          - Release: ${{ needs.prepare-release.outputs.release_name }}
-          - Version: ${{ needs.prepare-release.outputs.release_version }}
-          - Target environment: ${TARGET_ENVIRONMENT}
-          - Commit: ${GITHUB_SHA}
-          - Triggered by: ${GITHUB_ACTOR}
-          - Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          - Public URL: not-configured-yet
-          - Deploy mode: placeholder only
+          - Bản phát hành: ${{ needs.prepare-release.outputs.release_name }}
+          - Phiên bản: ${{ needs.prepare-release.outputs.release_version }}
+          - Môi trường đích: ${TARGET_ENVIRONMENT}
+          - Nhánh nguồn: ${SOURCE_BRANCH}
+          - Commit: ${SOURCE_SHA}
+          - Người kích hoạt: ${GITHUB_ACTOR}
+          - Lần chạy workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          - URL công khai: chưa-cấu-hình
+          - Chế độ triển khai: chỉ tượng trưng
 
-          Current status:
+          Trạng thái hiện tại:
 
-          - Frontend build completed and artifact bundle uploaded
-          - Backend source syntax verified and artifact bundle uploaded
-          - Docker compose configuration resolved successfully
-          - No real server deployment executed yet
+          - Frontend đã build xong và đã tải bundle artifact lên
+          - Backend đã kiểm tra cú pháp và đã tải bundle artifact lên
+          - Cấu hình docker compose đã được resolve thành công
+          - Chưa thực hiện triển khai lên server thật
           EOF
           cat release/deploy/deployment-summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload deployment summary artifact
-        uses: actions/upload-artifact@v4
+      - name: Tải artifact báo cáo triển khai lên
+        uses: actions/upload-artifact@v7
         with:
           name: deployment-summary-${{ needs.prepare-release.outputs.release_sha_short }}
           path: |
             release/deploy/deployment-summary.md
             release/metadata/release-metadata.json
             release/metadata/release-notes.md
+
+  release-bundle:
+    runs-on: ubuntu-latest
+    needs:
+      - prepare-release
+      - build-frontend-artifact
+      - package-backend-artifact
+      - package-docker-bundle
+      - deploy-placeholder
+
+    steps:
+      - name: Tải artifact metadata phát hành xuống
+        uses: actions/download-artifact@v7
+        with:
+          name: cd-release-metadata
+          path: release-bundle/metadata
+
+      - name: Tải artifact frontend xuống
+        uses: actions/download-artifact@v7
+        with:
+          name: frontend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release-bundle/frontend
+
+      - name: Tải artifact backend xuống
+        uses: actions/download-artifact@v7
+        with:
+          name: backend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release-bundle/backend
+
+      - name: Tải artifact Docker xuống
+        uses: actions/download-artifact@v7
+        with:
+          name: docker-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release-bundle/docker
+
+      - name: Tải artifact báo cáo triển khai xuống
+        uses: actions/download-artifact@v7
+        with:
+          name: deployment-summary-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release-bundle/deploy
+
+      - name: Tải artifact bundle phát hành tổng hợp lên
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release-bundle
+
+  report-failure:
+    runs-on: ubuntu-latest
+    needs:
+      - prepare-release
+      - build-frontend-artifact
+      - package-backend-artifact
+      - package-docker-bundle
+      - deploy-placeholder
+      - release-bundle
+    if: >-
+      always() &&
+      (
+        needs.prepare-release.result == 'failure' ||
+        needs.build-frontend-artifact.result == 'failure' ||
+        needs.package-backend-artifact.result == 'failure' ||
+        needs.package-docker-bundle.result == 'failure' ||
+        needs.deploy-placeholder.result == 'failure' ||
+        needs.release-bundle.result == 'failure'
+      )
+
+    steps:
+      - name: Tạo hoặc cập nhật GitHub Issue khi CD lỗi
+        uses: actions/github-script@v8
+        env:
+          PREPARE_RESULT: ${{ needs.prepare-release.result }}
+          FRONTEND_RESULT: ${{ needs.build-frontend-artifact.result }}
+          BACKEND_RESULT: ${{ needs.package-backend-artifact.result }}
+          DOCKER_RESULT: ${{ needs.package-docker-bundle.result }}
+          DEPLOY_RESULT: ${{ needs.deploy-placeholder.result }}
+          BUNDLE_RESULT: ${{ needs.release-bundle.result }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = process.env.GITHUB_REF_NAME || 'main';
+            const title = `🚨 [CD Failure] Luồng CD thất bại trên nhánh ${branch}`;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            const rows = [
+              ['Chuẩn bị phát hành', process.env.PREPARE_RESULT],
+              ['Bundle frontend', process.env.FRONTEND_RESULT],
+              ['Bundle backend', process.env.BACKEND_RESULT],
+              ['Bundle Docker', process.env.DOCKER_RESULT],
+              ['Triển khai tượng trưng', process.env.DEPLOY_RESULT],
+              ['Bundle phát hành tổng hợp', process.env.BUNDLE_RESULT],
+            ];
+
+            const toStatus = (value) => value === 'success' ? 'THÀNH CÔNG' : value === 'failure' ? 'THẤT BẠI' : 'BỎ QUA';
+            const failedJobs = rows.filter(([, result]) => result === 'failure').map(([name]) => `- ${name}`).join('\n');
+            const table = rows.map(([name, result]) => `| ${name} | ${toStatus(result)} |`).join('\n');
+
+            const body = [
+              '## Báo cáo lỗi CD',
+              '',
+              'CD tượng trưng gặp lỗi sau một lần chạy pipeline phát hành.',
+              '',
+              `- Nhánh: \`${branch}\``,
+              `- Commit: \`${process.env.SOURCE_SHA || context.sha}\``,
+              `- Người kích hoạt: @${context.actor}`,
+              `- Workflow: \`${context.workflow}\``,
+              `- Môi trường đích: \`${process.env.TARGET_ENVIRONMENT || 'staging-placeholder'}\``,
+              '',
+              '### Các job lỗi',
+              failedJobs || '- Không xác định được job lỗi',
+              '',
+              '### Trạng thái các job',
+              '| Job | Trạng thái |',
+              '| :--- | :--- |',
+              table,
+              '',
+              '### Chi tiết lần chạy',
+              `- GitHub Actions: ${runUrl}`,
+              '',
+              'Thông báo này được tạo tự động bởi GitHub Actions.',
+            ].join('\n');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const existingIssue = issues.find((issue) => issue.title === title);
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existingIssue.number,
+                body: `Cập nhật lỗi CD mới:\n\n${body}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+                labels: ['bug', 'cd-failure'],
+                assignees: [context.actor],
+              });
+            }
