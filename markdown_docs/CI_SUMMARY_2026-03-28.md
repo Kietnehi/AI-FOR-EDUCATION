@@ -1,4 +1,4 @@
-# CI Summary (2026-03-28)
+# Tóm tắt CI (2026-03-28)
 
 Tài liệu này tóm tắt đầy đủ phần thiết lập CI đã được triển khai cho repo `AI-FOR-EDUCATION`, bao gồm phạm vi thay đổi, kiến trúc workflow, test stack, coverage, cơ chế báo lỗi và các việc còn lại nên làm tiếp.
 
@@ -51,9 +51,9 @@ Tài liệu này tóm tắt đầy đủ phần thiết lập CI đã được t
 
 ## 3. Kiến trúc workflow mới
 
-Workflow hiện tại nằm ở `/.github/workflows/project-ci.yml` với tên hiển thị là `Project CI`.
+Workflow hiện tại nằm ở `/.github/workflows/project-ci.yml` với tên hiển thị là `CI Dự Án`.
 
-### 3.1 Trigger
+### 3.1 Kích hoạt
 
 Workflow chạy khi có:
 
@@ -189,7 +189,7 @@ Mục tiêu của file này:
 - Cài vừa đủ dependency để import app và chạy test
 - Giảm thời gian setup CI
 - Giảm nguy cơ lỗi cài đặt từ các package nặng hoặc không cần cho unit test
-- Giữ pipeline backend đơn giản, dễ bảo trì
+- Giữ luồng pipeline backend đơn giản, dễ bảo trì
 
 Hiện file này gồm các gói chính:
 
@@ -405,6 +405,6 @@ Nếu muốn tiến thêm một bước, có thể cân nhắc:
 
 ## 14. Kết luận
 
-Phần CI hiện tại đã chuyển từ mô hình chỉ kiểm tra frontend sang một pipeline kiểm tra toàn dự án. Workflow mới đã bao phủ được lint, test, coverage, Docker smoke test và cơ chế thông báo lỗi sau `push`. Đồng thời backend đã có test foundation đủ dùng để CI chạy ổn định mà không phải mang toàn bộ runtime dependency nặng vào pipeline.
+Phần CI hiện tại đã chuyển từ mô hình chỉ kiểm tra frontend sang một pipeline kiểm tra toàn dự án. Workflow mới đã bao phủ được lint, test, coverage, Docker smoke test và cơ chế thông báo lỗi sau `push`. Đồng thời backend đã có nền tảng kiểm thử đủ dùng để CI chạy ổn định mà không phải mang toàn bộ runtime dependency nặng vào pipeline.
 
 Nói ngắn gọn, phần hạ tầng CI cốt lõi đã được dựng xong và đang hoạt động theo hướng đúng; việc còn lại chủ yếu là tiếp tục tăng coverage ở các module backend/frontend còn yếu và nâng threshold theo từng bước để siết chất lượng dần.
