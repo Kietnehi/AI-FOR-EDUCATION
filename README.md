@@ -265,7 +265,6 @@ AI-FOR-EDUCATION/
 
 ---
 
----
 
 ## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose
 
@@ -275,7 +274,7 @@ Dự án đã được cấu hình đầy đủ Docker cho các service:
 * `backend`
 * `mongo`
 
----
+
 
 ## 📁 Các file liên quan
 
@@ -284,7 +283,7 @@ Dự án đã được cấu hình đầy đủ Docker cho các service:
 * `frontend/Dockerfile`
 * `.env.docker.example`
 
----
+
 
 ## ⚙️ Hướng dẫn chạy nhanh
 
@@ -305,7 +304,6 @@ Mở file `.env` và điền các API key cần thiết, ví dụ:
 * Groq
   *(tùy theo nhu cầu sử dụng của bạn)*
 
----
 
 ### 3. Build và chạy toàn bộ hệ thống
 
@@ -313,7 +311,7 @@ Mở file `.env` và điền các API key cần thiết, ví dụ:
 docker compose up -d --build
 ```
 
----
+
 
 ### 4. Truy cập hệ thống
 
@@ -321,7 +319,6 @@ docker compose up -d --build
 * 🔧 Backend API: [http://localhost:8000](http://localhost:8000)
 * 📄 Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
----
 
 ### 5. Dừng hệ thống
 
