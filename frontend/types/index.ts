@@ -101,7 +101,18 @@ export type ChatMessage = {
   model_used?: string | null;
   fallback_applied?: boolean;
   images?: string[];
-};
+   search_results?: {
+     sources: Array<{
+       index: number;
+       title: string;
+       uri: string;
+       snippet: string;
+     }>;
+     search_provider: string;
+     search_queries?: string[];
+   };
+   is_web_search?: boolean;
+   };
 
 export type MascotChatResponse = {
   message: string;
@@ -109,6 +120,8 @@ export type MascotChatResponse = {
   session_id: string;
   model_used?: string | null;
   fallback_applied?: boolean;
+  is_web_search?: boolean;
+  search_provider?: string | null;
 };
 
 export type SttModel =
