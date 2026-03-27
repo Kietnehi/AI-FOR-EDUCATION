@@ -1,14 +1,4 @@
-fastapi
-httpx
-motor
-openai
-orjson
-pydantic
-pydantic-settings
-pymongo
+-r requirements.txt
 pytest
 pytest-asyncio
 pytest-cov
-python-dotenv
-google-genai
-tiktoken
