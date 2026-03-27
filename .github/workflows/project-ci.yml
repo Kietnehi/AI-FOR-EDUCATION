@@ -22,6 +22,8 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    outputs:
+      coverage: ${{ steps.extract-coverage.outputs.coverage }}
 
     steps:
       - name: Tải mã nguồn
@@ -43,6 +45,17 @@ jobs:
       - name: Chạy kiểm thử với coverage
         run: npm run test:coverage
 
+      - name: Trích xuất độ phủ (coverage)
+        id: extract-coverage
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+            echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+          else
+            echo "coverage=0" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Tải artifact coverage frontend lên
         if: always()
         uses: actions/upload-artifact@v7
@@ -56,6 +69,8 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    outputs:
+      coverage: ${{ steps.extract-coverage.outputs.coverage }}
 
     steps:
       - name: Tải mã nguồn
@@ -73,6 +88,17 @@ jobs:
 
       - name: Chạy kiểm thử backend với coverage
         run: pytest
+
+      - name: Trích xuất độ phủ (coverage)
+        id: extract-coverage
+        if: always()
+        run: |
+          if [ -f coverage.xml ]; then
+            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(round(float(root.attrib['line-rate']) * 100, 2))")
+            echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+          else
+            echo "coverage=0" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Tải artifact coverage backend lên
         if: always()
@@ -98,7 +124,7 @@ jobs:
         run: cp .env.docker.example .env
 
       - name: Build và khởi động docker compose
-        run: docker compose up -d --build --wait
+        run: docker compose -f docker-compose.ci.yml up -d --build --wait
 
       - name: Chờ backend sẵn sàng
         run: |
@@ -109,8 +135,8 @@ jobs:
             sleep 3
           done
           echo "Kiểm tra health của backend thất bại"
-          docker compose ps
-          docker compose logs backend
+          docker compose -f docker-compose.ci.yml ps
+          docker compose -f docker-compose.ci.yml logs backend
           exit 1
 
       - name: Kiểm tra frontend phản hồi
@@ -118,15 +144,54 @@ jobs:
 
       - name: Hiển thị trạng thái docker compose khi lỗi
         if: failure()
-        run: docker compose ps
+        run: docker compose -f docker-compose.ci.yml ps
 
       - name: Hiển thị log docker compose khi lỗi
         if: failure()
-        run: docker compose logs --no-color
+        run: docker compose -f docker-compose.ci.yml logs --no-color
 
       - name: Dừng docker compose
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.ci.yml down -v
+
+  ci-summary:
+    runs-on: ubuntu-latest
+    needs: [frontend, backend, docker-compose-smoke]
+    if: always()
+    steps:
+      - name: Tạo tóm tắt công việc (Job Summary)
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const frontendStatus = "${{ needs.frontend.result }}" === "success" ? "✅ Thành công" : "❌ Thất bại";
+            const backendStatus = "${{ needs.backend.result }}" === "success" ? "✅ Thành công" : "❌ Thất bại";
+            const dockerStatus = "${{ needs.docker-compose-smoke.result }}" === "success" ? "✅ Thành công" : "❌ Thất bại";
+            
+            const frontendCov = "${{ needs.frontend.outputs.coverage }}" || "0";
+            const backendCov = "${{ needs.backend.outputs.coverage }}" || "0";
+            
+            const summary = `
+            # 🚀 Báo cáo Tóm tắt CI (Dự Án AI Learning Studio)
+            
+            | Thông tin | Chi tiết |
+            | :--- | :--- |
+            | **Người thực hiện** | @${context.actor} |
+            | **Nhánh** | \`${context.ref.replace('refs/heads/', '')}\` |
+            | **Commit** | [\`${context.sha.substring(0, 7)}\`](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}) |
+            | **Thời điểm** | ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} (HCMC) |
+            
+            ## 📊 Trạng thái các Job
+            | Thành phần | Trạng thái | Độ phủ (Coverage) |
+            | :--- | :---: | :---: |
+            | 🖥️ **Frontend** | ${frontendStatus} | \`${frontendCov}%\` |
+            | ⚙️ **Backend** | ${backendStatus} | \`${backendCov}%\` |
+            | 🐳 **Docker Smoke** | ${dockerStatus} | - |
+            
+            ---
+            *Ghi chú: Xem chi tiết logs tại tab Actions hoặc tải các Artifacts để xem báo cáo chi tiết.*
+            `;
+            
+            core.summary.addRaw(summary).write();
 
   report-failure:
     runs-on: ubuntu-latest
