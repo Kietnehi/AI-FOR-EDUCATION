@@ -63,6 +63,8 @@ Dự án được chia thành 2 luồng xử lý chính:
 - 🎙️ **Tạo podcast script** với cấu trúc speaker/timeline (có placeholder cho TTS)
 - 🎮 **Tạo minigame/quiz** tương tác (trắc nghiệm, điền từ, flashcard, ghép cặp)
 - 🤖 **Chatbot RAG** hỏi đáp theo học liệu với citations từ nguồn gốc
+- 🌐 **Web Search cho Chatbot RAG**: hỗ trợ hỏi đáp bằng dữ liệu web mới nhất, có thể ưu tiên Google Search grounding hoặc Tavily Search và hiển thị danh sách nguồn tham khảo
+- 🧭 **Web Search cho Mascot**: mascot có thể bật chế độ tìm kiếm web để trả lời các câu hỏi thời sự/ngoài tài liệu, với cơ chế fallback về chat thường khi search gặp lỗi
 - 🎤 **Speech-to-Text cho Chatbot**: ghi âm bằng mic và chuyển giọng nói thành chữ
   - Local: `openai-whisper` model `base`
   - Cloud: Groq `whisper-large-v3` hoặc `whisper-large-v3-turbo`
@@ -255,6 +257,7 @@ AI-FOR-EDUCATION/
 - `POST /api/chat/{material_id}/session` — Tạo session chat mới
 - `GET /api/chat/sessions/{session_id}` — Lấy session + tin nhắn
 - `POST /api/chat/sessions/{session_id}/message` — Gửi tin nhắn (có hỗ trợ ảnh)
+- `POST /api/chat/sessions/{session_id}/web-search` — Web search cho chatbot theo tài liệu
 - `POST /api/chat/mascot/message` — Chat với mascot (không dùng RAG)
 - `POST /api/chat/transcribe` — Chuyển audio thành text (hỗ trợ `local-base`, `whisper-large-v3`, `whisper-large-v3-turbo`)
 - `POST /api/chat/tts` — Chuyển text thành audio (Text-to-Speech)
@@ -482,6 +485,12 @@ Lưu ý vận hành:
 - Tài khoản Google dùng cho NotebookLM phải đăng nhập sẵn trong Chrome profile của backend.
 - Cần cấu hình đúng `NOTEBOOKLM_DOCUMENTS_DIR`, `NOTEBOOKLM_USER_DATA_DIR`, `NOTEBOOKLM_GENERATE_WAIT_SECONDS`, `NOTEBOOKLM_HEADLESS`.
 - Chức năng này hiện phù hợp hơn cho môi trường demo hoặc nội bộ; nếu chạy nhiều người dùng đồng thời thì cần hoàn thiện thêm phần session và concurrency.
+
+---
+
+## Tài liệu bổ sung
+
+- [WEB_SEARCH_GUIDE_VI.md](markdown_docs/WEB_SEARCH_GUIDE_VI.md) — tài liệu mô tả chi tiết chức năng web search cho **chatbot RAG** và **mascot**, bao gồm cấu hình `.env`, logic chọn provider giữa Google Search grounding và Tavily, bước refinement kết quả, API liên quan, cách frontend hiển thị nguồn tham khảo và checklist kiểm thử nhanh.
 
 ---
 

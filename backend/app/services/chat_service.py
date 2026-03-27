@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -99,6 +100,8 @@ class ChatService:
         message: str,
         session_id: str | None = None,
         images: list[str] | None = None,
+        use_web_search: bool = False,
+        use_google: bool = True,
     ) -> dict:
         mascot_session: dict | None = None
         if session_id:
@@ -129,6 +132,69 @@ class ChatService:
                 "created_at": utc_now(),
             }
         )
+
+        if use_web_search:
+            try:
+                search_result = await asyncio.to_thread(
+                    self.orchestrator.web_search,
+                    message,
+                    use_google,
+                )
+                refined_answer, refinement_model_used = await asyncio.to_thread(
+                    self._refine_web_search_answer,
+                    message,
+                    search_result,
+                )
+                final_answer = refined_answer or str(search_result.get("answer", "")).strip()
+                search_provider = search_result.get("search_provider")
+
+                web_search_metadata = {
+                    "model_used": refinement_model_used or search_result.get("model"),
+                    "fallback_applied": search_provider != "google_search",
+                    "is_web_search": True,
+                    "search_results": {
+                        "sources": [
+                            {
+                                "index": s.get("index"),
+                                "title": s.get("title", ""),
+                                "uri": s.get("uri", ""),
+                                "snippet": s.get("snippet", ""),
+                            }
+                            for s in search_result.get("sources", [])
+                        ],
+                        "search_provider": search_provider,
+                        "search_queries": search_result.get("search_queries", []),
+                        "raw_text": str(
+                            search_result.get("raw_text")
+                            or search_result.get("answer")
+                            or ""
+                        ),
+                    },
+                }
+
+                await self.chat_repo.create_mascot_message(
+                    {
+                        "session_id": mascot_session_id,
+                        "role": "assistant",
+                        "message": final_answer,
+                        "created_at": utc_now(),
+                        **web_search_metadata,
+                    }
+                )
+                await self.chat_repo.update_mascot_session(
+                    parse_object_id(mascot_session_id),
+                    {"updated_at": utc_now()},
+                )
+                return {
+                    "message": final_answer,
+                    "model": settings.web_search_refinement_model,
+                    "session_id": mascot_session_id,
+                    "search_provider": search_provider,
+                    **web_search_metadata,
+                }
+            except Exception:
+                # Nếu web search lỗi, fallback về mascot chat thường để tránh mất trải nghiệm.
+                pass
 
         memory_messages = await self.chat_repo.list_mascot_messages(
             mascot_session_id, limit=settings.mascot_memory_turns
@@ -183,5 +249,149 @@ class ChatService:
             "message": answer,
             "model": settings.mascot_chat_model,
             "session_id": mascot_session_id,
+            "is_web_search": False,
+            "search_provider": None,
             **llm_metadata,
         }
+
+    async def web_search_answer(
+        self,
+        session_id: str,
+        query: str,
+        use_google: bool = True,
+    ) -> dict:
+        """
+        Tìm kiếm web và trả về câu trả lời được định dạng với trích dẫn đầy đủ
+
+        Args:
+            session_id: ID phiên chat (dùng cho ngữ cảnh)
+            query: Câu hỏi tìm kiếm
+            use_google: Thử Tìm kiếm Google trước
+
+        Returns:
+            dict với kết quả tìm kiếm web và câu trả lời
+        """
+        session = await self.chat_repo.get_session(parse_object_id(session_id))
+        if not session:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
+
+        now = utc_now()
+
+        # Lưu tin nhắn của người dùng
+        await self.chat_repo.create_message(
+            {
+                "session_id": session_id,
+                "role": "user",
+                "message": query,
+                "citations": [],
+                "created_at": now,
+            }
+        )
+
+        # Chạy tìm kiếm web ngoài event loop (thao tác chặn)
+        try:
+            search_result = await asyncio.to_thread(
+                self.orchestrator.web_search,
+                query,
+                use_google,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Tìm kiếm web thất bại: {str(e)}")
+
+        refined_answer = str(search_result.get("answer", "")).strip()
+        refinement_model_used: str | None = None
+        try:
+            refined_answer, refinement_model_used = await asyncio.to_thread(
+                self._refine_web_search_answer,
+                query,
+                search_result,
+            )
+        except Exception:
+            # Nếu bước biên tập lỗi, vẫn trả kết quả web search gốc để không gián đoạn trải nghiệm.
+            refined_answer = str(search_result.get("answer", "")).strip()
+            refinement_model_used = None
+
+        # Tạo tin nhắn trả lời với kết quả tìm kiếm
+        assistant_msg = await self.chat_repo.create_message(
+            {
+                "session_id": session_id,
+                "role": "assistant",
+                "message": refined_answer,
+                "citations": [
+                    {
+                        "material_id": f"web_{cite['source']}",
+                        "chunk_id": f"source_{cite['index']}",
+                        "chunk_index": cite["index"],
+                        "snippet": cite["title"],
+                    }
+                    for cite in search_result.get("citations", [])
+                ],
+                "created_at": utc_now(),
+                "model_used": refinement_model_used or search_result.get("model"),
+                "fallback_applied": search_result.get("search_provider") != "google_search",
+                "search_results": {
+                    "sources": [
+                        {
+                            "index": s["index"],
+                            "title": s["title"],
+                            "uri": s["uri"],
+                            "snippet": s.get("snippet", ""),
+                        }
+                        for s in search_result.get("sources", [])
+                    ],
+                    "search_provider": search_result.get("search_provider"),
+                    "search_queries": search_result.get("search_queries", []),
+                    "raw_text": str(
+                        search_result.get("raw_text") or search_result.get("answer") or ""
+                    ),
+                    "refined_with_llm": bool(refinement_model_used),
+                    "search_model": search_result.get("model"),
+                },
+            }
+        )
+
+        await self.chat_repo.update_session(
+            parse_object_id(session_id), {"updated_at": utc_now()}
+        )
+
+        return assistant_msg
+
+    def _refine_web_search_answer(
+        self,
+        query: str,
+        search_result: dict,
+    ) -> tuple[str, str | None]:
+        """Biên tập lại câu trả lời web search bằng LLM, giữ nguyên toàn bộ thông tin."""
+        draft_answer = str(search_result.get("answer", "")).strip()
+        if not draft_answer:
+            return "", None
+
+        # Đưa toàn bộ dữ liệu từ tool search vào prompt để LLM không bỏ sót thông tin.
+        full_tool_output = json.dumps(search_result, ensure_ascii=False, default=str, indent=2)
+
+        system_prompt = (
+            "Bạn là biên tập viên tiếng Việt. "
+            "Nhiệm vụ DUY NHẤT: chỉnh lại văn phong cho rõ ràng, mạch lạc, dễ đọc. "
+            "BẮT BUỘC giữ nguyên toàn bộ thông tin thực tế có trong dữ liệu đầu vào, "
+            "không được lược bỏ, không được tóm tắt, không được thêm mới dữ kiện. "
+            "Giữ nguyên các mốc thời gian, số liệu, tên riêng, liên kết và ý nghĩa gốc."
+        )
+
+        user_prompt = (
+            f"Câu hỏi người dùng: {query}\n\n"
+            "Dưới đây là TOÀN BỘ output gốc từ tool search (không được bỏ sót bất kỳ phần nào khi biên tập):\n"
+            f"{full_tool_output}\n\n"
+            "Yêu cầu đầu ra:\n"
+            "1) Chỉ biên tập văn phong tiếng Việt có dấu cho tự nhiên, mạch lạc.\n"
+            "2) Không tóm tắt, không lược bỏ chi tiết, không thêm ý mới.\n"
+            "3) Cố gắng giữ cấu trúc thông tin và thứ tự logic từ dữ liệu đầu vào.\n"
+            "4) Trả về câu trả lời hoàn chỉnh cho người dùng từ chính dữ liệu trên."
+        )
+
+        refined = self.llm_client.text_response_openai(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            fallback=draft_answer,
+            model=settings.web_search_refinement_model,
+        )
+        return (refined or draft_answer).strip(), self.llm_client.last_model_used

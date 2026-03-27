@@ -21,14 +21,16 @@ import {
   X,
   AlertCircle,
   Play,
-  Pause
+  Pause,
+  Globe
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { ChatSkeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
 import { TtsMarkdown } from "@/components/ui/tts-markdown";
-import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
+import { WebSearchResult } from "@/components/ui/web-search-result";
+import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio, webSearch } from "@/lib/api";
 import { markdownToPlainText } from "@/lib/tts";
 import type { ChatMessage, SttModel } from "@/types";
 
@@ -83,6 +85,19 @@ const ChatMessageItem = memo(function ChatMessageItem({
           <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
             {message.message}
           </p>
+        ) : message.is_web_search && message.search_results ? (
+          <WebSearchResult
+            answer={message.message}
+            sources={message.search_results.sources}
+            citations={message.search_results.sources.map((s) => ({
+              index: s.index,
+              title: s.title,
+              url: s.uri,
+              source: message.search_results!.search_provider,
+            }))}
+            searchProvider={message.search_results.search_provider}
+            searchQueries={message.search_results.search_queries}
+          />
         ) : (
           <Markdown content={message.message} />
         )}
@@ -127,7 +142,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
           </div>
         )}
 
-        {message.citations?.length > 0 && (
+        {!message.is_web_search && message.citations?.length > 0 && (
           <div className="mt-3 pt-2 border-t border-white/20 space-y-1.5">
             <p className="text-xs font-semibold flex items-center gap-1 opacity-80">
               <FileText className="w-3 h-3" />
@@ -165,6 +180,8 @@ export default function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
+  const [useGoogleSearch, setUseGoogleSearch] = useState(true);
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -365,8 +382,34 @@ export default function ChatbotPage() {
      setLoading(true);
 
      try {
-       const assistantMessage = await sendChatMessage(sessionId, question, currentImages);
-       setMessages((prev) => [...prev, assistantMessage]);
+       if (isWebSearchEnabled) {
+         const result = await webSearch(sessionId, question, useGoogleSearch);
+         if (result) {
+           const searchMessage: ChatMessage = {
+             id: `web-search-${Date.now()}`,
+             role: "assistant",
+             session_id: sessionId,
+             message: result.answer,
+             citations: Array.isArray(result.citations) ? result.citations : [],
+             created_at: new Date().toISOString(),
+             model_used: result.model,
+             fallback_applied: result.search_provider !== "google_search",
+             search_results: {
+               sources: Array.isArray(result.sources) ? result.sources : [],
+               search_provider: result.search_provider,
+               search_queries: result.search_queries,
+             },
+             is_web_search: true,
+           };
+           setMessages((prev) => [...prev, searchMessage]);
+         }
+       } else {
+         const assistantMessage = await sendChatMessage(sessionId, question, currentImages);
+         setMessages((prev) => [...prev, assistantMessage]);
+       }
+     } catch (err: any) {
+       console.error(err);
+       alert(err.message || "Đã xảy ra lỗi trong quá trình tìm kiếm!");
      } finally {
        setLoading(false);
        inputRef.current?.focus();
@@ -663,7 +706,7 @@ export default function ChatbotPage() {
                     )}
 
                   {/* Citations */}
-                  {msg.citations?.length > 0 && (
+                  {!msg.is_web_search && msg.citations?.length > 0 && (
                     <div className="mt-3 pt-2 border-t border-white/20 space-y-1.5">
                       <p className="text-xs font-semibold flex items-center gap-1 opacity-80">
                         <FileText className="w-3 h-3" />
@@ -681,7 +724,7 @@ export default function ChatbotPage() {
                           `}
                         >
                           <span className="font-medium">Chunk {cit.chunk_index + 1}: </span>
-                          <span className="opacity-80">{cit.snippet.slice(0, 120)}...</span>
+                          <span className="opacity-80">{String(cit.snippet ?? "Không có mô tả nguồn").slice(0, 120)}...</span>
                         </div>
                       ))}
                     </div>
@@ -715,8 +758,42 @@ export default function ChatbotPage() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-[var(--border-light)] p-4 bg-[var(--bg-elevated)]">
+        <div className="border-t border-[var(--border-light)] p-4 bg-[var(--bg-elevated)] flex flex-col">
+          <AnimatePresence>
+            {isWebSearchEnabled && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }} 
+                animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-200/60 shadow-sm flex items-start gap-3 text-sm text-blue-800">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Globe className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1 mt-1">
+                    <span className="font-semibold inline-block mr-1">Tìm kiếm Web đang hoạt động:</span> 
+                    AI sẽ tra cứu thông tin mới nhất trên Internet để trả lời câu hỏi của bạn. Hệ thống sẽ <strong className="font-bold underline decoration-blue-300 underline-offset-2">không sử dụng</strong> dữ liệu từ học liệu (RAG).
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="mb-3 flex items-center justify-end gap-3 flex-wrap">
+            {isWebSearchEnabled && (
+              <div className="flex items-center">
+                <label className="text-xs text-[var(--text-tertiary)] mr-2">Tìm kiếm web</label>
+                <select
+                  value={useGoogleSearch ? "google" : "tavily"}
+                  onChange={(e) => setUseGoogleSearch(e.target.value === "google")}
+                  className="text-xs rounded-lg px-2.5 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] focus:outline-none focus:border-brand-400"
+                >
+                  <option value="google">Google Search</option>
+                  <option value="tavily">Tavily Search</option>
+                </select>
+              </div>
+            )}
             <div className="flex items-center">
               <label className="text-xs text-[var(--text-tertiary)] mr-2">Ngôn ngữ TTS</label>
               <select
@@ -824,6 +901,25 @@ export default function ChatbotPage() {
                 }}
               />
             </div>
+            <motion.button
+              type="button"
+              onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+              disabled={loading || isTranscribing || !sessionId}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`
+                w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0
+                transition-all duration-200 shadow-md cursor-pointer border
+                ${isWebSearchEnabled 
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 hover:shadow-blue-500/30" 
+                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-light)] hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50"
+                }
+                disabled:opacity-40 disabled:cursor-not-allowed
+              `}
+              title={isWebSearchEnabled ? "Tắt tìm kiếm trên web" : "Bật tìm kiếm trên web"}
+            >
+              <Globe className="w-5 h-5" />
+            </motion.button>
             <motion.button
               type="button"
               onClick={isRecording ? stopRecording : startRecording}
@@ -1018,7 +1114,9 @@ export default function ChatbotPage() {
             </div>
           )}
            <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
-            Trợ lý AI trả lời dựa trên nội dung học liệu. Nhấn Mic để ghi âm, Enter để gửi, Shift+Enter để xuống dòng.
+            {isWebSearchEnabled 
+              ? "Trợ lý AI đang tìm kiếm Internet trực tiếp. Nhấn Mic để ghi âm, Enter để gửi, Shift+Enter để xuống dòng."
+              : "Trợ lý AI trả lời dựa trên nội dung học liệu. Nhấn Mic để ghi âm, Enter để gửi, Shift+Enter để xuống dòng."}
           </p>
         </div>
       </Card>
@@ -1047,6 +1145,8 @@ export default function ChatbotPage() {
           </div>
         </div>
       )}
+
+
     </motion.div>
   );
 }

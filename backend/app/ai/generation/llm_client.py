@@ -49,6 +49,7 @@ class LLMClient:
             "gemini-2.5-pro",
             "gemini-2.5-flash",
             "gemini-2.5-flash-lite",
+            "gemini-2.5-flash-lite-preview-09-2025"
         ]
         if LLMClient._shared_gemini_clients is None:
             gemini_clients: list[tuple[str, genai.Client]] = []

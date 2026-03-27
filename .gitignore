@@ -13,7 +13,7 @@ backend/storage/extracted/
 !backend/storage/generated/.gitkeep
 !backend/storage/images/.gitkeep
 
-
+backend/backend_debug.log   
 
 # Node
 frontend/node_modules/

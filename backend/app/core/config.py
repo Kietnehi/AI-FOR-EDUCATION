@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""  # Legacy single key (backward compatibility)
     gemini_api_keys: list[str] = []  # Multiple API keys for rotation
     gemini_model: str = "gemini-3-flash-preview"
+    tavily_api_key: str = ""
     mascot_chat_model: str = "openai/gpt-4o-mini"
+    web_search_refinement_model: str = "openai/gpt-4o-mini"
 
     whisper_model: str = "base"
     whisper_language: str | None = None

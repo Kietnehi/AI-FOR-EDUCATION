@@ -27,7 +27,7 @@ const navItems = [
   { href: "/materials", label: "Học liệu", icon: BookOpen },
   { href: "/materials/upload", label: "Tải lên", icon: Upload },
   { href: "/materials/video", label: "Tạo Video AI", icon: Clapperboard },
-  { href: "/chatbot", label: "Chatbot", icon: MessageSquareText },
+  { href: "/chatbot", label: "Chatbot RAG", icon: MessageSquareText },
   { href: "/generated", label: "Nội dung AI", icon: Sparkles },
   { href: "/converter", label: "Chuyển đổi & trích xuất PDF", icon: FileText },
 ];
