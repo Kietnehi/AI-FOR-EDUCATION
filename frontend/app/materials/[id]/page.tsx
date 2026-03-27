@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
   BookOpen,
@@ -622,44 +623,47 @@ export default function MaterialDetailPage() {
         </div>
       )}
 
-      {selectedInfographic && (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/82 px-4 py-8 backdrop-blur-sm"
-          onClick={() => setSelectedInfographic(null)}
-        >
+      {selectedInfographic &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            className="relative w-full max-w-5xl rounded-[28px] border border-white/10 bg-[var(--bg-elevated)] p-4 shadow-[0_30px_80px_rgba(2,6,23,0.45)]"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/82 px-4 py-8 backdrop-blur-sm"
+            onClick={() => setSelectedInfographic(null)}
           >
-            <button
-              type="button"
-              onClick={() => setSelectedInfographic(null)}
-              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-              aria-label="Đóng xem infographic"
+            <div
+              className="relative w-full max-w-5xl rounded-[28px] border border-white/10 bg-[var(--bg-elevated)] p-4 shadow-[0_30px_80px_rgba(2,6,23,0.45)]"
+              onClick={(event) => event.stopPropagation()}
             >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="mb-4 pr-12">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-                Xem infographic
-              </p>
-              <h3 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
-                {selectedInfographic.file_name}
-              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedInfographic(null)}
+                className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                aria-label="Đóng xem infographic"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="mb-4 pr-12">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+                  Xem infographic
+                </p>
+                <h3 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+                  {selectedInfographic.file_name}
+                </h3>
+              </div>
+              <div className="max-h-[78vh] overflow-auto rounded-2xl bg-[var(--bg-secondary)] p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={apiDownloadUrl(selectedInfographic.file_url)}
+                  alt={selectedInfographic.file_name}
+                  loading="lazy"
+                  decoding="async"
+                  className="mx-auto h-auto max-w-full rounded-xl"
+                />
+              </div>
             </div>
-            <div className="max-h-[78vh] overflow-auto rounded-2xl bg-[var(--bg-secondary)] p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={apiDownloadUrl(selectedInfographic.file_url)}
-                alt={selectedInfographic.file_name}
-                loading="lazy"
-                decoding="async"
-                className="mx-auto h-auto max-w-full rounded-xl"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Chat CTA */}
       <Card className="relative overflow-hidden">
