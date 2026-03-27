@@ -41,10 +41,13 @@ services:
       MASCOT_MEMORY_TURNS: ${MASCOT_MEMORY_TURNS:-10}
       MATERIAL_GUARDRAIL_EXCERPT_CHARS: ${MATERIAL_GUARDRAIL_EXCERPT_CHARS:-12000}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
+      - ./backend:/app
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio --reload --reload-dir /app/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
@@ -54,12 +57,20 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api}
-        NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST:-http://localhost:8000}
+      dockerfile: Dockerfile.dev
     container_name: any2-frontend
     restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api}
+      NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST:-http://localhost:8000}
+      NEXT_TELEMETRY_DISABLED: "1"
+      WARMUP_ROUTES_ON_START: "1"
+      WARMUP_BASE_URL: "http://127.0.0.1:3000"
+      WARMUP_BACKEND_URL: "http://backend:8000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next_cache:/app/.next
     ports:
       - "3000:3000"
     depends_on:
@@ -68,3 +79,5 @@ services:
 
 volumes:
   backend_storage:
+  frontend_node_modules:
+  frontend_next_cache:
