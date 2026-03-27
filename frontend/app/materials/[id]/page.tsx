@@ -140,8 +140,7 @@ export default function MaterialDetailPage() {
     setBusyAction(type);
     try {
       let generated;
-      if (type === "slides") generated = await generateSlides(materialId);
-      else if (type === "podcast") generated = await generatePodcast(materialId);
+      if (type === "podcast") generated = await generatePodcast(materialId);
       else {
         // Minigame: navigate to minigame page without contentId
         // User will select game type there

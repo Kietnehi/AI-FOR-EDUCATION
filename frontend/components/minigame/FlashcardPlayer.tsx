@@ -160,9 +160,9 @@ export function FlashcardPlayer({ title, items, onSubmit, loading }: FlashcardPl
             <AnimatePresence mode="wait">
               <motion.div
                 key={isFlipped ? "back" : "front"}
-                initial={{ rotationY: 180, opacity: 0 }}
-                animate={{ rotationY: 0, opacity: 1 }}
-                exit={{ rotationY: -180, opacity: 0 }}
+                initial={{ rotate: 8, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: -8, opacity: 0 }}
                 transition={{ duration: 0.4 }}
                 onClick={() => setIsFlipped(!isFlipped)}
                 className="cursor-pointer"
@@ -215,14 +215,14 @@ export function FlashcardPlayer({ title, items, onSubmit, loading }: FlashcardPl
 
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={handleUnknown}
                 className="text-rose-600 border-rose-300 hover:bg-rose-50"
               >
                 Chưa biết
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={handleKnown}
                 className="text-emerald-600 border-emerald-300 hover:bg-emerald-50"
               >

@@ -1,5 +1,4 @@
 import asyncio
-import re
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -44,24 +43,6 @@ class GenerationService:
 
     def _get_material_text(self, material: dict) -> str:
         return material.get("cleaned_text") or material.get("raw_text") or ""
-
-    @staticmethod
-    def _detect_material_language(text: str) -> str:
-        sample = (text or "")[:4000]
-        if not sample.strip():
-            return "vi"
-
-        vi_chars = len(re.findall(r"[ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]", sample))
-        ascii_letters = len(re.findall(r"[A-Za-z]", sample))
-        vi_common = len(re.findall(r"\b(và|là|của|trong|cho|được|một|những|học|giảng|sinh viên)\b", sample.lower()))
-
-        if vi_chars > 0 or vi_common >= 3:
-            return "vi"
-
-        if ascii_letters > 0:
-            return "en"
-
-        return "vi"
 
     def _resolve_source_file(self, material: dict) -> str | None:
         """Return the local file path of the uploaded source document."""
@@ -294,15 +275,13 @@ class GenerationService:
     async def generate_minigame(self, material_id: str, game_type: str = "quiz_mixed") -> dict:
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
-        source_language = self._detect_material_language(text)
-        valid_game_types = {"quiz_mixed", "flashcard", "scenario_branching"}
+        valid_game_types = {"quiz_mixed", "flashcard", "shooting_quiz"}
         selected_game_type = game_type if game_type in valid_game_types else "quiz_mixed"
         game_payload, version = await asyncio.gather(
             asyncio.to_thread(
                 self.minigame_generator.generate,
                 text,
                 game_type=selected_game_type,
-                source_language=source_language,
             ),
             self._next_version(material_id, "minigame"),
         )
