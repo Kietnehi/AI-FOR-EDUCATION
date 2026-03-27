@@ -1,4 +1,18 @@
 services:
+  mongo:
+    image: mongo:7
+    container_name: any2-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://127.0.0.1:27017/admin", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -6,7 +20,7 @@ services:
     container_name: any2-backend
     restart: unless-stopped
     environment:
-      MONGO_URI: ${MONGO_URI:?Please set Atlas MONGO_URI in .env}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017}
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MONGO_DB_NAME: ${MONGO_DB_NAME:-ai_learning_platform}
@@ -47,6 +61,9 @@ services:
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio --reload --reload-dir /app/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
@@ -81,6 +98,7 @@ services:
         condition: service_healthy
 
 volumes:
+  mongo_data:
   backend_storage:
   frontend_node_modules:
   frontend_next_cache:

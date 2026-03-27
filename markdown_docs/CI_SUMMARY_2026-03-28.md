@@ -10,6 +10,7 @@ Tài liệu này tóm tắt đầy đủ phần thiết lập CI đã được t
 - Thiết lập coverage threshold để chặn regression coverage.
 - Bổ sung backend test stack tối thiểu để CI không phải cài toàn bộ dependency AI nặng.
 - Viết thêm test backend cho các module quan trọng nhằm đưa coverage lên mức có thể kiểm soát.
+- Bổ sung Docker smoke test trong CI để kiểm tra build và khởi động stack bằng `docker compose`.
 - Tự động tạo hoặc cập nhật GitHub Issue khi `push` làm CI thất bại.
 
 ## 2. Các file chính đã thay đổi
@@ -18,6 +19,12 @@ Tài liệu này tóm tắt đầy đủ phần thiết lập CI đã được t
 
 - Xóa workflow cũ: `.github/workflows/frontend-tests.yml`
 - Tạo workflow mới: `.github/workflows/project-ci.yml`
+
+### Docker / Compose
+
+- `docker-compose.yml`
+- `.env.docker.example`
+- `frontend/scripts/warmup-routes.mjs`
 
 ### Backend test/coverage
 
@@ -72,7 +79,7 @@ Workflow dùng quyền:
 
 ## 4. Các job trong `Project CI`
 
-Workflow hiện có 3 job độc lập:
+Workflow hiện có 4 job độc lập:
 
 ### 4.1 Job `frontend`
 
@@ -119,20 +126,45 @@ Chi tiết thêm:
 
 Mục tiêu của job này là chạy bộ test backend nhẹ nhưng đủ để kiểm tra logic cốt lõi, không kéo theo toàn bộ dependency runtime nặng.
 
-### 4.3 Job `report-failure`
+### 4.3 Job `docker-compose-smoke`
+
+Job này dùng để kiểm tra nhanh luồng Docker trong CI.
+
+Các bước:
+
+1. `actions/checkout@v4`
+2. Copy `.env.docker.example` thành `.env`
+3. `docker compose up -d --build`
+4. Chờ backend health ở `http://127.0.0.1:8000/health`
+5. Kiểm tra frontend phản hồi ở `http://127.0.0.1:3000`
+6. Nếu lỗi thì in `docker compose ps` và `docker compose logs`
+7. Luôn `docker compose down -v` để dọn môi trường
+
+Mục tiêu của job này là bắt sớm các lỗi build hoặc startup như:
+
+- Dockerfile build lỗi
+- `docker compose` không khởi động được stack
+- backend không lên được health endpoint
+- frontend không phản hồi sau khi start
+
+Để job này chạy ổn định, `docker-compose.yml` đã được bổ sung service `mongo` nội bộ và backend mặc định dùng `MONGO_URI=mongodb://mongo:27017` nếu không bị override từ môi trường ngoài.
+
+Ngoài ra script `frontend/scripts/warmup-routes.mjs` cũng đã được sửa lỗi cú pháp optional chaining để tránh làm hỏng luồng khởi động frontend trong Docker.
+
+### 4.4 Job `report-failure`
 
 Job này dùng để tự động ghi nhận lỗi CI sau khi `push` thất bại.
 
 Điều kiện chạy:
 
-- Luôn đợi `frontend` và `backend` hoàn tất
+- Luôn đợi `frontend`, `backend` và `docker-compose-smoke` hoàn tất
 - Chỉ chạy khi event là `push`
-- Chỉ chạy nếu một trong hai job `frontend` hoặc `backend` có kết quả `failure`
+- Chỉ chạy nếu một trong các job `frontend`, `backend` hoặc `docker-compose-smoke` có kết quả `failure`
 
 Logic chính:
 
 - Tạo title theo mẫu: `[CI] Project CI failed on <branch>`
-- Thu thập job bị lỗi từ `needs.frontend.result` và `needs.backend.result`
+- Thu thập job bị lỗi từ `needs.frontend.result`, `needs.backend.result` và `needs.docker-compose-smoke.result`
 - Tạo body có các thông tin:
   - branch
   - commit SHA
@@ -319,6 +351,11 @@ Kết quả tổng quát:
 - Frontend lint pass nhưng vẫn còn warning cũ
 - Threshold coverage hiện tại không làm CI fail
 
+Ghi chú:
+
+- Cấu hình Docker CI đã được thêm vào workflow và `docker compose config` đã parse thành công.
+- Chưa thể chạy xác minh Docker local trong môi trường hiện tại vì Docker daemon không khả dụng (`dockerDesktopLinuxEngine` không chạy).
+
 ## 12. Các cảnh báo còn tồn tại nhưng chưa xử lý trong đợt này
 
 Frontend hiện vẫn có một số warning lint cũ, chưa phải lỗi chặn CI:
@@ -364,9 +401,10 @@ Nếu muốn tiến thêm một bước, có thể cân nhắc:
 - đẩy coverage lên dịch vụ ngoài như Codecov hoặc Coveralls
 - thêm badge CI/coverage vào `README.md`
 - thêm step comment kết quả coverage vào PR
+- mở rộng Docker smoke test thành e2e test cho vài route chính
 
 ## 14. Kết luận
 
-Phần CI hiện tại đã chuyển từ mô hình chỉ kiểm tra frontend sang một pipeline kiểm tra toàn dự án. Workflow mới đã bao phủ được lint, test, coverage và cơ chế thông báo lỗi sau `push`. Đồng thời backend đã có test foundation đủ dùng để CI chạy ổn định mà không phải mang toàn bộ runtime dependency nặng vào pipeline.
+Phần CI hiện tại đã chuyển từ mô hình chỉ kiểm tra frontend sang một pipeline kiểm tra toàn dự án. Workflow mới đã bao phủ được lint, test, coverage, Docker smoke test và cơ chế thông báo lỗi sau `push`. Đồng thời backend đã có test foundation đủ dùng để CI chạy ổn định mà không phải mang toàn bộ runtime dependency nặng vào pipeline.
 
 Nói ngắn gọn, phần hạ tầng CI cốt lõi đã được dựng xong và đang hoạt động theo hướng đúng; việc còn lại chủ yếu là tiếp tục tăng coverage ở các module backend/frontend còn yếu và nâng threshold theo từng bước để siết chất lượng dần.
