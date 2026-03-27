@@ -1,150 +1,275 @@
-# Review chức năng tạo Video + Infographic
+# Review kỹ chức năng tạo Video + Infographic (NotebookLM)
 
-Ngày review: 2026-03-26
+Ngày review gốc: 2026-03-26  
+Cập nhật lại đầy đủ: 2026-03-27
 
-Phạm vi:
-- Frontend: `frontend/app/materials/[id]/page.tsx`, `frontend/lib/api.ts`, `frontend/types/index.ts`
-- Backend: `backend/app/api/routes/generated_contents.py`, `backend/app/schemas/generated_content.py`, `backend/app/services/notebooklm_service.py`, `backend/app/services/notebooklm_worker.py`
+## Phạm vi kiểm tra
+
+- Frontend:
+  - `frontend/app/materials/[id]/page.tsx`
+  - `frontend/lib/api.ts`
+  - `frontend/types/index.ts`
+- Backend:
+  - `backend/app/api/routes/generated_contents.py`
+  - `backend/app/schemas/generated_content.py`
+  - `backend/app/services/notebooklm_service.py`
+  - `backend/app/services/notebooklm_worker.py`
+  - `backend/app/api/routes/files.py`
+  - `backend/app/services/file_service.py`
 
 ## Kết luận nhanh
 
-Luồng hiện tại chạy được theo hướng "interactive NotebookLM", nhưng có một số lỗi kiến trúc và hành vi đủ nghiêm trọng để gây mất session, báo thành công giả, trả về danh sách file rỗng mà vẫn coi là thành công, và dễ hỏng khi có nhiều phiên chạy đồng thời.
+Luồng hiện tại đã tốt hơn bản review trước ở điểm quan trọng: backend không còn cleanup session khi tải 0 file trong interactive mode. Tuy nhiên vẫn còn các vấn đề High về độ tin cậy (mất session, báo `generation_complete` quá sớm, fallback path vẫn có thể trả thành công rỗng), cùng với rủi ro concurrency/profile và UX kẹt trạng thái ở frontend.
 
-## Findings
+Đánh giá tổng thể hiện tại: **Chưa production-safe cho multi-user / multi-process**, và **chưa đảm bảo tính đúng đắn end-to-end** cho trạng thái “đã tạo xong”.
 
-### 1. High: Session tạo media chỉ được giữ trong RAM, nên restart server hoặc đổi process là mất luôn khả năng tiếp tục
+---
+
+## So sánh nhanh với review trước (2026-03-26)
+
+### Đã cải thiện
+
+1. Không còn cleanup session khi tải thất bại trong interactive mode:
+   - `backend/app/services/notebooklm_service.py:685`
+   - `backend/app/services/notebooklm_service.py:704`
+   - Logic `download_ready` giúp chỉ đóng browser + pop session khi có file hợp lệ.
+
+2. Có kiểm tra số file trước khi finalize trong interactive/sync mode:
+   - `backend/app/services/notebooklm_service.py:696`
+   - `backend/app/services/notebooklm_service.py:734`
+
+### Vẫn chưa xử lý dứt điểm
+
+1. Session vẫn giữ bằng RAM process-local (`_active_sessions`).
+2. `generation_complete` vẫn chưa phản ánh “render complete” thật.
+3. Fallback nhánh `session not in _active_sessions` vẫn có thể finalize rỗng.
+
+---
+
+## Findings chi tiết
+
+### 1) High - Session state giữ trong RAM process-local, không bền qua restart / scale-out
 
 File tham chiếu:
 - `backend/app/services/notebooklm_service.py:17`
 - `backend/app/services/notebooklm_service.py:157`
-- `backend/app/services/notebooklm_service.py:501`
-- `backend/app/services/notebooklm_service.py:635`
+- `backend/app/services/notebooklm_service.py:505`
+- `backend/app/services/notebooklm_service.py:638`
 
 Chi tiết:
-- Trạng thái phiên đang mở được lưu trong biến global `_active_sessions`.
-- Sau khi upload xong, session chỉ tồn tại trong RAM và phụ thuộc vào process hiện tại.
-- Nếu backend restart, hot reload, deploy mới, hoặc request tiếp theo rơi sang process khác, bước `confirm-artifacts` và `confirm-download` sẽ không còn truy cập được browser/session nữa.
-- Cơ chế fallback hiện chỉ cứu được trường hợp worker mode đã tạo sẵn file temp; còn session đang dừng ở trạng thái `uploaded` sẽ mất hoàn toàn.
+- Session tương tác đang giữ trong biến global `_active_sessions`.
+- Sau bước upload, metadata browser/context/page không persist ra DB/Redis.
+- Khi backend restart, hot reload, hoặc request tiếp theo chạy ở process khác, session mất ngay.
 
 Tác động:
-- Người dùng upload xong nhưng không thể bấm tiếp tạo video/infographic.
-- Đây là lỗi production-level nếu app chạy nhiều worker hoặc có auto-reload.
+- Người dùng bị fail ở bước `confirm-artifacts` hoặc `confirm-download` dù vừa upload thành công.
+- Rủi ro cao trong môi trường có nhiều worker hoặc deploy rolling.
 
 Khuyến nghị:
-- Persist session state ra DB/Redis/file-store.
-- Tách browser-session metadata và artifact-state khỏi RAM process-local.
-- Nếu session bị mất, cần có cơ chế resume hoặc trả lỗi rõ ràng kèm hướng dẫn retry an toàn.
+- Persist metadata session + stage vào Redis/DB (ít nhất: session_id, owner, stage, timestamps, temp paths).
+- Thiết kế expiration/TTL + cleanup job.
+- Nếu session browser thật sự mất, trả lỗi có cấu trúc (`SESSION_LOST`) và hướng dẫn retry an toàn.
 
-### 2. High: Hệ thống đánh dấu `generation_complete` chỉ dựa vào `sleep`, không xác nhận artifact đã render xong thật
+---
+
+### 2) High - API trả `generation_complete` quá sớm, chưa xác nhận artifact đã render xong
 
 File tham chiếu:
-- `backend/app/services/notebooklm_service.py:539`
-- `backend/app/services/notebooklm_service.py:563`
-- `backend/app/services/notebooklm_service.py:573`
-- `backend/app/services/notebooklm_service.py:617`
-- `backend/app/services/notebooklm_service.py:626`
+- `backend/app/services/notebooklm_service.py:543`
+- `backend/app/services/notebooklm_service.py:567`
+- `backend/app/services/notebooklm_service.py:576`
+- `backend/app/services/notebooklm_service.py:620`
+- `backend/app/services/notebooklm_service.py:628`
 
 Chi tiết:
-- Sau khi bấm tạo video và infographic, code chỉ `wait_for_timeout(max(settings.notebooklm_generate_wait_seconds, 30) * 1000)`.
-- Hết thời gian chờ là tự chuyển sang `stage = "generated"` và trả về `status = "generation_complete"`.
-- Không có bước kiểm tra UI/DOM để chắc chắn cả video và infographic thực sự đã xuất hiện hoặc đã sẵn sàng tải xuống.
+- Sau khi click trigger tạo video + infographic, service trả `status="generation_complete"` ngay.
+- Chưa có poll/verify DOM cho trạng thái “ready to download”.
+- Ngoài ra, `_click_scoped_create_button()` trả bool nhưng kết quả không được bắt buộc kiểm tra thành công trong `_activate_artifact_creation()`.
 
 Tác động:
-- Với tài liệu nặng hoặc NotebookLM render chậm, backend sẽ báo "đã tạo xong" trong khi thực tế chưa xong.
-- Người dùng bấm tải xuống sẽ dễ nhận kết quả rỗng hoặc thiếu file.
+- UI hiểu là “đã tạo xong”, trong khi thực tế có thể mới chỉ bấm nút hoặc thậm chí chưa bấm thành công.
+- Người dùng bấm tải sớm sẽ thấy lỗi lặp lại, gây cảm giác hệ thống không ổn định.
 
 Khuyến nghị:
-- Poll UI theo dấu hiệu hoàn tất thực sự.
-- Xác định rõ tiêu chí "render complete" cho từng artifact.
-- Chỉ trả `generation_complete` khi ít nhất artifact mục tiêu đã sẵn sàng tải.
+- Đổi semantic trạng thái:
+  - sau khi click trigger: `artifacts_requested`
+  - sau khi detect download button/item thật: `artifacts_ready`
+- Thêm hàm poll readiness với timeout rõ ràng.
+- Chỉ trả `generation_complete` khi đạt tiêu chí ready đã định nghĩa.
 
-### 3. High: Bước tải file nuốt lỗi và vẫn cleanup session, dẫn đến mất dữ liệu mà UI vẫn báo thành công
+---
+
+### 3) High - Fallback path vẫn có thể trả success rỗng (0 video, 0 infographic)
 
 File tham chiếu:
-- `backend/app/services/notebooklm_service.py:411`
-- `backend/app/services/notebooklm_service.py:450`
-- `backend/app/services/notebooklm_service.py:678`
-- `backend/app/services/notebooklm_service.py:698`
-- `backend/app/services/notebooklm_service.py:730`
-- `frontend/app/materials/[id]/page.tsx:215`
-- `frontend/app/materials/[id]/page.tsx:228`
+- `backend/app/services/notebooklm_service.py:638`
+- `backend/app/services/notebooklm_service.py:641`
+- `backend/app/services/notebooklm_service.py:752`
+- `backend/app/services/notebooklm_service.py:801`
 
 Chi tiết:
-- `_download_artifacts()` chỉ log warning nếu từng item tải thất bại, rồi tiếp tục vòng lặp.
-- Nếu không tìm thấy gì để tải, hàm chỉ `return`, không raise lỗi.
-- `_confirm_download_async()` vẫn đóng browser, xóa session khỏi `_active_sessions`, rồi move temp files sang permanent storage.
-- `_move_temp_files_to_permanent()` trả về `videos=[]` và `infographics=[]` mà không coi đó là lỗi.
-- Frontend sau đó vẫn toast thành công: "Đã bắt đầu tải X tệp...", kể cả khi `X = 0`.
+- Khi `session_id` không còn trong RAM nhưng temp dir tồn tại, code đi thẳng vào `_move_temp_files_to_permanent()`.
+- Nhánh này không có check tối thiểu số file > 0 trước khi trả response.
+- Kết quả có thể là `videos=[]`, `infographics=[]` nhưng vẫn trả 200.
 
 Tác động:
-- Có thể xảy ra "success giả": người dùng thấy thành công nhưng không nhận được file nào.
-- Vì session đã bị cleanup, người dùng không còn cơ hội retry download từ browser session cũ.
+- “Success giả” vẫn có thể xảy ra ở worker/fallback scenario.
+- Frontend nhận kết quả rỗng và vẫn hiện luồng thành công tải file.
 
 Khuyến nghị:
-- Nếu không tải được artifact nào, phải trả lỗi thay vì success.
-- Chỉ cleanup session sau khi xác nhận số file hợp lệ.
-- Trả metadata tối thiểu mong đợi, ví dụ cần ít nhất 1 video hoặc 1 infographic.
+- Trước khi move/finalize ở fallback path, validate `temp_file_count > 0`.
+- Nếu 0 file, trả lỗi 409 với mã rõ ràng (`ARTIFACTS_NOT_READY`).
 
-### 4. Medium: Tất cả session dùng chung một Chrome profile persistent, rất dễ xung đột khi chạy đồng thời
+---
+
+### 4) High - Không có ràng buộc ownership cho session endpoints (rủi ro thao tác chéo session)
 
 File tham chiếu:
-- `backend/app/services/notebooklm_service.py:142`
+- `backend/app/api/routes/generated_contents.py:155`
+- `backend/app/api/routes/generated_contents.py:170`
+- `backend/app/api/routes/generated_contents.py:186`
+
+Chi tiết:
+- Các endpoint `confirm-artifacts`, `confirm`, `cancel` chỉ nhận `session_id` path param.
+- Không có check session thuộc user nào (trong phạm vi code đang review).
+- Nếu session_id lộ ra, có khả năng người khác xác nhận/hủy session không thuộc mình.
+
+Tác động:
+- Rủi ro bảo mật và toàn vẹn dữ liệu phiên chạy.
+
+Khuyến nghị:
+- Lưu `owner_id` trong session state và verify trên mọi bước confirm/cancel.
+- Trả 403 nếu không đúng chủ sở hữu.
+
+---
+
+### 5) Medium - Dùng chung 1 Chrome persistent profile cho mọi session, dễ xung đột khi chạy đồng thời
+
+File tham chiếu:
 - `backend/app/services/notebooklm_service.py:143`
-- `backend/app/services/notebooklm_service.py:197`
 - `backend/app/services/notebooklm_service.py:198`
+- `backend/app/services/notebooklm_worker.py:238`
 
 Chi tiết:
-- Mọi session đều gọi `launch_persistent_context()` với cùng `settings.notebooklm_user_data_dir`.
-- Chrome persistent profile không phù hợp cho nhiều session song song.
-- Khi hai người cùng chạy hoặc một người bấm tạo nhiều phiên liên tiếp, profile lock hoặc trạng thái UI dùng chung có thể làm hỏng toàn bộ flow.
+- Tất cả luồng launch persistent context đều dùng chung `settings.notebooklm_user_data_dir`.
+- Concurrent sessions dễ lock profile hoặc giẫm trạng thái UI/cookie.
 
 Tác động:
-- Session sau có thể không mở được.
-- Session trước và sau có thể giẫm trạng thái lên nhau.
+- Session mới có thể không khởi động được hoặc ảnh hưởng session đang chạy.
 
 Khuyến nghị:
-- Khóa toàn cục nếu đây là luồng single-user.
-- Hoặc cấp user-data-dir riêng cho từng session.
-- Hoặc tách worker/service theo queue single-flight rõ ràng.
+- Nếu single-operator: enforce global mutex/queue.
+- Nếu multi-user: cấp profile dir riêng theo session/user.
 
-### 5. Medium: Frontend auto-trigger tải file theo kiểu mở link hàng loạt, dễ bị browser chặn nhưng vẫn báo đã tải thành công
+---
+
+### 6) Medium - Frontend có trạng thái “kẹt” khi confirm upload thất bại
 
 File tham chiếu:
-- `frontend/app/materials/[id]/page.tsx:215`
-- `frontend/app/materials/[id]/page.tsx:228`
+- `frontend/app/materials/[id]/page.tsx:200`
+- `frontend/app/materials/[id]/page.tsx:203`
+- `frontend/app/materials/[id]/page.tsx:227`
+- `frontend/app/materials/[id]/page.tsx:293`
 
 Chi tiết:
-- Frontend tạo thẻ `a`, click thủ công từng file, đặt `target="_blank"` và lặp cho toàn bộ danh sách.
-- Browser có thể chặn popup/multi-download, đặc biệt khi nhiều file được click liên tiếp.
-- UI không kiểm tra file nào tải thành công, chỉ dựa vào số lượng phần tử trong response backend.
+- Khi người dùng bấm confirm upload (`confirm=true`), UI set sẵn `notebookArtifactPending` với `session_id=""`.
+- Nếu API lỗi ở bước upload, khối `catch` chỉ hiển thị toast, không reset state placeholder.
+- Nút Hủy sau đó gọi `handleCancelPreview()` nhưng `session_id` rỗng nên không làm gì.
 
 Tác động:
-- Người dùng có thể không nhận được đủ file dù UI báo đã bắt đầu tải.
+- UI có thể bị kẹt ở trạng thái “đang chờ upload hoàn tất...” cho đến khi reload trang.
 
 Khuyến nghị:
-- Nếu cần tải nhiều file, nên zip ở backend rồi trả một file duy nhất.
-- Hoặc hiển thị danh sách file để người dùng tải chủ động từng file.
+- Trong `catch` của `handleGenerateNotebookMedia`, reset `notebookArtifactPending` khi `session_id` rỗng.
+- Hoặc tách state “uploading” riêng, không reuse state `awaiting_artifact_confirmation`.
 
-## Open Questions
+---
 
-1. Hệ thống này có được thiết kế chỉ cho một người vận hành nội bộ hay sẽ phục vụ nhiều người dùng đồng thời?
-2. Ở bước "render complete", tiêu chí sản phẩm mong muốn là đủ cả video và infographic, hay chỉ cần có ít nhất một artifact?
-3. Có chấp nhận mô hình tải file trực tiếp nhiều lần từ frontend, hay nên chuyển sang tải một gói zip?
+### 7) Medium - Frontend auto-trigger nhiều download liên tiếp, không xác nhận tải thực tế
 
-## Testing Gaps
+File tham chiếu:
+- `frontend/app/materials/[id]/page.tsx:256`
+- `frontend/app/materials/[id]/page.tsx:279`
 
-- Không thấy test tự động cho luồng NotebookLM ở frontend hoặc backend.
-- Chưa có test cho các case:
-  - mất session sau khi upload xong
-  - render quá thời gian chờ nhưng chưa hoàn tất
-  - download trả về 0 file
-  - chạy đồng thời 2 session
-  - browser chặn multiple downloads
+Chi tiết:
+- Sau confirm download, UI tự loop click nhiều thẻ `a` để tải file.
+- Trình duyệt có thể chặn multi-download tùy policy.
+- UI không có telemetry/ack để biết file nào tải thành công.
 
-## Ưu tiên sửa
+Tác động:
+- Người dùng tưởng đã nhận đủ file nhưng thực tế thiếu file.
 
-1. Chặn success giả ở bước download: nếu không có file thì phải fail.
-2. Thay cơ chế `sleep -> generated` bằng kiểm tra artifact ready thật.
-3. Persist session state thay vì chỉ giữ trong RAM.
-4. Xử lý rõ mô hình concurrency của Chrome profile.
-5. Đơn giản hóa bước tải file, ưu tiên backend zip hoặc explicit download list.
+Khuyến nghị:
+- Ưu tiên backend zip 1 file.
+- Nếu chưa zip, hiển thị danh sách và để user chủ động tải từng file.
+
+---
+
+### 8) Medium - Inconsistency đường dẫn temp giữa service NotebookLM và file preview route
+
+File tham chiếu:
+- `backend/app/services/notebooklm_service.py:24`
+- `backend/app/services/file_service.py:69`
+- `backend/app/api/routes/files.py:19`
+
+Chi tiết:
+- Service NotebookLM dùng temp dir: `./storage/notebooklm/temp`.
+- `FileService.resolve_temp_file_path()` lại đọc từ `generated_dir/notebooklm/temp` (mặc định `./storage/generated/notebooklm/temp`).
+
+Tác động:
+- Endpoint preview temp file có thể không đọc đúng file thực tế của NotebookLM flow.
+
+Khuyến nghị:
+- Đồng nhất 1 nguồn cấu hình temp dir cho toàn bộ code path.
+
+---
+
+### 9) Low - Một số semantics/status chưa nhất quán giữa schema và runtime
+
+File tham chiếu:
+- `backend/app/schemas/generated_content.py:43`
+- `backend/app/schemas/generated_content.py:63`
+- `frontend/types/index.ts:69`
+
+Chi tiết:
+- `ConfirmNotebookLMDownloadResponse` có `status="saved"`, nhưng frontend type `NotebookLMSavedResult` không khai báo trường `status`.
+- `generation_complete` đang được dùng cho cả “đã click tạo” và “đã sẵn sàng tải”.
+
+Tác động:
+- Dễ gây hiểu sai trạng thái ở client và khó mở rộng xử lý lỗi.
+
+Khuyến nghị:
+- Chuẩn hóa state machine API: `awaiting_confirmation` -> `awaiting_artifact_confirmation` -> `artifacts_requested` -> `artifacts_ready` -> `saved`.
+- Đồng bộ schema/backend/frontend type.
+
+---
+
+## Testing gaps
+
+Hiện chưa thấy test tự động cho flow NotebookLM. Thiếu tối thiểu các case sau:
+
+1. Mất session sau upload (restart process / session missing).
+2. `confirm-artifacts` trả trạng thái đúng khi click trigger thất bại.
+3. `confirm-download` fallback path trả lỗi khi 0 file.
+4. Concurrent sessions dùng chung profile.
+5. Frontend không bị kẹt state khi upload fail.
+6. Multi-download bị browser chặn.
+
+---
+
+## Ưu tiên sửa (đề xuất theo thứ tự)
+
+1. Chặn hoàn toàn success rỗng ở mọi nhánh (`interactive` + `fallback`).
+2. Sửa state machine: không trả `generation_complete` khi chưa verify artifact ready.
+3. Persist session state + ownership check cho các endpoint confirm/cancel.
+4. Chốt mô hình concurrency cho Chrome profile (mutex hoặc profile per session).
+5. Sửa UX frontend phần trạng thái upload lỗi và chiến lược download nhiều file.
+
+---
+
+## Open questions cần chốt với product/ops
+
+1. Hệ thống vận hành single-operator hay multi-user thực sự?
+2. “Hoàn tất” yêu cầu đủ cả video + infographic, hay chỉ cần một trong hai?
+3. Chấp nhận UX tải nhiều file trực tiếp hay bắt buộc zip một file?
+4. Có yêu cầu bảo mật theo user cho session_id hay đang chạy trusted internal only?
