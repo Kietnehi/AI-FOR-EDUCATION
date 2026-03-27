@@ -1,27 +1,45 @@
-
-> ai-learning-platform-frontend@0.1.0 build
-> next build
-
-  ▲ Next.js 14.2.25
+﻿  Γû▓ Next.js 14.2.25
   - Environments: .env
 
    Creating an optimized production build ...
- ✓ Compiled successfully
+ Γ£ô Compiled successfully
    Linting and checking validity of types ...
-
-Failed to compile.
 
 ./app/materials/[id]/chat/page.tsx
 435:26  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 772:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-./components/3d/floating-mascot-head.tsx
-Error: Parsing error: '}' expected.
-
-./components/3d/floating-mascot-tail.tsx
-Error: Parsing error: Declaration or statement expected.
-
 ./components/3d/floating-mascot.tsx
-896:14  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+886:14  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
 info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/8) ...
+   Generating static pages (2/8) 
+   Generating static pages (4/8) 
+   Generating static pages (6/8) 
+ Γ£ô Generating static pages (8/8)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+Γöî Γùï /                                    8.87 kB         151 kB
+Γö£ Γùï /_not-found                          880 B            95 kB
+Γö£ Γùï /chatbot                             3.63 kB         146 kB
+Γö£ Γùï /generated                           2.14 kB         144 kB
+Γö£ Γùï /materials                           5.27 kB         147 kB
+Γö£ ╞Æ /materials/[id]                      6.26 kB         151 kB
+Γö£ ╞Æ /materials/[id]/chat                 68 kB           210 kB
+Γö£ ╞Æ /materials/[id]/minigame             7.82 kB         150 kB
+Γö£ ╞Æ /materials/[id]/podcast              11.1 kB         153 kB
+Γö£ ╞Æ /materials/[id]/slides               5.19 kB         150 kB
+Γöö Γùï /materials/upload                    5.37 kB         143 kB
++ First Load JS shared by all            94.1 kB
+  Γö£ chunks/2117-6c89f2636eae4f62.js      31.8 kB
+  Γö£ chunks/fd9d1056-aae3c195ffa3f415.js  53.6 kB
+  Γöö other shared chunks (total)          8.74 kB
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

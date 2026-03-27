@@ -4,6 +4,10 @@ import { memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+<<<<<<< HEAD
+=======
+import { AnimatePresence, motion } from "framer-motion";
+>>>>>>> fec0d0c055c6ab470afb495c63d7c53e86cd6986
 import {
   LayoutDashboard,
   BookOpen,
@@ -46,9 +50,18 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
       "
     >
       {/* Brand */}
+<<<<<<< HEAD
       <Link href="/" className="flex items-center gap-3 px-6 h-20 border-b border-[var(--border-light)] no-underline hover:opacity-90 transition-opacity overflow-hidden shrink-0">
         <div className="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center flex-shrink-0 shadow-[0_4px_10px_rgba(99,102,241,0.3)]">
           <Sparkles className="w-5 h-5 text-white" />
+=======
+      <Link 
+        href="/" 
+        className={`flex items-center h-[72px] border-b border-[var(--border-light)] no-underline group transition-all duration-300 ${collapsed ? "justify-center px-0" : "gap-3.5 px-5"}`}
+      >
+        <div className="relative w-14 h-14 flex-shrink-0 rounded-2xl overflow-hidden shadow-sm border border-[var(--border-light)] group-hover:shadow-md group-hover:ring-2 group-hover:ring-brand-500/20 group-hover:border-brand-400/50 transition-all duration-300">
+          <Image src="/logo.png" alt="AI Learning Studio Logo" width={56} height={56} className="w-full h-full object-cover scale-105 bg-[var(--bg-elevated)]" priority />
+>>>>>>> fec0d0c055c6ab470afb495c63d7c53e86cd6986
         </div>
         <span
           className="font-bold text-xl text-[var(--text-primary)] whitespace-nowrap transition-opacity duration-200 uppercase tracking-wide"
