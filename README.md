@@ -265,48 +265,85 @@ AI-FOR-EDUCATION/
 
 ---
 
-## Chay Toan Bo Bang Docker Compose
+---
 
-Du an da duoc bo sung day du Docker cho `frontend` + `backend` + `mongo`.
+## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose
 
-### Cac file lien quan
-- `docker-compose.yml`
-- `backend/Dockerfile`
-- `frontend/Dockerfile`
-- `.env.docker.example`
+Dự án đã được cấu hình đầy đủ Docker cho các service:
 
-### Cach chay nhanh
+* `frontend`
+* `backend`
+* `mongo`
 
-1. Tao file env:
+---
+
+## 📁 Các file liên quan
+
+* `docker-compose.yml`
+* `backend/Dockerfile`
+* `frontend/Dockerfile`
+* `.env.docker.example`
+
+---
+
+## ⚙️ Hướng dẫn chạy nhanh
+
+### 1. Tạo file môi trường
 
 ```bash
 cp .env.docker.example .env
 ```
 
-2. Dien cac API key can thiet trong `.env` (OpenAI, Gemini, Groq... tuy nhu cau).
+---
 
-3. Build va chay toan bo he thong:
+### 2. Cấu hình biến môi trường
+
+Mở file `.env` và điền các API key cần thiết, ví dụ:
+
+* OpenAI
+* Gemini
+* Groq
+  *(tùy theo nhu cầu sử dụng của bạn)*
+
+---
+
+### 3. Build và chạy toàn bộ hệ thống
 
 ```bash
 docker compose up -d --build
 ```
 
-4. Truy cap:
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8000`
-- Swagger: `http://localhost:8000/docs`
+---
 
-5. Dung he thong:
+### 4. Truy cập hệ thống
+
+* 🌐 Frontend: [http://localhost:3000](http://localhost:3000)
+* 🔧 Backend API: [http://localhost:8000](http://localhost:8000)
+* 📄 Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+### 5. Dừng hệ thống
 
 ```bash
 docker compose down
 ```
 
-Neu muon xoa ca du lieu MongoDB + storage volume:
+---
+
+### 🧹 Xóa toàn bộ dữ liệu (bao gồm MongoDB + volume)
 
 ```bash
 docker compose down -v
 ```
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* Viết thêm phần **troubleshooting (lỗi hay gặp Docker)**
+* Hoặc tối ưu luôn file `docker-compose.yml` cho production 🚀
+
 
 ---
 
