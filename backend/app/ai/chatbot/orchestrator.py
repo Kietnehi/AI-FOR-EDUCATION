@@ -1,11 +1,15 @@
 from app.ai.generation.llm_client import LLMClient
 from app.ai.retrieval.retriever import Retriever
+from app.core.config import settings
+from app.core.logging import logger
+from app.services.web_search_service import WebSearchOrchestrator
 
 
 class ChatbotOrchestrator:
     def __init__(self) -> None:
         self.retriever = Retriever()
         self.llm = LLMClient()
+        self.web_search_orchestrator = WebSearchOrchestrator()
 
     def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None) -> dict:
         contexts = self.retriever.retrieve(material_id=material_id, query=question)
@@ -51,3 +55,33 @@ class ChatbotOrchestrator:
             for item in contexts
         ]
         return {"answer": answer, "citations": citations}
+
+    def web_search(self, query: str, use_google: bool = True) -> dict:
+        """
+        Tìm kiếm web sử dụng Tìm kiếm Google hoặc Tavily với sinh tạo câu trả lời
+
+        Args:
+            query: Câu hỏi tìm kiếm
+            use_google: Thử Tìm kiếm Google trước nếu True
+
+        Returns:
+            dict với kết quả tìm kiếm và câu trả lời
+        """
+        try:
+            logger.info(f"Bắt đầu tìm kiếm web cho câu hỏi: {query}")
+            
+            # Xác định nhà cung cấp dựa trên LLM hiện tại và tính khả dụng
+            llm_provider = settings.llm_provider
+            
+            result = self.web_search_orchestrator.search_with_answer(
+                query=query,
+                use_google=use_google,
+                llm_provider=llm_provider,
+            )
+            
+            logger.info(f"Tìm kiếm web thành công sử dụng {result.get('search_provider')}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Tìm kiếm web thất bại: {e}")
+            raise

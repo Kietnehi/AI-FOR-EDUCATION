@@ -29,9 +29,14 @@ async def lifespan(_: FastAPI):
     await connect_mongo()
     await ensure_indexes()
     logger.info("Application startup complete")
-    yield
-    await close_mongo()
-    logger.info("Application shutdown complete")
+    try:
+        yield
+    except asyncio.CancelledError:
+        # Uvicorn may cancel lifespan tasks during Ctrl+C/reload on Windows.
+        logger.info("Application lifespan cancelled during shutdown")
+    finally:
+        await close_mongo()
+        logger.info("Application shutdown complete")
 
 
 app = FastAPI(
