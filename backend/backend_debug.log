@@ -11316,3 +11316,125 @@ openai.BadRequestError: Error code: 400 - {'error': {'message': "This endpoint's
 2026-03-27 16:19:36,450 | INFO | ai-learning-platform | Attempting OpenAI generation
 2026-03-27 16:19:38,810 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
 2026-03-27 16:19:42,459 | INFO | ai-learning-platform | OpenAI generation successful
+2026-03-27 16:19:55,655 | INFO | ai-learning-platform | OpenAI generation successful
+2026-03-27 16:24:40,013 | INFO | ai-learning-platform | Application shutdown complete
+2026-03-27 16:24:59,519 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 16:25:01,100 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 16:25:01,100 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 16:25:03,221 | INFO | ai-learning-platform | Application shutdown complete
+2026-03-27 16:25:22,699 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 16:25:24,674 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 16:25:24,674 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 16:26:37,115 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/embeddings "HTTP/1.1 200 OK"
+2026-03-27 16:26:37,170 | INFO | ai-learning-platform | Starting Gemini fast pass
+2026-03-27 16:26:37,171 | INFO | ai-learning-platform | Trying Gemini model gemini-3-flash-preview (1/6)
+2026-03-27 16:26:37,171 | INFO | ai-learning-platform | Calling Gemini model gemini-3-flash-preview with key 1/6
+2026-03-27 16:26:41,750 | INFO | ai-learning-platform | Bắt đầu tìm kiếm web cho câu hỏi: Who won the Euro 2024 final and what was the score?
+2026-03-27 16:26:41,750 | INFO | ai-learning-platform | Sử dụng tìm kiếm Tavily cho câu hỏi: Who won the Euro 2024 final and what was the score?
+2026-03-27 16:26:43,375 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+2026-03-27 16:26:43,381 | INFO | ai-learning-platform | Gemini generation successful with model gemini-3-flash-preview after 6210ms
+2026-03-27 16:26:44,248 | INFO | ai-learning-platform | Tìm kiếm web thành công sử dụng tavily
+2026-03-27 16:26:44,261 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:26:44,949 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-03-27 16:26:44,951 | ERROR | ai-learning-platform | OpenAI API call failed
+Traceback (most recent call last):
+  File "C:\Users\ADMIN\Desktop\AI-FOR-EDUCATION\backend\app\ai\generation\llm_client.py", line 631, in _generate_openai
+    response = self.openai_client.chat.completions.create(**request_payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\_utils\_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1192, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\_base_client.py", line 1259, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\_base_client.py", line 1047, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "This endpoint's maximum context length is 128000 tokens. However, you requested about 178849 tokens (178849 of text input). Please reduce the length of either one, or use the context-compression plugin to compress your prompt automatically.", 'code': 400, 'metadata': {'provider_name': None}}}
+2026-03-27 16:26:45,008 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:26:45,848 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-27 16:26:46,787 | INFO | ai-learning-platform | OpenAI generation successful
+2026-03-27 16:26:50,622 | INFO | ai-learning-platform | Bắt đầu tìm kiếm web cho câu hỏi: Who won the Euro 2024 final and what was the score?
+
+
+
+2026-03-27 16:26:50,623 | INFO | ai-learning-platform | Sử dụng Tìm kiếm Google cho câu hỏi: Who won the Euro 2024 final and what was the score?
+
+
+
+2026-03-27 16:26:50,626 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-03-27 16:26:55,187 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2026-03-27 16:26:55,188 | INFO | ai-learning-platform | Tìm kiếm web thành công sử dụng google_search
+2026-03-27 16:26:55,189 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:26:56,024 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-27 16:27:23,763 | INFO | ai-learning-platform | OpenAI generation successful
+2026-03-27 16:29:33,718 | INFO | ai-learning-platform | Application shutdown complete
+2026-03-27 16:29:53,322 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 16:29:54,973 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 16:29:54,973 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 16:29:54,974 | INFO | ai-learning-platform | Application lifespan cancelled during shutdown
+2026-03-27 16:29:55,021 | INFO | ai-learning-platform | Application shutdown complete
+2026-03-27 16:30:12,674 | INFO | ai-learning-platform | Connected MongoDB: ai_learning_platform
+2026-03-27 16:30:14,552 | INFO | ai-learning-platform | MongoDB indexes ensured
+2026-03-27 16:30:14,553 | INFO | ai-learning-platform | Application startup complete
+2026-03-27 16:30:38,598 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/embeddings "HTTP/1.1 200 OK"
+2026-03-27 16:30:38,669 | INFO | ai-learning-platform | Starting Gemini fast pass
+2026-03-27 16:30:38,669 | INFO | ai-learning-platform | Trying Gemini model gemini-3-flash-preview (1/6)
+2026-03-27 16:30:38,669 | INFO | ai-learning-platform | Calling Gemini model gemini-3-flash-preview with key 1/6
+2026-03-27 16:30:43,781 | INFO | ai-learning-platform | Bắt đầu tìm kiếm web cho câu hỏi: Who won the Euro 2024 final and what was the score?
+2026-03-27 16:30:43,781 | INFO | ai-learning-platform | Sử dụng tìm kiếm Tavily cho câu hỏi: Who won the Euro 2024 final and what was the score?
+2026-03-27 16:30:45,790 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+2026-03-27 16:30:45,792 | INFO | ai-learning-platform | Gemini generation successful with model gemini-3-flash-preview after 7122ms
+2026-03-27 16:30:46,288 | INFO | ai-learning-platform | Tìm kiếm web thành công sử dụng tavily
+2026-03-27 16:30:46,297 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:30:47,018 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-03-27 16:30:47,019 | ERROR | ai-learning-platform | OpenAI API call failed
+Traceback (most recent call last):
+  File "C:\Users\ADMIN\Desktop\AI-FOR-EDUCATION\backend\app\ai\generation\llm_client.py", line 631, in _generate_openai
+    response = self.openai_client.chat.completions.create(**request_payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\_utils\_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1192, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\_base_client.py", line 1259, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python311\Lib\site-packages\openai\_base_client.py", line 1047, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "This endpoint's maximum context length is 128000 tokens. However, you requested about 178858 tokens (178858 of text input). Please reduce the length of either one, or use the context-compression plugin to compress your prompt automatically.", 'code': 400, 'metadata': {'provider_name': None}}}
+2026-03-27 16:30:47,118 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:30:47,647 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-27 16:30:48,567 | INFO | ai-learning-platform | OpenAI generation successful
+2026-03-27 16:30:51,371 | INFO | ai-learning-platform | Bắt đầu tìm kiếm web cho câu hỏi: Who won the Euro 2024 final and what was the score?
+
+
+
+2026-03-27 16:30:51,371 | INFO | ai-learning-platform | Sử dụng Tìm kiếm Google cho câu hỏi: Who won the Euro 2024 final and what was the score?
+
+
+
+2026-03-27 16:30:51,379 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-03-27 16:30:54,851 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2026-03-27 16:30:54,855 | INFO | ai-learning-platform | Tìm kiếm web thành công sử dụng google_search
+2026-03-27 16:30:54,856 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:30:55,757 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-27 16:31:35,395 | INFO | ai-learning-platform | Bắt đầu tìm kiếm web cho câu hỏi: giá vàng hôm nay
+2026-03-27 16:31:35,395 | INFO | ai-learning-platform | Sử dụng tìm kiếm Tavily cho câu hỏi: giá vàng hôm nay
+2026-03-27 16:31:42,397 | INFO | ai-learning-platform | Tìm kiếm web thành công sử dụng tavily
+2026-03-27 16:31:42,399 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:31:52,850 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-27 16:32:37,818 | INFO | ai-learning-platform | OpenAI generation successful
+2026-03-27 16:33:42,363 | INFO | ai-learning-platform | Bắt đầu tìm kiếm web cho câu hỏi: giá vàng hôm nay
+2026-03-27 16:33:42,363 | INFO | ai-learning-platform | Sử dụng Tìm kiếm Google cho câu hỏi: giá vàng hôm nay
+2026-03-27 16:33:42,364 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-03-27 16:33:51,033 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2026-03-27 16:33:51,039 | INFO | ai-learning-platform | Tìm kiếm web thành công sử dụng google_search
+2026-03-27 16:33:51,042 | INFO | ai-learning-platform | Attempting OpenAI generation
+2026-03-27 16:33:59,445 | INFO | httpx | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-27 16:34:54,219 | INFO | ai-learning-platform | Application lifespan cancelled during shutdown
+2026-03-27 16:34:54,273 | INFO | ai-learning-platform | Application shutdown complete
