@@ -129,7 +129,7 @@ export default function MaterialDetailPage() {
     }
   }
 
-  async function handleGenerate(type: "slides" | "podcast" | "minigame") {
+    async function handleGenerate(type: "slides" | "podcast" | "minigame") {
     // For slides, show dialog first
     if (type === "slides") {
       setShowSlideDialog(true);
@@ -139,25 +139,21 @@ export default function MaterialDetailPage() {
     // For other types, generate directly
     setBusyAction(type);
     try {
-      let generated;
-      if (type === "slides") generated = await generateSlides(materialId);
-      else if (type === "podcast") generated = await generatePodcast(materialId);
-      else {
-        // Minigame: navigate to minigame page without contentId
-        // User will select game type there
-        router.push(`/materials/${materialId}/minigame`);
-        setBusyAction("");
+      if (type === "podcast") {
+        const generated = await generatePodcast(materialId);
+        router.push(`/materials/${materialId}/podcast?contentId=${generated.id}`);
         return;
       }
 
-      router.push(`/materials/${materialId}/${type}?contentId=${generated.id}`);
+      // Minigame: navigate to minigame page without contentId.
+      // User will select game type there.
+      router.push(`/materials/${materialId}/minigame`);
     } catch (error) {
       setToast({ message: String(error), type: "error" });
     } finally {
       setBusyAction("");
     }
   }
-
   async function handleGenerateSlides(maxSlides: number, skipRefine: boolean) {
     setBusyAction("slides");
     setSlideProgress(0);
@@ -731,3 +727,4 @@ export default function MaterialDetailPage() {
     </motion.div>
   );
 }
+
