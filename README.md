@@ -72,7 +72,7 @@ Dự án được chia thành 2 luồng xử lý chính:
 - 🌙 **Dark mode** hoàn chỉnh
 - 📱 **Responsive** trên mọi kích thước màn hình
 
-> **Lưu ý:** MongoDB sử dụng MongoDB Atlas qua `MONGO_URI`.
+> **Lưu ý:** MongoDB sử dụng MongoDB Atlas qua `MONGO_URI`
 
 ---
 
