@@ -501,14 +501,17 @@ npm run dev
 
 ## 6. CI / CD
 
-Hiện tại dự án có **CI** cho toàn bộ repo và **chưa có CD**.
+Hiện tại dự án có **CI** đầy đủ và **CD placeholder** để chuẩn bị trước cho giai đoạn chưa có server thật.
 
 - Workflow: `.github/workflows/project-ci.yml`
+- CD placeholder: `.github/workflows/project-cd.yml`
 - Trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/` hoặc file workflow
+- CD trigger: `push` vào `main` hoặc chạy tay bằng `workflow_dispatch`
 - Frontend: chạy `lint` + `test` + `coverage`
 - Backend: chạy `pytest` + `coverage`
 - Docker: chạy smoke test `docker compose`
 - Khi `push` fail, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
+- CD hiện mới build, đóng gói artifact và tạo `deploy-placeholder`, chưa deploy lên server thật
 
 ### 6.1 Cách chạy CI local
 
