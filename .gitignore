@@ -1,9 +1,34 @@
-# Python
-backend/__pycache__/
+# General
+# Ignore Python bytecode caches, virtual envs, editor and OS files
+__pycache__/
 **/__pycache__/
 *.py[cod]
-backend/.pytest_cache/
-backend/.ruff_cache/
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+frontend/build.log
+
+# Storage directories (repo-specific)
 backend/storage/chroma/
 backend/storage/uploads/*
 backend/storage/generated/*
@@ -13,24 +38,20 @@ backend/storage/extracted/
 !backend/storage/generated/.gitkeep
 !backend/storage/images/.gitkeep
 
-
-
-# Node
-frontend/node_modules/
-frontend/.next/
-frontend/tsconfig.tsbuildinfo
-frontend/build.log
-
-# Env
+# Environment files
 *.env
 frontend/.env.local
 backend/.env
+
+# IDEs / editors
+.vscode/
+.idea/
 
 # OS
 .DS_Store
 Thumbs.db
 *.mp4
 
-# Github
+# GitHub
 .github/copilot-instructions.md
      
