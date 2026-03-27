@@ -7,19 +7,21 @@ import { useState, memo } from "react";
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
+  sidebarWidth: number;
+  isResizing?: boolean;
   mascotEnabled: boolean;
   onToggleMascot: () => void;
 }
 
-export const Topbar = memo(function Topbar({ sidebarCollapsed, mascotEnabled, onToggleMascot }: TopbarProps) {
+export const Topbar = memo(function Topbar({ sidebarCollapsed, sidebarWidth, isResizing, mascotEnabled, onToggleMascot }: TopbarProps) {
   const { theme, toggle } = useTheme();
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
     <header
       style={{ 
-        paddingLeft: sidebarCollapsed ? 80 : 280,
-        transition: "padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+        paddingLeft: sidebarCollapsed ? 80 : sidebarWidth,
+        transition: isResizing ? "none" : "padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
       }}
       className="
         fixed top-0 right-0 left-0 z-30 h-16

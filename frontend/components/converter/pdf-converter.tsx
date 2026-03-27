@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Tabs } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Upload, Link as LinkIcon, FileText, Loader2, Link2,
-  FileImage, Download, TableProperties, ChevronDown, ChevronUp, Eye, Code
+  FileImage, Download, TableProperties, ChevronDown, ChevronUp, Eye, Code, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -103,6 +104,20 @@ function TableViewer({ extractId, filename, index }: { extractId: string; filena
 // ── image viewer (inline, no new tab) ───────────────────────────────
 function ImageViewer({ src, alt }: { src: string; alt: string }) {
   const [enlarged, setEnlarged] = useState(false);
+
+  useEffect(() => {
+    if (!enlarged) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setEnlarged(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [enlarged]);
+
   return (
     <>
       <div
@@ -113,20 +128,37 @@ function ImageViewer({ src, alt }: { src: string; alt: string }) {
         <img src={src} alt={alt} className="w-full h-[130px] object-contain" />
         <p className="text-center text-[10px] text-[var(--text-tertiary)] py-1">{alt}</p>
       </div>
-      <AnimatePresence>
-        {enlarged && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setEnlarged(false)}
-            className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center cursor-zoom-out p-4"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={alt} className="max-w-full max-h-full rounded-xl shadow-2xl" />
-          </motion.div>
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {enlarged && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setEnlarged(false)}
+                className="fixed inset-0 z-[120] bg-black/75 flex items-center justify-center p-4"
+              >
+                <button
+                  type="button"
+                  onClick={() => setEnlarged(false)}
+                  aria-label="Đóng ảnh phóng to"
+                  className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-black/40 text-white hover:bg-black/60"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={alt}
+                  className="max-w-full max-h-full rounded-xl shadow-2xl"
+                  onClick={(event) => event.stopPropagation()}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body,
         )}
-      </AnimatePresence>
     </>
   );
 }

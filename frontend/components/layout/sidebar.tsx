@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -18,51 +18,106 @@ import {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  width: number;
+  setWidth: (width: number) => void;
+  isResizing: boolean;
+  setIsResizing: (isResizing: boolean) => void;
 }
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/materials", label: "Học liệu", icon: BookOpen },
   { href: "/materials/upload", label: "Tải lên", icon: Upload },
-  { href: "/materials/video", label: "Tạo Video AI", icon: Clapperboard },
+  { href: "/materials/video", label: "Tạo Video AI", icon: Clapperboard },      
   { href: "/chatbot", label: "Chatbot RAG", icon: MessageSquareText },
   { href: "/generated", label: "Nội dung AI", icon: Sparkles },
-  { href: "/converter", label: "Chuyển đổi & trích xuất PDF", icon: FileText },
+  { href: "/converter", label: "Chuyển đổi & trích xuất", icon: FileText }, 
 ];
 
-export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWidth, isResizing, setIsResizing }: SidebarProps) {
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isResizing) {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      return;
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (e: MouseEvent) => {
+      let newWidth = e.clientX;
+      if (newWidth < 200) newWidth = 200; // Minimum expanded width
+      if (newWidth > 600) newWidth = 600; // Maximum expanded width
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, setWidth, setIsResizing]);
 
   return (
     <aside
       style={{
-        width: collapsed ? 80 : 280,
-        transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        width: collapsed ? 80 : width,
+        transition: isResizing ? "none" : "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
       className="
         fixed top-0 left-0 z-40 h-screen flex flex-col
-        bg-[var(--bg-elevated)] border-r border-[var(--border-light)]
+        bg-white border-r border-slate-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)]
       "
     >
-      <Link href="/" className="flex items-center gap-3 px-6 h-20 border-b border-[var(--border-light)] no-underline hover:opacity-90 transition-opacity overflow-hidden shrink-0">
-        <div className="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center flex-shrink-0 shadow-[0_4px_10px_rgba(99,102,241,0.3)]">
-          <Sparkles className="w-5 h-5 text-white" />
+      {!collapsed && (
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+          className="absolute top-0 -right-1 w-2 h-full cursor-col-resize hover:bg-indigo-500/20 active:bg-indigo-500/30 transition-colors z-50 flex items-center justify-center pointer-events-auto"
+        >
+          <div className="w-[2px] h-8 bg-indigo-400 rounded-full opacity-0 hover:opacity-100 transition-opacity" />
         </div>
-        <span
-          className="font-bold text-xl text-[var(--text-primary)] whitespace-nowrap transition-opacity duration-200 uppercase tracking-wide"
+      )}
+      <Link href="/" className="flex items-center gap-3 px-6 h-20 border-b border-slate-100 no-underline group overflow-hidden shrink-0">
+        <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 bg-slate-50 rounded-[14px] shadow-sm border border-slate-200/60 group-hover:shadow group-hover:scale-105 transition-all duration-300 p-0.5">
+          <img src="/logo.png" alt="AI Learning Studio" className="w-full h-full object-cover rounded-xl" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+        </div>
+        <div
+          className="flex flex-col justify-center whitespace-nowrap transition-all duration-300"
           style={{
             opacity: collapsed ? 0 : 1,
-            fontFamily: "var(--font-display)",
+            transform: collapsed ? "translateX(-10px)" : "translateX(0)",
           }}
         >
-          AI Studio
-        </span>
+          <span 
+            className="font-black text-[18px] text-slate-800 tracking-tight leading-none mb-0.5"
+            style={{ fontFamily: "var(--font-display, inherit)" }}
+          >
+            AI Learning
+          </span>
+          <span className="font-bold text-[13px] text-indigo-600 tracking-[0.1em] uppercase leading-none">
+            Studio
+          </span>
+        </div>
       </Link>
 
-      <nav className="flex-1 py-6 px-4 space-y-6 overflow-y-auto">
-        <div className="space-y-2">
+      <nav className="flex-1 py-6 px-4 space-y-8 overflow-y-auto custom-scrollbar">
+        <div className="space-y-1.5">
           {!collapsed && (
-            <h3 className="px-4 text-xs font-bold tracking-wider text-[var(--text-tertiary)] uppercase mb-4">
+            <h3 className="px-4 text-[11px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-3">
               Overview
             </h3>
           )}
@@ -85,50 +140,53 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
                 key={item.href}
                 href={item.href}
                 className={`
-                  relative flex items-center gap-4 px-4 py-3 rounded-2xl
-                  text-[15px] font-medium no-underline transition-all duration-200
+                  group relative flex items-center gap-3.5 px-3 py-2.5 rounded-xl        
+                  text-[14px] font-semibold no-underline transition-all duration-300 ease-out
                   ${
                     isActive
-                      ? "text-brand-600 bg-brand-50"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                      ? "text-indigo-700 bg-indigo-50 shadow-sm ring-1 ring-indigo-100/50"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                   }
                 `}
               >
-                <Icon
-                  className={`w-[22px] h-[22px] flex-shrink-0 ${
-                    isActive ? "text-brand-600" : "text-[var(--text-tertiary)]"
-                  }`}
-                  strokeWidth={isActive ? 2.5 : 2}
-                />
+                <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-indigo-100/50 text-indigo-600' : 'text-slate-400 group-hover:text-slate-600 group-hover:bg-slate-100'}`}>
+                  <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                </div>
                 <span
-                  className="whitespace-nowrap transition-opacity duration-200 overflow-hidden"
-                  style={{ opacity: collapsed ? 0 : 1 }}
+                  className="whitespace-nowrap transition-all duration-300 overflow-hidden"
+                  style={{ opacity: collapsed ? 0 : 1, transform: collapsed ? "translateX(-5px)" : "translateX(0)" }}
                 >
                   {item.label}
                 </span>
+                
+                {isActive && !collapsed && (
+                  <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.5)]" />
+                )}
               </Link>
             );
           })}
         </div>
 
-        <div className="space-y-2 pt-4">
+        <div className="space-y-1.5">
           {!collapsed && (
-            <h3 className="px-4 text-xs font-bold tracking-wider text-[var(--text-tertiary)] uppercase mb-4">
+            <h3 className="px-4 text-[11px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-3">
               Settings
             </h3>
           )}
           <Link
             href="/settings"
             className="
-              relative flex items-center gap-4 px-4 py-3 rounded-2xl
-              text-[15px] font-medium no-underline transition-all duration-200
-              text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]
+              group relative flex items-center gap-3.5 px-3 py-2.5 rounded-xl
+              text-[14px] font-semibold no-underline transition-all duration-300 ease-out  
+              text-slate-500 hover:text-slate-900 hover:bg-slate-50
             "
           >
-            <Settings className="w-[22px] h-[22px] flex-shrink-0 text-[var(--text-tertiary)]" strokeWidth={2} />
+            <div className="p-1.5 rounded-lg transition-colors text-slate-400 group-hover:text-slate-600 group-hover:bg-slate-100">
+                <Settings className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+            </div>
             <span
-              className="whitespace-nowrap transition-opacity duration-200 overflow-hidden"
-              style={{ opacity: collapsed ? 0 : 1 }}
+              className="whitespace-nowrap transition-all duration-300 overflow-hidden"
+              style={{ opacity: collapsed ? 0 : 1, transform: collapsed ? "translateX(-5px)" : "translateX(0)" }}
             >
               Cài đặt
             </span>
@@ -136,19 +194,19 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
         </div>
       </nav>
 
-      <div className="p-4 border-t border-[var(--border-light)] shrink-0">
+      <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">      
         <button
           onClick={onToggle}
           className="
-            w-full flex items-center justify-center gap-2 py-3 rounded-2xl
-            text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]
-            hover:bg-[var(--bg-secondary)] bg-transparent border-0
-            transition-colors duration-200 cursor-pointer
+            w-full flex items-center justify-center gap-2 py-2.5 rounded-xl      
+            text-slate-500 hover:text-indigo-600      
+            hover:bg-white bg-transparent border border-transparent hover:border-slate-200 hover:shadow-sm
+            transition-all duration-300 cursor-pointer group
           "
           title={collapsed ? "Mở rộng" : "Thu gọn"}
         >
           <ChevronLeft
-            className="w-5 h-5 transition-transform duration-200"
+            className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-0.5"
             style={{ transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
           />
         </button>

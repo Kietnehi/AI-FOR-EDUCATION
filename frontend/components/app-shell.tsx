@@ -13,6 +13,8 @@ const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").t
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [isResizing, setIsResizing] = useState(false);
   const [mascotEnabled, setMascotEnabled] = useState(true);
   const [shouldRenderMascot, setShouldRenderMascot] = useState(false);
 
@@ -71,9 +73,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           Bỏ qua đến nội dung chính
         </a>
 
-        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+        <Sidebar 
+          collapsed={sidebarCollapsed} 
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          width={sidebarWidth}
+          setWidth={setSidebarWidth}
+          isResizing={isResizing}
+          setIsResizing={setIsResizing}
+        />
         <Topbar
           sidebarCollapsed={sidebarCollapsed}
+          sidebarWidth={sidebarWidth}
+          isResizing={isResizing}
           mascotEnabled={mascotEnabled}
           onToggleMascot={handleToggleMascot}
         />
@@ -81,8 +92,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main-content"
           style={{ 
-            paddingLeft: sidebarCollapsed ? 80 : 280,
-            transition: "padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+            paddingLeft: sidebarCollapsed ? 80 : sidebarWidth,
+            transition: isResizing ? "none" : "padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
           }}
           className="pt-16 min-h-screen"
         >
