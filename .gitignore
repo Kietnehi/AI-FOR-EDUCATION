@@ -13,7 +13,7 @@ backend/storage/extracted/
 !backend/storage/generated/.gitkeep
 !backend/storage/images/.gitkeep
 
-backend/backend_debug.log   
+
 
 # Node
 frontend/node_modules/
@@ -33,6 +33,3 @@ Thumbs.db
 
 # Github
 .github/copilot-instructions.md
-
-__pycache__/
-*.pyc
