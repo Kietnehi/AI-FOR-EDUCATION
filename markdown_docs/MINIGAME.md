@@ -1,59 +1,59 @@
-# Minigame Shooting Update (2026-03-28)
+# Cập Nhật Minigame Bắn Gà (2026-03-28)
 
-## Muc tieu
-- Thay minigame thu 3 (scenario/nhap vai bi loi) bang minigame "Ban ga".
-- Dam bao game choi duoc, tinh diem dung logic, va UI/UX dung yeu cau.
+## Mục tiêu
+- Thay minigame thứ 3 (nhập vai đang lỗi) bằng minigame "Bắn gà".
+- Đảm bảo game chạy ổn định, chấm điểm đúng và trải nghiệm người dùng tốt.
 
-## Backend da cap nhat
-- Thay `scenario_branching` -> `shooting_quiz` trong luong generate minigame.
-- Cap nhat schema request minigame de nhan `shooting_quiz`.
-- Them generator JSON theo schema shooting quiz:
-  - 10 cau hoi (10 round)
-  - moi cau 4 dap an A/B/C/D
-  - chi 1 dap an dung
-- Them validate output:
-  - dung 10 cau
-  - moi cau dung 4 dap an
-  - moi cau dung 1 dap an dung
-- Cap nhat cham diem game service cho `shooting_quiz`:
-  - +10 diem cho dap an dung
-  - sai khong tru diem
-  - tra feedback, skills, improvement tips
+## Backend đã cập nhật
+- Đổi loại game `scenario_branching` thành `shooting_quiz` trong luồng tạo minigame.
+- Cập nhật schema request để nhận `shooting_quiz`.
+- Thêm generator JSON theo đúng schema shooting quiz:
+  - 10 câu hỏi (10 round)
+  - Mỗi câu có 4 đáp án A/B/C/D
+  - Chỉ 1 đáp án đúng
+- Thêm validate đầu ra:
+  - Đủ đúng 10 câu
+  - Mỗi câu đúng 4 đáp án
+  - Mỗi câu đúng 1 đáp án đúng
+- Cập nhật chấm điểm cho `shooting_quiz`:
+  - Đúng: +10 điểm
+  - Sai: không trừ điểm
+  - Có feedback, skills và improvement tips
 
-## Frontend da cap nhat
+## Frontend đã cập nhật
 - Trang minigame:
-  - bo lua chon game nhap vai
-  - thay bang lua chon "Ban ga on tap"
-- Them player moi: `ShootingQuizPlayer`.
-- Gameplay:
-  - Start / In-game / End screen day du
-  - ga xuat hien tu tren va di chuyen trong arena
-  - pause/continue
-  - timer moi round
-  - timeout:
-    - neu chua phai cau cuoi: tam dung, doi user bam tiep tuc cau sau
-    - neu la cau cuoi: ket thuc game va hien ket qua
-- Shooting mechanics:
-  - su dung vector huong chuan hoa (dx, dy, vx, vy)
-  - dan bay theo frame update
-  - bo line target cu
-  - them aim arrow xoay theo chuot
-- Hinh nguoi choi:
-  - dung anh `frontend/public/nanananaa.png`
+  - Bỏ game nhập vai
+  - Thêm lựa chọn "Bắn gà ôn tập"
+- Thêm player mới: `ShootingQuizPlayer`.
+- Luồng chơi:
+  - Start / In-game / End đầy đủ
+  - Đáp án di chuyển trong arena
+  - Có tạm dừng / tiếp tục
+  - Có timer mỗi round
+  - Hết giờ:
+    - Nếu chưa phải câu cuối: tạm dừng, chờ người dùng bấm tiếp tục câu sau
+    - Nếu là câu cuối: kết thúc game và hiện kết quả
+- Cơ chế bắn:
+  - Dùng vector chuẩn hóa (dx, dy, vx, vy)
+  - Đạn bay theo cập nhật từng frame
+  - Bỏ line target cũ
+  - Thêm aim arrow xoay theo chuột
+- Hình người chơi:
+  - Dùng ảnh `frontend/public/nanananaa.png`
 - UI:
-  - dap an doi sang card hinh chu nhat
-  - bo icon con ga trong card
-  - mo rong khung choi cho rong hon
+  - Đáp án dạng thẻ chữ nhật
+  - Bỏ icon con gà trong thẻ
+  - Mở rộng khung chơi để thoáng hơn
 
-## Canh tam diem ban (cho phep tu chinh)
+## Căn chỉnh tâm điểm bắn (có thể tự chỉnh)
 Trong `frontend/components/minigame/ShootingQuizPlayer.tsx`:
 - `PLAYER_ANCHOR_X_OFFSET`
 - `PLAYER_ANCHOR_Y_OFFSET`
 
-Huong dan nhanh:
-- Lech trai/phai: chinh `PLAYER_ANCHOR_X_OFFSET`
-- Lech tren/duoi: chinh `PLAYER_ANCHOR_Y_OFFSET`
+Gợi ý chỉnh nhanh:
+- Lệch trái/phải: chỉnh `PLAYER_ANCHOR_X_OFFSET`
+- Lệch trên/dưới: chỉnh `PLAYER_ANCHOR_Y_OFFSET`
 
-## Kiem tra
-- Frontend `npm run build` da pass sau cac thay doi.
-- Khong con compile error chan chay app.
+## Kiểm tra
+- Frontend `npm run build` đã chạy thành công sau các thay đổi.
+- Không còn lỗi compile chặn ứng dụng chạy.
