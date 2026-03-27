@@ -284,7 +284,6 @@ Dự án đã được cấu hình đầy đủ Docker cho các service:
 * `.env.docker.example`
 
 
-
 ## ⚙️ Hướng dẫn chạy nhanh
 
 ### 1. Tạo file môi trường
