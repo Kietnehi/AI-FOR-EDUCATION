@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, RotateCcw, AlertCircle, Trophy, Zap } from "lucide-react";
+import { ArrowRight, RotateCcw, AlertCircle, Trophy, Target, CheckCircle2 } from "lucide-react";
 
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 type SkillMap = Record<string, number>;
@@ -72,8 +73,10 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
 
   const [currentStepId, setCurrentStepId] = useState<string>(startStepId);
   const [selectedFeedback, setSelectedFeedback] = useState<string | null>(null);
+  const [selectedLearning, setSelectedLearning] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Array<{ step_id: string; answer: string }>>([]);
   const [localScore, setLocalScore] = useState<number>(game.initial_state?.score || 0);
+  const [localSkills, setLocalSkills] = useState<SkillMap>(game.initial_state?.skills || {});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<any>(null);
 
@@ -88,12 +91,22 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
     if (!stepId) return;
 
     setSelectedFeedback(choice.feedback || "");
+    setSelectedLearning(choice.learning_explanation || "");
 
     setAnswers((prev) => [...prev, { step_id: stepId, answer: choice.id }]);
     setLocalScore((prev) => prev + Number(choice.effects?.score || 0));
+    setLocalSkills((prev) => {
+      const next = { ...prev };
+      const delta = choice.effects?.skills || {};
+      for (const [key, val] of Object.entries(delta)) {
+        next[key] = (next[key] || 0) + Number(val || 0);
+      }
+      return next;
+    });
 
     setTimeout(() => {
       setSelectedFeedback(null);
+      setSelectedLearning(null);
       const next = choice.next_step;
       if (stepMap.has(next) || endingMap.has(next)) {
         setCurrentStepId(next);
@@ -107,7 +120,7 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
       }
 
       setCurrentStepId("");
-    }, 1400);
+    }, 2800);
   }
 
   async function handleSubmit() {
@@ -125,59 +138,80 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
   function handleReset() {
     setCurrentStepId(startStepId);
     setSelectedFeedback(null);
+    setSelectedLearning(null);
     setAnswers([]);
     setLocalScore(game.initial_state?.score || 0);
+    setLocalSkills(game.initial_state?.skills || {});
     setSubmitResult(null);
   }
 
   if (submitResult) {
+    const skills = submitResult.skills_gained || Object.keys(localSkills).filter((k) => localSkills[k] > 0);
     const tips = submitResult.improvement_tips || [];
 
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-3xl mx-auto py-8"
-      >
-        <div className="rounded-3xl border border-[var(--border-light)] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600">
-            <Trophy className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-[var(--text-primary)]">Game Over</h2>
-          <p className="mt-1 text-[var(--text-secondary)]">Bạn đã hoàn thành chuỗi quyết định.</p>
+      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-4xl mx-auto space-y-8 py-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-2" style={{ fontFamily: "var(--font-display)" }}>Hoàn Thành Nhiệm Vụ!</h2>
+          <p className="text-[var(--text-secondary)]">Bạn đã xuất sắc vượt qua tất cả tình huống.</p>
+        </div>
 
-          <div className="mt-6 rounded-2xl bg-[var(--bg-secondary)] px-6 py-5">
-            <p className="text-xs uppercase tracking-wide text-[var(--text-tertiary)]">Score</p>
-            <p className="text-4xl font-black text-[var(--text-primary)]">
-              {Math.round(submitResult.score || localScore)}
-              <span className="text-xl text-[var(--text-tertiary)]"> / {Math.round(submitResult.max_score || 1)}</span>
-            </p>
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-3xl p-8 border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden">
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6 z-10">
+             <Trophy className="w-12 h-12 text-emerald-500" />
           </div>
+          <h3 className="text-4xl font-black text-emerald-800 mb-2 z-10" style={{ fontFamily: "var(--font-display)" }}>
+            {Math.round(submitResult.score || localScore)} / {Math.round(submitResult.max_score || Math.max(localScore, 10))}
+          </h3>
+          <p className="text-emerald-600 font-medium z-10">Điểm số tổng kết của bạn</p>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-200/40 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        </div>
 
-          {tips.length > 0 && (
-            <div className="mt-6 rounded-2xl border border-[var(--border-light)] p-4 text-left">
-              <p className="mb-2 text-sm font-semibold text-[var(--text-primary)]">Gợi ý cải thiện</p>
-              {tips.slice(0, 3).map((tip: string) => (
-                <p key={tip} className="text-sm text-[var(--text-secondary)]">- {tip}</p>
-              ))}
+        <div className="grid md:grid-cols-2 gap-6">
+          {skills.length > 0 && (
+            <div className="bg-white rounded-3xl p-6 border border-[var(--border-light)] shadow-sm">
+              <h4 className="font-bold text-[var(--text-primary)] flex items-center gap-3 mb-4 text-lg">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                </div>
+                Kỹ năng đạt được
+              </h4>
+              <ul className="space-y-3">
+                {skills.map((skill: string) => (
+                  <li key={skill} className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <span className="text-[var(--text-secondary)] font-medium">{skill}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button
-              size="lg"
-              onClick={handleSubmit}
-              loading={isSubmitting}
-              className="sm:min-w-48"
-            >
-              Gửi kết quả
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button size="lg" variant="secondary" onClick={handleReset} className="sm:min-w-48">
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Chơi lại
-            </Button>
-          </div>
+          {tips.length > 0 && (
+            <div className="bg-white rounded-3xl p-6 border border-[var(--border-light)] shadow-sm">
+              <h4 className="font-bold text-[var(--text-primary)] flex items-center gap-3 mb-4 text-lg">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <AlertCircle className="w-4 h-4 text-blue-600" />
+                </div>
+                Gợi ý cải thiện
+              </h4>
+              <ul className="space-y-3">
+                {tips.map((tip: string) => (
+                  <li key={tip} className="flex items-start gap-3">
+                    <ArrowRight className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                    <span className="text-[var(--text-secondary)] font-medium">{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-center pt-4">
+          <Button size="lg" onClick={handleReset} className="px-10 h-14 rounded-full text-lg shadow-brand border-0 bg-brand-600 hover:bg-brand-700">
+            <RotateCcw className="w-5 h-5 mr-2" />
+            Chơi lại từ đầu
+          </Button>
         </div>
       </motion.div>
     );
@@ -185,26 +219,24 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
 
   if (currentEnding) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mx-auto max-w-3xl py-10"
-      >
-        <div className="rounded-3xl border border-[var(--border-light)] bg-white p-8 text-center shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-[var(--text-tertiary)]">Kết cục</p>
-          <h3 className="mt-1 text-2xl font-bold text-[var(--text-primary)]">{currentEnding.id.replace("ending_", "").toUpperCase()}</h3>
-          <p className="mt-4 text-lg font-semibold text-[var(--text-primary)]">{currentEnding.summary}</p>
-          <p className="mt-3 text-sm text-[var(--text-secondary)]">{currentEnding.suggestion}</p>
-
-          <Button
-            size="lg"
-            onClick={handleSubmit}
-            loading={isSubmitting}
-            className="mt-6"
-          >
-            Gửi kết quả
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-4xl mx-auto space-y-8 py-8 text-center pt-20">
+        <div className="inline-block bg-brand-50 border-2 border-brand-100 rounded-3xl p-10 max-w-2xl mx-auto w-full">
+            <div className="w-20 h-20 rounded-full bg-brand-600 text-white flex items-center justify-center mx-auto mb-6 shadow-brand">
+              <Trophy className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-bold text-brand-900 mb-4" style={{ fontFamily: "var(--font-display)" }}>Kịch Bản Đã Hoàn Tất</h3>
+            <p className="text-brand-800 font-medium mb-3 text-lg leading-relaxed">{currentEnding.summary}</p>
+            <p className="text-brand-700 mb-10 text-sm">Gợi ý: {currentEnding.suggestion}</p>
+            
+            <Button
+              size="lg"
+              onClick={handleSubmit}
+              loading={isSubmitting}
+              className="w-full sm:w-auto px-12 h-14 rounded-full text-lg shadow-brand bg-brand-600 hover:bg-brand-700 border-0"
+            >
+              Gửi kết quả
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
         </div>
       </motion.div>
     );
@@ -219,105 +251,116 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
   const stepText = `Step ${Math.min(completedSteps + 1, totalSteps)}/${totalSteps}`;
 
   return (
-    <div className="relative mx-auto min-h-[72vh] w-full max-w-4xl overflow-hidden rounded-3xl border border-[var(--border-light)] bg-gradient-to-br from-slate-50 via-white to-cyan-50 p-5 sm:p-8">
-      <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -left-20 bottom-0 h-52 w-52 rounded-full bg-emerald-200/30 blur-3xl" />
-
-      <div className="relative z-10 flex items-center justify-between">
+    <div className="max-w-5xl mx-auto w-full pt-4 pb-12 animate-fade-in-up">
+      {/* HEADER */}
+      <div className="flex items-end justify-between mb-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{stepText}</p>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] sm:text-2xl">{game.title}</h2>
+          <span className="inline-block text-xs font-bold px-3 py-1 rounded bg-brand-100 text-brand-700 mb-3 tracking-wide uppercase">
+            {stepText}
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+            {game.title}
+          </h1>
         </div>
-        <div className="rounded-xl bg-white/80 px-3 py-2 text-right shadow-sm backdrop-blur">
-          <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">Score</p>
-          <p className="text-xl font-black text-[var(--text-primary)]">{Math.round(localScore)}</p>
+        <div className="text-right">
+          <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Score</div>
+          <div className="text-2xl font-black text-[var(--text-primary)] leading-none">{Math.round(localScore)}</div>
         </div>
       </div>
-
-      <div className="relative z-10 mt-4 h-2 w-full overflow-hidden rounded-full bg-white/70">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500"
-          style={{ width: `${Math.max(12, (Math.min(completedSteps + 1, totalSteps) / Math.max(totalSteps, 1)) * 100)}%` }}
-        />
+      
+      {/* PROGRESS BAR */}
+      <div className="w-full h-px bg-[var(--border-light)] mb-8 relative">
+        <div className="absolute top-0 left-0 h-[3px] -mt-[1px] bg-brand-500 rounded-full" style={{ width: `${Math.max(8, (Math.min(completedSteps + 1, totalSteps) / Math.max(totalSteps, 1)) * 100)}%`, transition: 'width 0.5s ease-in-out' }} />
       </div>
 
-      <motion.div
-        key={currentStep.id}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 mt-6 rounded-3xl border border-[var(--border-light)] bg-white/95 p-6 shadow-lg backdrop-blur"
+      {/* QUESTION BOX */}
+      <motion.div 
+        key={currentStep.id} 
+        initial={{ opacity: 0, x: -20 }} 
+        animate={{ opacity: 1, x: 0 }}
+        className="bg-[#f8f9fe] border-[1.5px] border-[#e2e8f0] rounded-2xl p-6 sm:p-8 mb-8 shadow-sm"
       >
-        <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-cyan-700">
-          <Zap className="h-3.5 w-3.5" />
-          Tình huống trực tiếp
-        </div>
-        <p className="text-xl font-semibold leading-relaxed text-[var(--text-primary)] sm:text-2xl">
+        <p className="text-lg text-[var(--text-primary)] font-medium leading-[1.7] whitespace-pre-wrap mb-4">
           {currentStep.scenario}
         </p>
-        <div className="mt-3 inline-flex rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-          {currentStep.knowledge_point || "Ra quyết định nhanh và chính xác"}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-[var(--text-secondary)] bg-white px-3 py-2 leading-none w-fit rounded border border-[var(--border-light)] shadow-xs">
+          <div className="flex items-center gap-2 shrink-0">
+             <Target className="w-4 h-4 text-brand-500" />
+             <span className="font-semibold text-brand-600">Mục tiêu kỹ năng:</span>
+          </div>
+          <span>{currentStep.knowledge_point || "Đưa ra quyết định tốt nhất."}</span>
         </div>
       </motion.div>
 
-      <div className="relative z-10 mt-5 space-y-3">
+      {/* CHOICES LIST */}
+      <div className="space-y-4">
         {currentStep.choices.map((choice, index) => {
-          const letterLabel = String.fromCharCode(65 + index);
+          const letterLabel = String.fromCharCode(65 + index); // A, B, C
           const isSelected = answers.some((a) => a.step_id === currentStep.id && a.answer === choice.id);
           const isProcessing = selectedFeedback !== null;
-
+          
           return (
             <motion.button
               key={choice.id}
               onClick={() => handleChoice(choice)}
               disabled={isProcessing}
               className={`
-                group w-full rounded-2xl border p-4 text-left transition-all duration-200
-                ${isSelected ? "border-cyan-500 bg-cyan-50" : "border-[var(--border-light)] bg-white hover:-translate-y-0.5 hover:border-cyan-300"}
+                group w-full text-left bg-white border border-[var(--border-light)] rounded-2xl p-5 sm:p-6
+                flex items-center justify-between transition-all duration-300 relative overflow-hidden
+                ${isSelected ? "ring-2 ring-brand-500 shadow-brand border-transparent" : "hover:border-brand-300 hover:shadow-md cursor-pointer"}
                 ${isProcessing && !isSelected ? "opacity-50 cursor-not-allowed" : ""}
               `}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <span className="rounded-full bg-[var(--bg-secondary)] px-2 py-1 text-[11px] font-semibold text-[var(--text-secondary)]">
-                    {letterLabel}
-                  </span>
-                  <p className="mt-2 text-base font-semibold text-[var(--text-primary)] sm:text-lg">
-                    {choice.text}
-                  </p>
+              <div className="flex flex-col gap-2 relative z-10 w-full pr-8">
+                <span className={`text-[11px] font-bold px-3 py-1 rounded bg-brand-50 text-brand-600 w-fit`}>
+                  Lựa chọn {letterLabel}
                 </span>
-                <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                  {choice.effects?.score ?? 0} điểm
+                <p className="text-[15px] sm:text-base font-semibold text-[var(--text-primary)] mt-1">
+                  {choice.text}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)] font-medium mt-1 opacity-80">
+                  <span>+{choice.effects?.score ?? 0} điểm</span>
+                  <span className="text-[var(--border-default)]">|</span>
+                  <span>kỹ năng: <span className="text-brand-600">{Object.keys(choice.effects?.skills || {}).join(", ") || "n/a"}</span></span>
                 </div>
               </div>
-              <ArrowRight className="mt-1 h-5 w-5 text-[var(--text-tertiary)]" />
+              <div className="relative z-10 w-10 h-10 shrink-0 flex items-center justify-center text-[var(--text-tertiary)] group-hover:text-brand-500 transition-colors">
+                {isSelected ? <CheckCircle2 className="w-6 h-6 text-brand-500" /> : <ArrowRight className="w-5 h-5" />}
               </div>
+
+              {isSelected && <div className="absolute inset-0 bg-brand-50/50 z-0" />}
             </motion.button>
           );
         })}
       </div>
 
+      {/* FEEDBACK POPUP OVERLAY */}
       <AnimatePresence>
         {selectedFeedback && (
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            className="absolute bottom-5 left-1/2 z-30 w-[92%] -translate-x-1/2 sm:w-[85%]"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4"
           >
-            <div className="rounded-2xl border border-slate-700 bg-slate-900/95 p-4 text-white shadow-2xl">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-lg bg-cyan-500/20 p-1.5">
-                  <AlertCircle className="h-4 w-4 text-cyan-300" />
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-cyan-300">Phản hồi</p>
-                  <p className="text-sm font-medium leading-relaxed text-slate-100">{selectedFeedback}</p>
-                </div>
+            <div className="bg-[#1e293b] text-white p-6 rounded-3xl shadow-2xl flex flex-col sm:flex-row items-start gap-4 border border-[#334155]">
+              <div className="w-12 h-12 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
+                 <AlertCircle className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-sm text-brand-300 mb-2 uppercase tracking-wide">Phản hồi hệ thống</h4>
+                <p className="text-sm text-slate-200 leading-relaxed font-medium mb-3">{selectedFeedback}</p>
+                {selectedLearning && (
+                   <div className="mt-3 p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-[13px] text-amber-200 leading-relaxed">
+                      Lý giải: {selectedLearning}
+                   </div>
+                )}
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   );
 }
