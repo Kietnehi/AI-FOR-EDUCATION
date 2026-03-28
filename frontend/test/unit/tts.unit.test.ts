@@ -62,7 +62,7 @@ describe("speech synthesis helpers", () => {
       constructor(public text: string) {}
     }
 
-    globalThis.SpeechSynthesisUtterance = MockUtterance as typeof SpeechSynthesisUtterance;
+    globalThis.SpeechSynthesisUtterance = MockUtterance as unknown as typeof SpeechSynthesisUtterance;
 
     expect(isSpeechSynthesisSupported()).toBe(true);
   });
@@ -92,7 +92,7 @@ describe("speech synthesis helpers", () => {
       }
     }
 
-    globalThis.SpeechSynthesisUtterance = MockUtterance as typeof SpeechSynthesisUtterance;
+    globalThis.SpeechSynthesisUtterance = MockUtterance as unknown as typeof SpeechSynthesisUtterance;
 
     const onEnd = vi.fn();
     const result = speakText("**Xin chào** bạn", { onEnd });
@@ -136,7 +136,7 @@ describe("speech synthesis helpers", () => {
       constructor(public text: string) {}
     }
 
-    globalThis.SpeechSynthesisUtterance = MockUtterance as typeof SpeechSynthesisUtterance;
+    globalThis.SpeechSynthesisUtterance = MockUtterance as unknown as typeof SpeechSynthesisUtterance;
 
     const result = speakText("```ts\nconst x = 1\n```", {});
 

@@ -18,5 +18,9 @@ if (!("cancelIdleCallback" in globalThis)) {
 }
 
 if (!("scrollIntoView" in Element.prototype)) {
-  Element.prototype.scrollIntoView = () => {};
+  Object.defineProperty(Element.prototype, "scrollIntoView", {
+    value: () => {},
+    writable: true,
+    configurable: true,
+  });
 }
