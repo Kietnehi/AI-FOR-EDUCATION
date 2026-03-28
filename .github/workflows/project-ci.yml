@@ -213,7 +213,7 @@ jobs:
       - name: 🐳 Build và khởi động Docker Compose
         run: |
           set -o pipefail
-          docker compose -f docker-compose.ci.yml up -d --build --wait 2>&1 | tee docker_up.log
+          docker compose -f docker-compose.ci.yml up -d --build 2>&1 | tee docker_up.log
 
       - name: 💓 Chờ backend sẵn sàng (Health Check)
         run: |
