@@ -201,9 +201,10 @@ jobs:
       - name: 💓 Chờ backend sẵn sàng (Health Check)
         run: |
           echo "--- HEALTH CHECK LOGS ---" > health.log
-          for i in {1..15}; do
+          for i in {1..30}; do
             if curl -fsS http://127.0.0.1:8000/health >> health.log 2>&1; then
               echo "[$(date)] Backend is UP (Status 200)" >> health.log
+              cat health.log
               exit 0
             fi
             echo "[$(date)] Waiting for backend..." >> health.log
@@ -211,7 +212,8 @@ jobs:
           done
           echo "❌ Kiểm tra health của backend thất bại" >> health.log
           docker compose -f docker-compose.ci.yml ps >> health.log
-          docker compose -f docker-compose.ci.yml logs backend --tail=50 >> health.log
+          docker compose -f docker-compose.ci.yml logs backend --tail=100 >> health.log
+          cat health.log
           exit 1
 
       - name: 🌐 Kiểm tra frontend phản hồi
