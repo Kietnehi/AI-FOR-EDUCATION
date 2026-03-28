@@ -138,6 +138,7 @@ jobs:
         id: extract-metrics
         if: always()
         run: |
+          # Trích xuất độ phủ (Coverage)
           if [ -f coverage.xml ]; then
             COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(round(float(root.attrib['line-rate']) * 100, 2))")
             echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
@@ -145,22 +146,17 @@ jobs:
             echo "coverage=0" >> "$GITHUB_OUTPUT"
           fi
 
+          # Trích xuất kết quả kiểm thử (Test Results)
           if [ -f junit.xml ]; then
-            python -c "
-import xml.etree.ElementTree as ET
-import json
-try:
-    tree = ET.parse('junit.xml')
-    root = tree.getroot()
-    total = int(root.attrib.get('tests', 0))
-    failed = int(root.attrib.get('failures', 0))
-    errors = int(root.attrib.get('errors', 0))
-    skipped = int(root.attrib.get('skipped', 0))
-    passed = total - failed - errors - skipped
-    print(f'test_metrics={json.dumps({\"passed\":passed,\"failed\":failed + errors,\"total\":total,\"skipped\":skipped})}')
-except Exception as e:
-    print(f'test_metrics={json.dumps({\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0})}')
-            " >> "$GITHUB_OUTPUT"
+            python -c "import xml.etree.ElementTree as ET, json; \
+              tree = ET.parse('junit.xml'); \
+              root = tree.getroot(); \
+              total = int(root.attrib.get('tests', 0)); \
+              failed = int(root.attrib.get('failures', 0)); \
+              errors = int(root.attrib.get('errors', 0)); \
+              skipped = int(root.attrib.get('skipped', 0)); \
+              passed = total - failed - errors - skipped; \
+              print('test_metrics=' + json.dumps({'passed': passed, 'failed': failed + errors, 'total': total, 'skipped': skipped}))" >> "$GITHUB_OUTPUT"
           else
             echo "test_metrics={\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0}" >> "$GITHUB_OUTPUT"
           fi
