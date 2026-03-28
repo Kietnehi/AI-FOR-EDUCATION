@@ -61,7 +61,7 @@ async function getFirstMaterialId() {
         if (!Array.isArray(data) || data.length === 0) return null;
 
         const first = data[0];
-        return first ? .id || first ? ._id || null;
+        return first?.id || first?._id || null;
     } catch {
         return null;
     }

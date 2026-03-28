@@ -63,7 +63,7 @@ Chi tiết:
 
 Tác động:
 - Người dùng bị fail ở bước `confirm-artifacts` hoặc `confirm-download` dù vừa upload thành công.
-- Rủi ro cao trong môi trường có nhiều worker hoặc deploy rolling.
+- Rủi ro cao trong môi trường có nhiều worker hoặc triển khai rolling.
 
 Khuyến nghị:
 - Persist metadata session + stage vào Redis/DB (ít nhất: session_id, owner, stage, timestamps, temp paths).
@@ -173,7 +173,7 @@ File tham chiếu:
 
 Chi tiết:
 - Khi người dùng bấm confirm upload (`confirm=true`), UI set sẵn `notebookArtifactPending` với `session_id=""`.
-- Nếu API lỗi ở bước upload, khối `catch` chỉ hiển thị toast, không reset state placeholder.
+- Nếu API lỗi ở bước upload, khối `catch` chỉ hiển thị toast, không reset trạng thái placeholder.
 - Nút Hủy sau đó gọi `handleCancelPreview()` nhưng `session_id` rỗng nên không làm gì.
 
 Tác động:
