@@ -45,16 +45,16 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Cài đặt dependencies
+      - name: 📦 Cài đặt dependencies
         run: npm ci 2>&1 | tee npm_ci.log
 
-      - name: Chạy lint
+      - name: 🧹 Chạy lint
         run: npm run lint
 
-      - name: Chạy kiểm thử với coverage và xuất báo cáo JSON
+      - name: 🧪 Chạy kiểm thử với coverage
         run: npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json 2>&1 | tee vitest.log
 
-      - name: Trích xuất chỉ số (Metrics)
+      - name: 📊 Trích xuất chỉ số (Metrics)
         id: extract-metrics
         if: always()
         run: |
@@ -80,23 +80,19 @@ jobs:
             echo "test_metrics={\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Thu thập Logs Frontend
+      - name: 🔍 Thu thập Logs Frontend
         id: capture-logs
         if: always()
         run: |
-          echo "CI_LOGS_FE<<EOF" >> "$GITHUB_OUTPUT"
-          echo "### 📦 npm ci output" >> "$GITHUB_OUTPUT"
-          echo '```' >> "$GITHUB_OUTPUT"
-          tail -n 20 npm_ci.log || echo "No logs" >> "$GITHUB_OUTPUT"
-          echo '```' >> "$GITHUB_OUTPUT"
-          echo "" >> "$GITHUB_OUTPUT"
-          echo "### 🧪 vitest output" >> "$GITHUB_OUTPUT"
-          echo '```' >> "$GITHUB_OUTPUT"
-          tail -n 50 vitest.log || echo "No logs" >> "$GITHUB_OUTPUT"
-          echo '```' >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          # Encode for safe passing
-          LOGS_VAL=$(tail -n 100 vitest.log | base64 -w 0)
+          {
+            echo "--- FRONTEND CI LOGS ---"
+            echo "[Step 1: npm ci]"
+            tail -n 15 npm_ci.log
+            echo ""
+            echo "[Step 2: vitest]"
+            tail -n 40 vitest.log
+          } > fe_combined.log
+          LOGS_VAL=$(base64 -w 0 < fe_combined.log)
           echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
 
       - name: Tải artifact coverage frontend lên
@@ -128,17 +124,16 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements-test.txt
 
-      - name: Cài đặt dependencies kiểm thử backend
+      - name: 📦 Cài đặt dependencies backend
         run: pip install -r requirements-test.txt 2>&1 | tee pip_install.log
 
-      - name: Chạy kiểm thử backend với coverage và JUnit XML
+      - name: 🧪 Chạy kiểm thử backend (Pytest)
         run: pytest --junitxml=junit.xml 2>&1 | tee pytest.log
 
-      - name: Trích xuất chỉ số (Metrics)
+      - name: 📊 Trích xuất chỉ số (Metrics)
         id: extract-metrics
         if: always()
         run: |
-          # Trích xuất độ phủ (Coverage)
           if [ -f coverage.xml ]; then
             COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(round(float(root.attrib['line-rate']) * 100, 2))")
             echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
@@ -146,7 +141,6 @@ jobs:
             echo "coverage=0" >> "$GITHUB_OUTPUT"
           fi
 
-          # Trích xuất kết quả kiểm thử (Test Results)
           if [ -f junit.xml ]; then
             python -c "import xml.etree.ElementTree as ET, json; \
               tree = ET.parse('junit.xml'); \
@@ -161,11 +155,19 @@ jobs:
             echo "test_metrics={\"passed\":0,\"failed\":0,\"total\":0,\"skipped\":0}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Thu thập Logs Backend
+      - name: 🔍 Thu thập Logs Backend
         id: capture-logs
         if: always()
         run: |
-          LOGS_VAL=$(tail -n 100 pytest.log | base64 -w 0)
+          {
+            echo "--- BACKEND CI LOGS ---"
+            echo "[Step 1: pip install]"
+            tail -n 15 pip_install.log
+            echo ""
+            echo "[Step 2: pytest]"
+            tail -n 40 pytest.log
+          } > be_combined.log
+          LOGS_VAL=$(base64 -w 0 < be_combined.log)
           echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
 
       - name: Tải artifact coverage backend lên
@@ -190,35 +192,52 @@ jobs:
       - name: Tải mã nguồn
         uses: actions/checkout@v6
 
-      - name: Chuẩn bị file môi trường Docker
+      - name: 🔧 Chuẩn bị file môi trường Docker
         run: cp .env.docker.example .env
 
-      - name: Build và khởi động docker compose
+      - name: 🐳 Build và khởi động Docker Compose
         run: docker compose -f docker-compose.ci.yml up -d --build --wait 2>&1 | tee docker_up.log
 
-      - name: Chờ backend sẵn sàng
+      - name: 💓 Chờ backend sẵn sàng (Health Check)
         run: |
-          echo "### Health Check logs" > health.log
+          echo "--- HEALTH CHECK LOGS ---" > health.log
           for i in {1..15}; do
-            if curl -fsS http://127.0.0.1:8000/health | tee -a health.log; then
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)
+            if [ "$STATUS" -eq 200 ]; then
+              echo "[$(date)] Backend is UP (Status 200)" >> health.log
               exit 0
             fi
+            echo "[$(date)] Waiting for backend... (Current Status: $STATUS)" >> health.log
             sleep 3
           done
-          echo "Kiểm tra health của backend thất bại" | tee -a health.log
+          echo "❌ Kiểm tra health của backend thất bại" >> health.log
           docker compose -f docker-compose.ci.yml ps >> health.log
-          docker compose -f docker-compose.ci.yml logs backend >> health.log
+          docker compose -f docker-compose.ci.yml logs backend --tail=50 >> health.log
           exit 1
 
-      - name: Kiểm tra frontend phản hồi
-        run: curl -fsS http://127.0.0.1:3000 > /dev/null
+      - name: 🌐 Kiểm tra frontend phản hồi
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000)
+          if [ "$STATUS" -eq 200 ]; then
+            echo "Frontend is UP"
+          else
+            echo "Frontend is DOWN (Status $STATUS)"
+            exit 1
+          fi
 
-      - name: Thu thập Logs Docker
+      - name: 🔍 Thu thập Logs Docker
         id: capture-logs
         if: always()
         run: |
-          docker compose -f docker-compose.ci.yml logs --no-color > docker_full.log
-          LOGS_VAL=$(tail -n 100 docker_full.log | base64 -w 0)
+          {
+            echo "--- DOCKER CI LOGS ---"
+            echo "[Step 1: docker compose up]"
+            tail -n 20 docker_up.log
+            echo ""
+            echo "[Step 2: Health Check]"
+            cat health.log
+          } > docker_combined.log
+          LOGS_VAL=$(base64 -w 0 < docker_combined.log)
           echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
 
       - name: Dừng docker compose
@@ -230,7 +249,7 @@ jobs:
     needs: [frontend, backend, docker-compose-smoke]
     if: always()
     steps:
-      - name: Tạo tóm tắt công việc chi tiết (Detailed Job Summary)
+      - name: 🎨 Tạo Dashboard Tóm tắt CI (Beautiful CI Dashboard)
         uses: actions/github-script@v8
         with:
           script: |
@@ -245,11 +264,11 @@ jobs:
             const backendTests = JSON.parse('${{ needs.backend.outputs.test_metrics }}' || '{"passed":0,"failed":0,"total":0,"skipped":0}');
 
             const decodeLogs = (b64) => {
-              if (!b64) return "Không có log.";
+              if (!b64) return "Không có nhật ký.";
               try {
                 return Buffer.from(b64, 'base64').toString('utf-8');
               } catch (e) {
-                return "Lỗi giải mã log.";
+                return "Lỗi giải mã nhật ký.";
               }
             };
 
@@ -257,83 +276,73 @@ jobs:
             const beLogs = decodeLogs("${{ needs.backend.outputs.ci_logs }}");
             const dockerLogs = decodeLogs("${{ needs.docker-compose-smoke.outputs.ci_logs }}");
 
-            const statusIcon = (res) => res === "success" ? "✅" : (res === "failure" ? "❌" : "⏭️");
-            const statusText = (res) => res === "success" ? "Thành công" : (res === "failure" ? "Thất bại" : "Bỏ qua");
+            const icon = (res) => res === "success" ? "🟢" : (res === "failure" ? "🔴" : "⚪");
+            const statusLabel = (res) => res === "success" ? "PASSED" : (res === "failure" ? "FAILED" : "SKIPPED");
+            const progress = (pct) => {
+              const count = Math.round(pct / 10);
+              return "🟩".repeat(count) + "⬜".repeat(10 - count);
+            };
 
             const summary = `
-            # 🚀 Báo cáo Tóm tắt CI Chi tiết (Dự Án AI Learning Studio)
+            # 🚀 CI Dashboard: ${context.repo.repo}
             
-            | Thông tin | Chi tiết |
-            | :--- | :--- |
-            | **Người thực hiện** | @${context.actor} |
-            | **Nhánh** | \`${context.ref.replace('refs/heads/', '')}\` |
-            | **Commit** | [\`${context.sha.substring(0, 7)}\`](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}) |
-            | **Thời điểm** | ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} (HCMC) |
-            
+            > **Workflow:** \`${context.workflow}\` | **Branch:** \`${context.ref.replace('refs/heads/', '')}\` | **Actor:** @${context.actor}
+
             ---
 
-            ## 🖥️ Frontend (Vitest)
-            **Trạng thái:** ${statusIcon(frontendRes)} ${statusText(frontendRes)}
+            ## 📊 Trạng thái tổng quát (Overview)
+            | Component | Status | Tests | Coverage |
+            | :--- | :---: | :---: | :---: |
+            | **🖥️ Frontend** | ${icon(frontendRes)} \`${statusLabel(frontendRes)}\` | ${frontendTests.passed}/${frontendTests.total} | \`${frontendCov.lines}%\` |
+            | **⚙️ Backend** | ${icon(backendRes)} \`${statusLabel(backendRes)}\` | ${backendTests.passed}/${backendTests.total} | \`${backendCov}%\` |
+            | **🐳 Docker Smoke** | ${icon(dockerRes)} \`${statusLabel(dockerRes)}\` | - | - |
 
-            ### 📊 Thống kê Kiểm thử
-            | Tổng số | ✅ Thành công | ❌ Thất bại | ⏭️ Bỏ qua |
-            | :---: | :---: | :---: | :---: |
-            | ${frontendTests.total} | ${frontendTests.passed} | ${frontendTests.failed} | ${frontendTests.skipped} |
+            ---
 
-            ### 📦 Độ phủ mã nguồn (Coverage)
-            | Loại | Tỷ lệ | Tiến trình |
-            | :--- | :---: | :--- |
-            | **Lines** | \`${frontendCov.lines}%\` | ${'🟩'.repeat(Math.round(frontendCov.lines/10))}${'⬜'.repeat(10-Math.round(frontendCov.lines/10))} |
-            | **Statements** | \`${frontendCov.statements}%\` | ${'🟩'.repeat(Math.round(frontendCov.statements/10))}${'⬜'.repeat(10-Math.round(frontendCov.statements/10))} |
-            | **Functions** | \`${frontendCov.functions}%\` | ${'🟩'.repeat(Math.round(frontendCov.functions/10))}${'⬜'.repeat(10-Math.round(frontendCov.functions/10))} |
-            | **Branches** | \`${frontendCov.branches}%\` | ${'🟩'.repeat(Math.round(frontendCov.branches/10))}${'⬜'.repeat(10-Math.round(frontendCov.branches/10))} |
+            ## 🛠️ Chi tiết thực thi (Execution Details)
+
+            ### 🖥️ Frontend (Vitest)
+            ${progress(frontendCov.lines)} **${frontendCov.lines}%**
+            - **Statements:** \`${frontendCov.statements}%\` | **Functions:** \`${frontendCov.functions}%\` | **Branches:** \`${frontendCov.branches}%\`
 
             <details>
-            <summary>🔍 Xem Logs Frontend</summary>
+            <summary><b>🔍 Xem Terminal Output (Frontend)</b></summary>
 
-            \`\`\`
+            \`\`\`bash
             ${feLogs}
             \`\`\`
             </details>
 
             ---
 
-            ## ⚙️ Backend (Pytest)
-            **Trạng thái:** ${statusIcon(backendRes)} ${statusText(backendRes)}
-
-            ### 📊 Thống kê Kiểm thử
-            | Tổng số | ✅ Thành công | ❌ Thất bại | ⏭️ Bỏ qua |
-            | :---: | :---: | :---: | :---: |
-            | ${backendTests.total} | ${backendTests.passed} | ${backendTests.failed} | ${backendTests.skipped} |
-
-            ### 📦 Độ phủ mã nguồn (Coverage)
-            | Loại | Tỷ lệ | Tiến trình |
-            | :--- | :---: | :--- |
-            | **Lines** | \`${backendCov}%\` | ${'🟩'.repeat(Math.round(backendCov/10))}${'⬜'.repeat(10-Math.round(backendCov/10))} |
+            ### ⚙️ Backend (Pytest)
+            ${progress(backendCov)} **${backendCov}%**
+            - **Passed:** ${backendTests.passed} | **Failed:** ${backendTests.failed} | **Skipped:** ${backendTests.skipped}
 
             <details>
-            <summary>🔍 Xem Logs Backend</summary>
+            <summary><b>🔍 Xem Terminal Output (Backend)</b></summary>
 
-            \`\`\`
+            \`\`\`bash
             ${beLogs}
             \`\`\`
             </details>
 
             ---
 
-            ## 🐳 Docker Smoke Test
-            **Trạng thái:** ${statusIcon(dockerRes)} ${statusText(dockerRes)}
+            ### 🐳 Docker Smoke Test
+            - **Build & Up:** ${dockerRes === "success" ? "✅ Thành công" : "❌ Thất bại"}
+            - **Health Check:** ${dockerRes === "success" ? "✅ Thành công" : "❌ Thất bại"}
 
             <details>
-            <summary>🔍 Xem Logs Docker</summary>
+            <summary><b>🔍 Xem Terminal Output (Docker)</b></summary>
 
-            \`\`\`
+            \`\`\`bash
             ${dockerLogs}
             \`\`\`
             </details>
             
             ---
-            *Ghi chú: Xem chi tiết logs tại tab Actions hoặc tải các Artifacts để xem báo cáo chi tiết.*
+            **Quick Links:** [📝 View Commit](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}) | [📋 View Run Details](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
             `;
             
             core.summary.addRaw(summary).write();
