@@ -202,12 +202,11 @@ jobs:
         run: |
           echo "--- HEALTH CHECK LOGS ---" > health.log
           for i in {1..15}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)
-            if [ "$STATUS" -eq 200 ]; then
+            if curl -fsS http://127.0.0.1:8000/health >> health.log 2>&1; then
               echo "[$(date)] Backend is UP (Status 200)" >> health.log
               exit 0
             fi
-            echo "[$(date)] Waiting for backend... (Current Status: $STATUS)" >> health.log
+            echo "[$(date)] Waiting for backend..." >> health.log
             sleep 3
           done
           echo "❌ Kiểm tra health của backend thất bại" >> health.log
@@ -217,13 +216,17 @@ jobs:
 
       - name: 🌐 Kiểm tra frontend phản hồi
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000)
-          if [ "$STATUS" -eq 200 ]; then
-            echo "Frontend is UP"
-          else
-            echo "Frontend is DOWN (Status $STATUS)"
-            exit 1
-          fi
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:3000 > /dev/null 2>&1; then
+              echo "Frontend is UP"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Frontend is DOWN"
+          docker compose -f docker-compose.ci.yml ps
+          docker compose -f docker-compose.ci.yml logs frontend --tail=50
+          exit 1
 
       - name: 🔍 Thu thập Logs Docker
         id: capture-logs
