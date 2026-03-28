@@ -211,7 +211,9 @@ jobs:
         run: cp .env.docker.example .env
 
       - name: 🐳 Build và khởi động Docker Compose
-        run: docker compose -f docker-compose.ci.yml up -d --build --wait 2>&1 | tee docker_up.log
+        run: |
+          set -o pipefail
+          docker compose -f docker-compose.ci.yml up -d --build --wait 2>&1 | tee docker_up.log
 
       - name: 💓 Chờ backend sẵn sàng (Health Check)
         run: |
@@ -249,6 +251,8 @@ jobs:
         id: capture-logs
         if: always()
         run: |
+          docker compose -f docker-compose.ci.yml ps > docker_ps.log 2>&1 || true
+          docker compose -f docker-compose.ci.yml logs --no-color > docker_full.log 2>&1 || true
           {
             echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
             echo "┃               🐳 DOCKER CI EXECUTION LOGS              ┃"
@@ -261,6 +265,14 @@ jobs:
             echo "💓 [STEP 2: HEALTH CHECK]"
             echo "----------------------------------------------------------"
             cat health.log || echo "No health logs."
+            echo ""
+            echo "📦 [DOCKER PS]"
+            echo "----------------------------------------------------------"
+            cat docker_ps.log || echo "No docker ps logs."
+            echo ""
+            echo "📜 [DOCKER FULL LOGS]"
+            echo "----------------------------------------------------------"
+            tail -n 100 docker_full.log || echo "No docker logs found."
             echo ""
             echo "🏁 [EXECUTION FINISHED]"
           } > docker_combined.log
