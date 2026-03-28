@@ -28,6 +28,14 @@
     <img src="https://img.shields.io/github/license/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=0088FF&logo=github&logoColor=white&label=License" alt="License"/>
   </a>
 
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml">
+    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml/badge.svg" alt="CI Dự Án"/>
+  </a>
+
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml">
+    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml/badge.svg" alt="CD Dự Án"/>
+  </a>
+
   <br/><br/>
 
   <a href="https://skillicons.dev">
@@ -146,84 +154,67 @@ flowchart LR
 
 ```text
 AI-FOR-EDUCATION/
-├─ backend/
-│  ├─ app/
-│  │  ├─ ai/
-│  │  │  ├─ chatbot/
-│  │  │  ├─ chunking/
-│  │  │  ├─ embeddings/
-│  │  │  ├─ generation/
-│  │  │  ├─ ingestion/
-│  │  │  ├─ parsing/
-│  │  │  ├─ retrieval/
-│  │  │  └─ vector_store/
-│  │  ├─ api/
-│  │  │  └─ routes/
-│  │  ├─ core/
-│  │  ├─ db/
-│  │  ├─ models/
-│  │  ├─ repositories/
-│  │  ├─ schemas/
-│  │  ├─ services/
-│  │  ├─ utils/
-│  │  └─ main.py
-│  ├─ storage/
-│  │  ├─ chroma/
-│  │  ├─ generated/
-│  │  ├─ notebooklm/
-│  │  └─ uploads/
-│  ├─ requirements.txt
-│  └─ .env.example
-├─ frontend/
-│  ├─ app/
-│  │  ├─ globals.css               ← Design system (TailwindCSS v4)
-│  │  ├─ layout.tsx                ← Root layout
-│  │  ├─ page.tsx                  ← Dashboard
-│  │  ├─ chatbot/
-│  │  │  └─ page.tsx               ← Chatbot index
-│  │  ├─ generated/
-│  │  │  └─ page.tsx               ← Generated content index
-│  │  └─ materials/
-│  │     ├─ page.tsx               ← Materials listing
-│  │     ├─ upload/
-│  │     │  └─ page.tsx            ← Upload (Drag & Drop + Text)
-│  │     └─ [id]/
-│  │        ├─ page.tsx            ← Material detail
-│  │        ├─ slides/page.tsx     ← Slide preview
-│  │        ├─ podcast/page.tsx    ← Podcast timeline
-│  │        ├─ minigame/page.tsx   ← Quiz interactive
-│  │        └─ chat/page.tsx       ← Chatbot AI
-│  ├─ components/
-│  │  ├─ app-shell.tsx             ← Layout shell (Sidebar + Topbar)
-│  │  ├─ theme-provider.tsx        ← Dark/Light mode context
-│  │  ├─ 3d/
-│  │  ├─ layout/
-│  │  │  ├─ sidebar.tsx           ← Collapsible sidebar
-│  │  │  └─ topbar.tsx            ← Search + theme + user
-│  │  └─ ui/
-│  │     ├─ audio-player.tsx       ← Audio playback
-│  │     ├─ badge.tsx              ← Status badges
-│  │     ├─ button.tsx             ← Button variants
-│  │     ├─ card.tsx               ← Glass/hover cards
-│  │     ├─ empty-state.tsx        ← Empty state illustration
-│  │     ├─ markdown.tsx           ← Markdown renderer
-│  │     ├─ skeleton.tsx           ← Loading skeletons
-│  │     ├─ tabs.tsx               ← Animated tabs
-│  │     ├─ tilt-card.tsx          ← 3D tilt effect card
-│  │     └─ toast.tsx              ← Toast notifications
-│  ├─ lib/
-│  │  ├─ api.ts                    ← API client
-│  │  ├─ diacritize.ts             ← Vietnamese diacritics
-│  │  └─ tts.ts                    ← Text-to-speech
-│  ├─ types/
-│  │  └─ index.ts                  ← TypeScript types
-│  ├─ next.config.mjs
-│  ├─ postcss.config.mjs
-│  ├─ tsconfig.json
-│  ├─ package.json
-│  └─ .env.example
-├─ .env.example
-└─ README.md
+├─ backend/                     ← Mã nguồn Server (FastAPI + AI Pipeline)
+│  ├─ app/                      ← Logic ứng dụng chính
+│  │  ├─ ai/                    ← Các module xử lý AI (RAG, Chatbot, Embeddings,...)
+│  │  │  ├─ chatbot/            ← Điều phối chatbot và logic hội thoại
+│  │  │  ├─ chunking/           ← Chia nhỏ tài liệu để xử lý RAG
+│  │  │  ├─ embeddings/         ← Chuyển đổi văn bản thành vector
+│  │  │  ├─ generation/         ← Tạo nội dung (Slides, Podcast, Minigame,...)
+│  │  │  ├─ ingestion/          ← Làm sạch và nạp dữ liệu đầu vào
+│  │  │  ├─ parsing/            ← Trích xuất text từ các định dạng file (PDF, Word,...)
+│  │  │  ├─ retrieval/          ← Truy xuất thông tin từ Vector DB
+│  │  │  └─ vector_store/       ← Quản lý lưu trữ vector (ChromaDB)
+│  │  ├─ api/                   ← Định nghĩa các Endpoints REST API
+│  │  ├─ core/                  ← Cấu hình hệ thống, biến môi trường, logging
+│  │  ├─ db/                    ← Kết nối Database (MongoDB, ChromaDB)
+│  │  ├─ models/                ← Định nghĩa Schema Database (Pydantic/Mongo)
+│  │  ├─ repositories/          ← Lớp tương tác trực tiếp với Database
+│  │  ├─ schemas/               ← Data Transfer Objects (DTO) cho API request/response
+│  │  ├─ services/              ← Business logic xử lý yêu cầu nghiệp vụ
+│  │  ├─ utils/                 ← Các hàm tiện ích dùng chung
+│  │  └─ main.py                ← File chạy chính của FastAPI
+│  ├─ storage/                  ← Thư mục lưu trữ dữ liệu cục bộ
+│  │  ├─ chroma/                ← Cơ sở dữ liệu Vector (Persistent)
+│  │  ├─ extracted/             ← Dữ liệu text trích xuất từ file
+│  │  ├─ generated/             ← Sản phẩm AI tạo ra (Slides, Audio,...)
+│  │  ├─ images/                ← Hình ảnh trích xuất từ tài liệu
+│  │  ├─ notebooklm/            ← File tạm xử lý cho NotebookLM
+│  │  ├─ outputs/               ← Kết quả xử lý tổng hợp
+│  │  └─ uploads/               ← Tài liệu người dùng tải lên
+│  ├─ tests/                    ← Unit tests và Integration tests backend
+│  ├─ Dockerfile                ← Docker cấu hình cho backend
+│  ├─ requirements.txt          ← Danh sách thư viện Python
+│  └─ .env.example              ← Mẫu file biến môi trường backend
+├─ frontend/                    ← Mã nguồn Giao diện (Next.js + TailwindCSS)
+│  ├─ app/                      ← Các trang và Layout (Next.js App Router)
+│  │  ├─ chatbot/               ← Giao diện chat hỏi đáp
+│  │  ├─ converter/             ← Công cụ chuyển đổi định dạng
+│  │  ├─ generated/             ← Quản lý các nội dung đã tạo
+│  │  ├─ materials/             ← Quản lý và xem chi tiết học liệu
+│  │  ├─ globals.css            ← Cấu hình Tailwind v4 và styles toàn cục
+│  │  ├─ layout.tsx             ← Cấu trúc khung trang chính
+│  │  └─ page.tsx               ← Trang chủ Dashboard
+│  ├─ components/               ← Các thành phần UI dùng chung
+│  │  ├─ 3d/                    ← Các hiệu ứng 3D (nếu có)
+│  │  ├─ converter/             ← UI cho phần converter
+│  │  ├─ layout/                ← Sidebar, Topbar, AppShell
+│  │  ├─ minigame/              ← Các component trò chơi tương tác
+│  │  ├─ ui/                    ← Các UI nguyên tử (Button, Card, Toast,...)
+│  ├─ lib/                      ← Thư viện hỗ trợ, API Client, utils frontend
+│  ├─ public/                   ← Tài nguyên tĩnh (Logo, Icons, Fonts)
+│  ├─ test/                     ← Kiểm thử frontend (Unit/Integration)
+│  ├─ types/                    ← Định nghĩa kiểu dữ liệu TypeScript
+│  ├─ Dockerfile                ← Docker cấu hình cho frontend
+│  ├─ package.json              ← Quản lý thư viện Node.js
+│  └─ .env.example              ← Mẫu file biến môi trường frontend
+├─ Document_PRD/                ← Tài liệu đặc tả yêu cầu và thiết kế dự án
+├─ image/                       ← Ảnh minh họa cho README và hệ thống
+├─ markdown_docs/               ← Các tài liệu hướng dẫn chi tiết (.md)
+├─ TESTING_CODE/                ← Code test mẫu và tài liệu API bên thứ 3
+├─ docker-compose.yml           ← Cấu hình triển khai toàn bộ hệ thống bằng Docker
+├─ README.md                    ← Hướng dẫn dự án chính
+└─ .env.example                 ← Mẫu file môi trường tổng cho Docker
 ```
 
 ---
@@ -231,6 +222,21 @@ AI-FOR-EDUCATION/
 ## 4. API chính (MVP)
 
 > **API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
+
+<p align="center">
+<table style="margin: 0 auto;">
+  <tr>
+    <td align="center" style="padding:8px;">
+      <img src="image/docs_8000.png" alt="Swagger UI" width="540" style="border:1px solid #e6e6e6; border-radius:6px;" />
+      <div style="margin-top:8px; font-weight:600;">Swagger UI — <a href="http://localhost:8000/docs">/docs</a></div>
+    </td>
+    <td align="center" style="padding:8px;">
+      <img src="image/health_8000.png" alt="Health Check" width="260" style="border:1px solid #e6e6e6; border-radius:6px;" />
+      <div style="margin-top:8px; font-weight:600;">Health Check — <a href="http://localhost:8000/health">/health</a></div>
+    </td>
+  </tr>
+</table>
+</p>
 
 ### 4.1 Materials
 - `POST /api/materials` — Tạo học liệu từ text
@@ -501,7 +507,223 @@ npm run dev
 
 ---
 
-## 6. Troubleshooting
+## 6. CI / CD
+
+Hiện tại dự án có **CI** đầy đủ và **CD bán thật**: đã publish Docker image lên GitHub Container Registry nhưng vẫn chưa triển khai lên server thật.
+
+- Workflow: `.github/workflows/project-ci.yml`
+- CD tượng trưng: `.github/workflows/project-cd.yml`
+- Trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/` hoặc file workflow
+- CD trigger: tự chạy sau khi `CI Dự Án` trên `main` thành công, hoặc chạy tay bằng `workflow_dispatch`
+- Flow hiện tại: `CI` pass trên `main` -> `CD Dự Án` build artifact -> publish Docker image lên `ghcr.io` -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
+- Frontend: chạy `lint` + `test` + `coverage`
+- Backend: chạy `pytest` + `coverage`
+- Docker: chạy smoke test `docker compose`
+- Khi `push` fail, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
+- CD hiện build, đóng gói artifact, publish ảnh Docker lên `ghcr.io` và tạo `deploy-placeholder`, nhưng chưa triển khai lên server thật
+- Nếu CD fail, workflow cũng sẽ tự tạo hoặc cập nhật GitHub Issue
+- Tóm tắt CD: `markdown_docs/TOM_TAT_CD_2026-03-28.md`
+- Artifact CD quan trọng nhất: `full-release-bundle-<sha>` trong tab Actions Artifacts của workflow `CD Dự Án`
+- Ảnh Docker phát hành: `ghcr.io/<owner>/<repo>-backend` và `ghcr.io/<owner>/<repo>-frontend`
+
+### 6.1 Sơ đồ Pipeline CI/CD
+
+```mermaid
+flowchart TD
+    subgraph CI["🔄 CI Pipeline - Project CI"]
+        A[Push / PR<br/>frontend/, backend/] --> B{CI Trigger}
+
+        B --> C[Frontend Job]
+        B --> D[Backend Job]
+        B --> E[Docker Compose Smoke]
+
+        C --> C1[Checkout]
+        C1 --> C2[Setup Node.js 20]
+        C2 --> C3[npm ci]
+        C3 --> C4[npm run lint]
+        C4 --> C5[npm run test:coverage]
+        C5 --> C6[Upload Coverage Artifact]
+
+        D --> D1[Checkout]
+        D1 --> D2[Setup Python 3.11]
+        D2 --> D3[Install Dependencies]
+        D3 --> D4[pytest + coverage]
+        D4 --> D5[Upload Coverage Artifact]
+
+        E --> E1[Checkout]
+        E1 --> E2[Prepare .env]
+        E2 --> E3[Docker Buildx Setup]
+        E3 --> E4[docker compose up -d --build --wait]
+        E4 --> E5[Backend Health Check<br/>15 iterations × 3s]
+        E5 --> E6[Frontend Health Check]
+        E6 --> E7[docker compose down]
+
+        C6 --> F{All Jobs Pass?}
+        D5 --> F
+        E7 --> F
+    end
+
+    F -->|Yes ✅| G[Merge to main]
+    F -->|No ❌| H[Create/Update GitHub Issue]
+
+    subgraph CD["🚀 CD Pipeline - CD Dự Án"]
+        G --> I{CD Trigger}
+        I -->|main success| J[Prepare Release]
+        I -->|workflow_dispatch| J
+
+        J --> J1[Checkout]
+        J1 --> J2[Generate Metadata]
+        J2 --> J3[Create Release Notes]
+        J3 --> J4[Upload Metadata Artifact]
+
+        J4 --> K[Build Frontend Artifact]
+        J4 --> L[Package Backend Artifact]
+        J4 --> M[Package Docker Bundle]
+        J4 --> P[Publish Docker Images]
+
+        K --> K1[Checkout + Node.js Setup]
+        K1 --> K2[npm ci]
+        K2 --> K3[npm run build]
+        K3 --> K4[Copy .next, public, package.json]
+        K4 --> K5[Upload Frontend Bundle]
+
+        L --> L1[Checkout + Python Setup]
+        L1 --> L2[python -m compileall app]
+        L2 --> L3[Copy app, requirements.txt]
+        L3 --> L4[Upload Backend Bundle]
+
+        M --> M1[Checkout]
+        M1 --> M2[Prepare .env]
+        M2 --> M3[docker compose config]
+        M3 --> M4[Upload Docker Bundle]
+
+        P --> P1[Login GHCR]
+        P1 --> P2[Build Backend Image]
+        P2 --> P3[Push Backend Tags]
+        P3 --> P4[Build Frontend Image]
+        P4 --> P5[Push Frontend Tags]
+
+        K5 --> N[Deploy Placeholder]
+        L4 --> N
+        M4 --> N
+        P5 --> N
+
+        N --> N1[Download Metadata]
+        N1 --> N2[Generate Deployment Summary]
+        N2 --> N3[Upload Deploy Report]
+
+        N3 --> O[Release Bundle]
+        O --> O1[Download All Artifacts]
+        O1 --> O2[Merge: Frontend + Backend + Docker + GHCR + Deploy]
+        O2 --> O3[Upload full-release-bundle-<sha>]
+    end
+
+    H -.-> A
+
+    style CI fill:#1e3a5f,stroke:#00d9ff,stroke-width:2px,color:#fff
+    style CD fill:#2d5016,stroke:#00ff88,stroke-width:2px,color:#fff
+    style F fill:#ff9800,stroke:#fff,stroke-width:2px,color:#000
+    style H fill:#f44336,stroke:#fff,stroke-width:2px,color:#fff
+```
+
+### 6.2 Luồng Health Check Docker Compose
+
+```mermaid
+sequenceDiagram
+    participant GH as GitHub Actions
+    participant DC as Docker Compose
+    participant BE as Backend :8000
+    participant FE as Frontend :3000
+
+    GH->>DC: docker compose up -d --build --wait
+    Note over DC: Build Backend + Frontend<br/>with Buildx caching
+
+    DC-->>GH: Containers started
+
+    loop Health Check Backend (max 45s)
+        GH->>BE: curl /health (every 3s)
+        alt Backend ready
+            BE-->>GH: 200 OK
+        else Backend not ready
+            BE-->>GH: Connection refused
+        end
+    end
+
+    alt Backend healthy
+        GH->>FE: curl :3000
+        alt Frontend ready
+            FE-->>GH: 200 OK
+            GH->>DC: docker compose down -v
+            Note over GH: ✅ Smoke test passed
+        else Frontend not ready
+            FE-->>GH: Connection refused
+            GH->>DC: docker compose logs
+            Note over GH: ❌ Frontend failed
+        end
+    else Backend unhealthy
+        GH->>DC: docker compose logs backend
+        Note over GH: ❌ Backend failed
+        GH->>DC: docker compose down -v
+    end
+```
+
+### 6.3 Các job chính và thời gian ước tính
+
+| Job | Thời gian (lần đầu) | Thời gian (có cache) | Mô tả |
+|-----|---------------------|----------------------|-------|
+| **Frontend** | 2-3 phút | 1-2 phút | Install deps + lint + test + coverage |
+| **Backend** | 1-2 phút | 30-60 giây | Install deps + pytest + coverage |
+| **Docker Compose Smoke** | 3-5 phút | 1-2 phút | Build images + health check |
+| **CD Prepare Release** | 30 giây | 30 giây | Generate metadata + release notes |
+| **CD Build Frontend** | 2-3 phút | 1-2 phút | npm build + bundle |
+| **CD Package Backend** | 30 giây | 30 giây | Syntax check + bundle |
+| **CD Package Docker** | 30 giây | 30 giây | Compose config + bundle |
+| **CD Release Bundle** | 1 phút | 1 phút | Download + merge all artifacts |
+
+> 💡 **Lưu ý:** Thời gian có thể thay đổi tùy thuộc vào kích thước code changes và tình trạng cache của GitHub Actions.
+
+### 6.4 Cách chạy CI local
+
+```bash
+cd frontend
+npm ci
+npm run test:ci
+
+cd ../backend
+python -m pip install -r requirements-test.txt
+python -m pytest
+
+cp .env.docker.example .env
+docker compose up -d --build
+curl http://localhost:8000/health
+docker compose down -v
+```
+
+Coverage report sau khi chạy:
+
+- Frontend: `frontend/coverage/index.html`
+- Backend: `backend/htmlcov/index.html`
+- Docker: kiểm tra `http://localhost:8000/health` và `docker compose ps`
+
+### 6.5 Ghi chú
+
+- Frontend có coverage threshold trong `frontend/vitest.config.ts`
+- Backend có coverage threshold trong `backend/pytest.ini`
+- Tài liệu chi tiết hơn: `markdown_docs/CI_SUMMARY_2026-03-28.md`
+
+### 6.6 Hướng dẫn tải full-release-bundle từ CD
+
+1. Vào tab **Actions** trên GitHub
+2. Chọn workflow **CD Dự Án**
+3. Click vào lần chạy gần nhất (có status ✅ thành công)
+4. Kéo xuống phần **Artifacts** ở cuối trang
+5. Click vào `full-release-bundle-<sha>` để tải về
+
+> 💡 **Lưu ý:** Artifact chỉ được lưu trong **90 ngày**. Tải về ngay sau khi CD chạy thành công.
+
+---
+
+## 7. Troubleshooting
 
 ### Lỗi không có lệnh `python`
 Trên Windows, dùng `py` thay cho `python`.
@@ -566,9 +788,23 @@ Lưu ý vận hành:
 
 ---
 
-## Tài liệu bổ sung
+## Minigame
 
-- [WEB_SEARCH_GUIDE_VI.md](markdown_docs/WEB_SEARCH_GUIDE_VI.md) — tài liệu mô tả chi tiết chức năng web search cho **chatbot RAG** và **mascot**, bao gồm cấu hình `.env`, logic chọn provider giữa Google Search grounding và Tavily, bước refinement kết quả, API liên quan, cách frontend hiển thị nguồn tham khảo và checklist kiểm thử nhanh.
+- Tạo minigame tự động từ học liệu (MCQ, điền từ, ghép cặp).
+- API: `POST /api/materials/{material_id}/generate/minigame` — tạo minigame.
+- Chơi & nộp: `POST /api/games/{generated_content_id}/submit` — nộp kết quả.
+- Frontend: trang minigame tại `frontend/app/materials/[id]/minigame`.
+
+---
+
+## 8. Tài liệu bổ sung
+
+- [WEB_SEARCH_GUIDE_VI.md](markdown_docs/WEB_SEARCH_GUIDE_VI.md) — Hướng dẫn Web Search.
+- [DOCKER_REVIEW_2026-03-27.md](markdown_docs/DOCKER_REVIEW_2026-03-27.md) — Docker review.
+- [LLM_API_FLOW.md](markdown_docs/LLM_API_FLOW.md) — Luồng API LLM.
+- [MINIGAME.md](markdown_docs/MINIGAME.md) — Thiết kế minigame.
+- [NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md) — NotebookLM media notes.
+- [CI_SUMMARY_2026-03-28.md](markdown_docs/CI_SUMMARY_2026-03-28.md) — Tóm tắt đầy đủ phần CI hiện tại của dự án.
 
 ---
 

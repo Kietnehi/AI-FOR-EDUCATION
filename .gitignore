@@ -1,57 +1,100 @@
-# General
-# Ignore Python bytecode caches, virtual envs, editor and OS files
+# --- General / OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.mp4
+*.tmp
+*.temp
+*.swp
+*.swo
+*.log
+logs/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- Python ---
 __pycache__/
 **/__pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-
-# Virtual environments
-.venv/
-venv/
+*$py.class
+*.so
+.Python
 env/
-ENV/
-
-# Python tooling caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Build / distribution
+venv/
+.venv/
+**/env/
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.docker.example
 build/
 dist/
 *.egg-info/
+.pytest_cache/
+**/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+**/.coverage
+.cache/
+.ipynb_checkpoints/
+Test_markdown.ipynb
+backend/backend_debug.log
+backend/coverage.xml
+backend/htmlcov/
+frontend/coverage/
 
-# Node
-frontend/node_modules/
-frontend/.next/
-frontend/tsconfig.tsbuildinfo
+# --- Node / Frontend ---
+node_modules/
+**/node_modules/
+.next/
+out/
+.eslintcache
+.prettiercache
+*.tsbuildinfo
+frontend/npm_install_log.txt
 frontend/build.log
 
-# Storage directories (repo-specific)
+# --- Storage (Runtime Data) ---
 backend/storage/chroma/
 backend/storage/uploads/*
-backend/storage/generated/*
-backend/storage/notebooklm/
-backend/storage/extracted/
 !backend/storage/uploads/.gitkeep
+backend/storage/generated/*
 !backend/storage/generated/.gitkeep
+backend/storage/extracted/*
+!backend/storage/extracted/.gitkeep
+backend/storage/images/*
 !backend/storage/images/.gitkeep
+backend/storage/notebooklm/*
+!backend/storage/notebooklm/.gitkeep
+backend/storage/outputs/*
+!backend/storage/outputs/.gitkeep
 
-# Environment files
-*.env
-frontend/.env.local
+# --- Environment Files ---
+.env
+.env.*
+!.env.example
+!.env.docker.example
 backend/.env
+frontend/.env.local
 
-# IDEs / editors
-.vscode/
-.idea/
+# --- Database ---
+*.db
+*.sqlite
+*.sqlite3
 
-# OS
-.DS_Store
-Thumbs.db
-*.mp4
-
-# GitHub
-.github/copilot-instructions.md
-     
+# --- Testing ---
+coverage/
+htmlcov/
+coverage.xml
+TESTING_CODE/
+test-results/
+playwright-report/
+blob-report/
