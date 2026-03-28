@@ -85,12 +85,19 @@ jobs:
         if: always()
         run: |
           {
-            echo "--- FRONTEND CI LOGS ---"
-            echo "[Step 1: npm ci]"
-            tail -n 15 npm_ci.log
+            echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+            echo "┃               💻 FRONTEND CI EXECUTION LOGS            ┃"
+            echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
             echo ""
-            echo "[Step 2: vitest]"
-            tail -n 40 vitest.log
+            echo "📦 [STEP 1: DEPENDENCIES INSTALLATION]"
+            echo "----------------------------------------------------------"
+            tail -n 15 npm_ci.log || echo "No logs found."
+            echo ""
+            echo "🧪 [STEP 2: VITEST EXECUTION]"
+            echo "----------------------------------------------------------"
+            tail -n 45 vitest.log || echo "No logs found."
+            echo ""
+            echo "🏁 [EXECUTION FINISHED]"
           } > fe_combined.log
           LOGS_VAL=$(base64 -w 0 < fe_combined.log)
           echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
@@ -145,10 +152,11 @@ jobs:
             python -c "import xml.etree.ElementTree as ET, json; \
               tree = ET.parse('junit.xml'); \
               root = tree.getroot(); \
-              total = int(root.attrib.get('tests', 0)); \
-              failed = int(root.attrib.get('failures', 0)); \
-              errors = int(root.attrib.get('errors', 0)); \
-              skipped = int(root.attrib.get('skipped', 0)); \
+              suites = [root] if root.tag == 'testsuite' else root.findall('.//testsuite'); \
+              total = sum(int(s.attrib.get('tests', 0)) for s in suites); \
+              failed = sum(int(s.attrib.get('failures', 0)) for s in suites); \
+              errors = sum(int(s.attrib.get('errors', 0)) for s in suites); \
+              skipped = sum(int(s.attrib.get('skipped', 0)) for s in suites); \
               passed = total - failed - errors - skipped; \
               print('test_metrics=' + json.dumps({'passed': passed, 'failed': failed + errors, 'total': total, 'skipped': skipped}))" >> "$GITHUB_OUTPUT"
           else
@@ -160,12 +168,19 @@ jobs:
         if: always()
         run: |
           {
-            echo "--- BACKEND CI LOGS ---"
-            echo "[Step 1: pip install]"
-            tail -n 15 pip_install.log
+            echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+            echo "┃                🎬 BACKEND CI EXECUTION LOGS            ┃"
+            echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
             echo ""
-            echo "[Step 2: pytest]"
-            tail -n 40 pytest.log
+            echo "📦 [STEP 1: DEPENDENCIES INSTALLATION]"
+            echo "----------------------------------------------------------"
+            tail -n 15 pip_install.log || echo "No logs found."
+            echo ""
+            echo "🧪 [STEP 2: PYTEST EXECUTION]"
+            echo "----------------------------------------------------------"
+            tail -n 45 pytest.log || echo "No logs found."
+            echo ""
+            echo "🏁 [EXECUTION FINISHED]"
           } > be_combined.log
           LOGS_VAL=$(base64 -w 0 < be_combined.log)
           echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
@@ -235,12 +250,19 @@ jobs:
         if: always()
         run: |
           {
-            echo "--- DOCKER CI LOGS ---"
-            echo "[Step 1: docker compose up]"
-            tail -n 20 docker_up.log
+            echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+            echo "┃               🐳 DOCKER CI EXECUTION LOGS              ┃"
+            echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
             echo ""
-            echo "[Step 2: Health Check]"
-            cat health.log
+            echo "🐳 [STEP 1: DOCKER COMPOSE UP]"
+            echo "----------------------------------------------------------"
+            tail -n 20 docker_up.log || echo "No logs found."
+            echo ""
+            echo "💓 [STEP 2: HEALTH CHECK]"
+            echo "----------------------------------------------------------"
+            cat health.log || echo "No health logs."
+            echo ""
+            echo "🏁 [EXECUTION FINISHED]"
           } > docker_combined.log
           LOGS_VAL=$(base64 -w 0 < docker_combined.log)
           echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
