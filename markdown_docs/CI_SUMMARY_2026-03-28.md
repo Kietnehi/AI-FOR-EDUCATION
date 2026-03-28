@@ -1,19 +1,54 @@
-# Tóm tắt và review CI (2026-03-28)
+# Review đầy đủ CI của dự án (2026-03-28)
 
-Tài liệu này được cập nhật lại dựa trên cấu hình thực tế trong `/.github/workflows/project-ci.yml`, `docker-compose.ci.yml`, `frontend/package.json`, `frontend/vitest.config.ts`, `backend/pytest.ini` và `backend/requirements-test.txt`.
+Tài liệu này là bản review đầy đủ luồng Continuous Integration (CI) hiện tại của repo `AI-FOR-EDUCATION`. Mục tiêu là để chỉ cần đọc một tài liệu này, người mới vào repo vẫn hiểu được CI đang chạy gì, tại sao chạy như vậy, đầu ra là gì, và giới hạn hiện tại nằm ở đâu.
 
-Mục tiêu của tài liệu là phản ánh đúng CI đang chạy gì, chưa chạy gì, và các rủi ro đáng chú ý.
+Nội dung dưới đây phản ánh cấu hình thực tế trong:
 
-## 1. Phạm vi kích hoạt
+- `/.github/workflows/project-ci.yml`
+- `/docker-compose.ci.yml`
+- `frontend/vitest.config.ts`
+- `backend/pytest.ini`
+- `backend/requirements-test.txt`
 
-Workflow CI hiện tại là `CI Dự Án`, nằm tại `/.github/workflows/project-ci.yml`.
+## 1. CI hiện tại dùng để làm gì
 
-CI được kích hoạt bởi:
+CI của dự án đóng vai trò là lớp chặn chất lượng trước khi code được coi là đủ an toàn để đi tiếp sang CD.
+
+Nó đang kiểm tra 3 lớp chính:
+
+1. **Frontend quality gate**
+   - cài dependency
+   - lint
+   - chạy test với coverage
+
+2. **Backend quality gate**
+   - cài dependency test
+   - chạy `pytest`
+   - kiểm tra coverage
+
+3. **Whole-stack smoke gate bằng Docker Compose**
+   - build toàn stack theo cấu hình CI riêng
+   - bật container
+   - chờ backend sống
+   - chờ frontend phản hồi
+
+Nói ngắn gọn: CI hiện tại không chỉ test unit, mà còn kiểm tra xem cả hệ thống có build và khởi động được ở mức tối thiểu hay không.
+
+## 2. Workflow CI nằm ở đâu
+
+- Tên workflow: `CI Dự Án`
+- File workflow: `/.github/workflows/project-ci.yml`
+
+Workflow này là entry point duy nhất của CI chính trong repo ở thời điểm hiện tại.
+
+## 3. Khi nào CI được kích hoạt
+
+CI được kích hoạt bởi hai sự kiện:
 
 - `push`
 - `pull_request`
 
-Và chỉ chạy khi thay đổi chạm vào một trong các nhóm file sau:
+Tuy nhiên workflow không chạy cho mọi thay đổi. Nó chỉ chạy khi thay đổi chạm vào các nhóm file sau:
 
 - `frontend/**`
 - `backend/**`
@@ -23,26 +58,36 @@ Và chỉ chạy khi thay đổi chạm vào một trong các nhóm file sau:
 - `.github/workflows/project-ci.yml`
 - `.github/workflows/project-cd.yml`
 
-Nhận xét:
+### Ý nghĩa của cấu hình `paths`
 
-- Cấu hình `paths` đang giúp tránh chạy CI cho thay đổi không liên quan.
-- Việc để `project-cd.yml` trong danh sách `paths` là hợp lý vì CD phụ thuộc chặt vào cấu trúc artifact và cách đóng gói từ CI/CD.
+Đây là một điểm quan trọng của workflow hiện tại.
 
-## 2. Quyền của workflow
+- Nếu bạn chỉ sửa tài liệu không liên quan hoặc file ngoài phạm vi trên, CI sẽ không bị kích hoạt.
+- Nếu bạn sửa `project-cd.yml`, CI vẫn chạy lại.
 
-Workflow đang dùng:
+Việc đưa `/.github/workflows/project-cd.yml` vào `paths` là hợp lý vì:
+
+- CD phụ thuộc vào artifact và cách đóng gói từ CI
+- thay đổi CD có thể làm hỏng chuỗi CI/CD chung
+- chạy lại CI giúp phát hiện sớm lỗi workflow liên quan đến đóng gói và Docker
+
+## 4. Quyền mà workflow CI đang dùng
+
+Workflow CI hiện khai báo:
 
 - `contents: read`
 - `issues: write`
 
-Ý nghĩa:
+### Ý nghĩa
 
-- `contents: read` đủ cho checkout mã nguồn.
-- `issues: write` được dùng cho job tự tạo hoặc cập nhật GitHub Issue khi CI fail trên sự kiện `push`.
+- `contents: read` đủ cho `actions/checkout` đọc mã nguồn repo.
+- `issues: write` được dùng để mở hoặc cập nhật GitHub Issue khi CI thất bại trên `push`.
 
-## 3. Kiến trúc job hiện tại
+CI hiện không cần quyền package hay deploy vì phần đó thuộc CD.
 
-CI hiện có 5 job:
+## 5. Kiến trúc tổng thể của workflow CI
+
+Workflow có 5 job:
 
 1. `frontend`
 2. `backend`
@@ -50,41 +95,71 @@ CI hiện có 5 job:
 4. `ci-summary`
 5. `report-failure`
 
-Ba job đầu là phần kiểm tra chính. Hai job cuối là phần tổng hợp và thông báo lỗi.
+Trong đó:
 
-## 4. Job `frontend`
+- `frontend`, `backend`, `docker-compose-smoke` là các job kiểm tra chính
+- `ci-summary` là job tổng hợp kết quả
+- `report-failure` là job thông báo lỗi tự động bằng GitHub Issue
 
-### 4.1 Những gì job này thực sự chạy
+### Cách các job liên kết với nhau
 
-Job chạy trên `ubuntu-latest`, với `working-directory: frontend`.
+- Ba job chính có thể chạy song song.
+- `ci-summary` phụ thuộc vào cả ba job chính.
+- `report-failure` cũng phụ thuộc vào cả ba job chính và chỉ kích hoạt khi có thất bại.
 
-Các bước chính:
+Điều này giúp giảm thời gian chờ tổng thể, đồng thời vẫn có một lớp tổng hợp dễ đọc sau cùng.
 
-1. `actions/checkout`
-2. `actions/setup-node` với Node `20`
+## 6. Review chi tiết job `frontend`
+
+### 6.1 Mục tiêu của job
+
+Job `frontend` đảm bảo phần giao diện:
+
+- cài được dependency
+- không lỗi lint ở mức workflow đang kiểm tra
+- test qua Vitest
+- coverage không tụt dưới ngưỡng đã cấu hình
+
+### 6.2 Môi trường chạy
+
+- Runner: `ubuntu-latest`
+- `working-directory`: `frontend`
+- Node.js: `20`
+
+Workflow bật cache npm qua `actions/setup-node` và `frontend/package-lock.json`.
+
+### 6.3 Các bước thực tế đang chạy
+
+1. `actions/checkout@v6`
+2. `actions/setup-node@v6`
 3. `npm ci`
 4. `npm run lint`
 5. `npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json`
-6. Trích xuất coverage và test metrics
-7. Thu thập log, base64 hóa log để đưa vào summary
-8. Upload artifact `frontend-coverage-report`
+6. trích xuất số liệu coverage và test metrics
+7. thu thập log, base64 hóa log
+8. upload artifact `frontend-coverage-report`
 
-### 4.2 Điều cần lưu ý
+### 6.4 Điểm cần hiểu đúng
 
-- CI không gọi script `npm run test:coverage`, mà gọi trực tiếp `npx vitest run --coverage ...`.
-- CI có thêm JSON reporter để tạo `test-results.json`, phục vụ tổng hợp số test pass/fail/total/skipped.
-- Artifact coverage được upload từ `frontend/coverage`.
+CI không gọi script kiểu `npm run test:coverage`, mà gọi trực tiếp `vitest` với nhiều reporter để lấy thêm dữ liệu máy đọc được.
 
-### 4.3 Coverage frontend
+Điều này có lợi vì workflow cần:
 
-Coverage threshold thực tế đang nằm ở `frontend/vitest.config.ts`:
+- `coverage/coverage-summary.json`
+- `test-results.json`
 
+để dựng dashboard trong `ci-summary`.
+
+### 6.5 Coverage frontend hiện tại
+
+Ngưỡng coverage đang nằm trong `frontend/vitest.config.ts`:
+
+- `lines: 70`
 - `statements: 70`
 - `branches: 65`
 - `functions: 60`
-- `lines: 70`
 
-Các định dạng report đang bật:
+Các loại report đang tạo:
 
 - `text`
 - `html`
@@ -92,184 +167,322 @@ Các định dạng report đang bật:
 - `lcov`
 - `json`
 
-Nhận xét:
+### 6.6 Đầu ra của job
 
-- Tài liệu cũ mô tả đúng phần threshold, nhưng thiếu chi tiết rằng CI cần thêm `test-results.json` để dựng dashboard.
-- Việc parse `coverage/coverage-summary.json` bằng `jq` là hợp lý, miễn runner Ubuntu tiếp tục có `jq` sẵn.
+Job xuất ra các output nội bộ để job khác dùng:
 
-## 5. Job `backend`
+- coverage tổng
+- coverage chi tiết theo loại
+- test metrics
+- log dạng base64
 
-### 5.1 Những gì job này thực sự chạy
+Artifact được upload:
 
-Job chạy trên `ubuntu-latest`, với `working-directory: backend`.
+- `frontend-coverage-report`
 
-Các bước chính:
+Artifact này thường chứa thư mục `frontend/coverage` để phục vụ xem lại coverage sau run.
 
-1. `actions/checkout`
-2. `actions/setup-python` với Python `3.11`
+### 6.7 Điểm mạnh
+
+- Có lint riêng cho frontend.
+- Có coverage threshold.
+- Có metrics đủ để dựng summary đẹp.
+- Có log gom sẵn để đọc nhanh trong dashboard.
+
+### 6.8 Giới hạn hiện tại
+
+- Chưa có e2e frontend trong browser thật.
+- Chưa có visual regression.
+- Chưa có nhiều tầng lint/type-check frontend ngoài cấu hình hiện tại của repo.
+
+## 7. Review chi tiết job `backend`
+
+### 7.1 Mục tiêu của job
+
+Job `backend` kiểm tra xem phần server:
+
+- cài được dependency test
+- chạy được test qua `pytest`
+- coverage không thấp hơn ngưỡng tối thiểu
+
+### 7.2 Môi trường chạy
+
+- Runner: `ubuntu-latest`
+- `working-directory`: `backend`
+- Python: `3.11`
+
+Workflow bật cache pip dựa trên `backend/requirements-test.txt`.
+
+### 7.3 Các bước thực tế đang chạy
+
+1. `actions/checkout@v6`
+2. `actions/setup-python@v6`
 3. `pip install -r requirements-test.txt`
 4. `pytest --junitxml=junit.xml`
-5. Trích xuất coverage từ `coverage.xml`
-6. Trích xuất test metrics từ `junit.xml`
-7. Thu thập log và encode base64
-8. Upload artifact `backend-coverage-report`
+5. trích xuất coverage từ `coverage.xml`
+6. trích xuất test metrics từ `junit.xml`
+7. thu thập log và base64 hóa
+8. upload artifact `backend-coverage-report`
 
-### 5.2 Coverage backend
+### 7.4 Coverage backend hiện tại
 
-Coverage backend đang được cấu hình trong `backend/pytest.ini`:
+Theo `backend/pytest.ini`, backend đang có:
 
-- target: `app`
-- report: `term-missing`
-- report XML: `coverage.xml`
-- report HTML: `htmlcov`
-- threshold: `--cov-fail-under=29`
+- đo coverage cho `app`
+- xuất `coverage.xml`
+- xuất `htmlcov`
+- ngưỡng tối thiểu: `--cov-fail-under=29`
 
-### 5.3 Điểm tài liệu cũ mô tả sai
+### 7.5 Điểm cần hiểu đúng
 
-Tài liệu trước đó nói `requirements-test.txt` là một bộ dependency test tối giản được tách riêng khỏi runtime. Điều này không còn đúng với repo hiện tại.
+`backend/requirements-test.txt` hiện không phải bộ dependency test tối giản độc lập. Nó đang include luôn `requirements.txt`.
 
-`backend/requirements-test.txt` thực tế đang là:
+Điều này có nghĩa:
 
-- `-r requirements.txt`
-- `pytest`
-- `pytest-asyncio`
-- `pytest-cov`
+- backend CI vẫn cài toàn bộ runtime dependency trước
+- sau đó mới cài các gói test như `pytest`, `pytest-cov`, `pytest-asyncio`
 
-Điều đó có nghĩa là:
+Đây không phải bug, nhưng là một điểm chi phí thời gian đáng chú ý.
 
-- CI backend vẫn cài toàn bộ dependency runtime trước khi cài dependency test.
-- Lợi ích "CI nhẹ hơn nhiều vì không kéo dependency runtime" hiện không tồn tại trong cấu hình hiện tại.
+### 7.6 Đầu ra của job
 
-Nhận xét:
+Job xuất:
 
-- Đây không phải lỗi workflow, nhưng là sai lệch tài liệu quan trọng.
-- Nếu mục tiêu vẫn là tối ưu CI backend, repo cần tách lại dependency test thật sự thay vì mô tả như đã có.
+- coverage tổng
+- test metrics
+- log dạng base64
 
-## 6. Job `docker-compose-smoke`
+Artifact được upload:
 
-### 6.1 Những gì job này thực sự chạy
+- `backend-coverage-report`
 
-Job chạy trên `ubuntu-latest` với:
+Artifact này thường gồm:
+
+- `backend/coverage.xml`
+- `backend/htmlcov`
+
+### 7.7 Điểm mạnh
+
+- Có coverage threshold.
+- Có test metrics parse từ JUnit XML.
+- Có summary log rõ ràng.
+
+### 7.8 Giới hạn hiện tại
+
+- Chưa có backend lint riêng như `ruff`.
+- Chưa có type-check backend như `mypy` hoặc tương đương.
+- Coverage threshold backend hiện còn thấp nếu so với chuẩn production nghiêm ngặt.
+
+## 8. Review chi tiết job `docker-compose-smoke`
+
+### 8.1 Mục tiêu của job
+
+Đây là job rất quan trọng vì nó kiểm tra toàn stack ở mức khởi động thật bằng Docker.
+
+Nó không thay thế e2e, nhưng đủ để bắt nhiều lỗi mà unit test riêng lẻ không thấy được.
+
+### 8.2 Môi trường và cờ chạy
+
+Job chạy với:
 
 - `DOCKER_BUILDKIT=0`
 - `COMPOSE_DOCKER_CLI_BUILD=0`
 
-Các bước chính:
+Hai biến này được thêm để tránh các lỗi không ổn định đã từng gặp với build/export image trong GitHub Actions khi dùng Buildx cho smoke test.
 
-1. Checkout mã nguồn
-2. Copy `.env.docker.example` thành `.env`
+### 8.3 File compose dùng cho CI
+
+Job này không dùng `docker-compose.yml` trực tiếp để smoke test.
+
+Nó dùng:
+
+- `/docker-compose.ci.yml`
+
+Lý do tách file này là để cấu hình CI ổn định hơn môi trường dev, tránh các vấn đề như:
+
+- bind mount source code từ host
+- chế độ dev/reload gây sai lệch hành vi
+- healthcheck frontend fail sớm
+
+### 8.4 Các bước thực tế đang chạy
+
+1. checkout mã nguồn
+2. copy `.env.docker.example` thành `.env`
 3. `docker compose -f docker-compose.ci.yml up -d --build`
-4. Poll `http://127.0.0.1:8000/health` tối đa 30 lần, mỗi lần cách 3 giây
-5. Poll `http://127.0.0.1:3000` tối đa 20 lần, mỗi lần cách 3 giây
-6. Thu thập `docker compose ps` và `docker compose logs`
-7. Luôn `docker compose -f docker-compose.ci.yml down -v`
+4. poll `http://127.0.0.1:8000/health` tối đa 30 lần, mỗi lần cách 3 giây
+5. poll `http://127.0.0.1:3000` tối đa 20 lần, mỗi lần cách 3 giây
+6. thu thập `docker compose ps`
+7. thu thập `docker compose logs --no-color`
+8. luôn `docker compose -f docker-compose.ci.yml down -v`
 
-### 6.2 Điều cần lưu ý
+### 8.5 Những điểm đã được tối ưu trong quá trình sửa CI
 
-- Smoke test dùng `docker-compose.ci.yml`, không dùng `docker-compose.yml`.
-- Đây là điểm tài liệu cũ mô tả chưa đủ rõ.
-- `docker-compose.ci.yml` đang là biến thể gần production hơn:
-  - frontend dùng `frontend/Dockerfile`
-  - backend dùng `backend/Dockerfile`
-  - không mount source code từ host
-  - frontend chạy `NODE_ENV=production`
-  - backend chạy `APP_ENV=ci`
+CI Docker hiện tại tốt hơn bản đầu ở các điểm sau:
 
-### 6.3 Giá trị của smoke test
+- bỏ phụ thuộc vào `docker compose up --wait`
+- dùng retry riêng cho backend và frontend
+- có `set -o pipefail` để không nuốt lỗi thực
+- có thu thập `ps` và `logs` đầy đủ khi fail
+- dùng file compose CI riêng để giảm sai khác với môi trường GitHub runner
 
-Job này đang giúp bắt sớm các lỗi:
+### 8.6 Những gì job này thực sự xác nhận được
 
-- Dockerfile build fail
-- dependency trong image bị thiếu
-- backend không lên được `/health`
-- frontend không phản hồi sau khi start
-- dependency thứ tự startup sai giữa `mongo`, `backend`, `frontend`
+Nếu job pass, có thể hiểu rằng:
 
-### 6.4 Rủi ro hiện tại
+- Dockerfile backend build được
+- Dockerfile frontend build được
+- stack CI khởi động được bằng Compose
+- backend trả được `/health`
+- frontend phản hồi HTTP ở cổng `3000`
 
-- Smoke test mới chỉ xác nhận frontend có phản hồi HTTP, chưa xác nhận giao diện render đúng hoặc gọi API chính thành công.
-- Job chưa có kiểm tra e2e cho route nghiệp vụ.
+### 8.7 Những gì job này chưa xác nhận được
 
-## 7. Job `ci-summary`
+Job này chưa chứng minh rằng:
 
-Job này luôn chạy sau:
+- giao diện frontend render đúng toàn bộ
+- frontend gọi API chính thành công ở các luồng thật
+- upload file, generate nội dung, chatbot, notebooklm, minigame đều hoạt động
+- toàn bộ stack production behavior là hoàn toàn đúng
+
+Nói cách khác, đây là **smoke test**, chưa phải **e2e test**.
+
+### 8.8 Giá trị thực tế của job này
+
+Đây là job giúp bắt sớm các lỗi hay nhất ở mức tích hợp:
+
+- build lỗi vì dependency/image
+- backend không boot được
+- frontend không start được sau build production
+- thứ tự phụ thuộc giữa `mongo`, `backend`, `frontend` có vấn đề
+
+## 9. Job `ci-summary`
+
+### 9.1 Vai trò
+
+Job này là lớp quan sát tập trung của workflow.
+
+Thay vì người xem phải mở từng job con để đọc log, `ci-summary` gom dữ liệu lại thành một dashboard trong GitHub Actions Summary.
+
+### 9.2 Job này dùng dữ liệu gì
+
+Nó đọc từ outputs của:
 
 - `frontend`
 - `backend`
 - `docker-compose-smoke`
 
-Nó dùng `actions/github-script` để dựng dashboard trong GitHub Actions Summary.
-
-Thông tin được tổng hợp:
+Dữ liệu được dùng gồm:
 
 - trạng thái từng job
 - coverage frontend
 - coverage backend
-- số test pass/fail/skipped
-- terminal logs của frontend/backend/docker sau khi giải mã base64
+- test metrics frontend/backend
+- log đã mã hóa base64
 
-Nhận xét:
+### 9.3 Kết quả hiển thị
 
-- Đây là phần observability tốt, vì người xem run không cần mở từng job con mới thấy bức tranh tổng thể.
-- Tài liệu cũ gần như chưa mô tả đúng mức chi tiết của phần summary này.
+Summary hiện cho người đọc thấy nhanh:
 
-## 8. Job `report-failure`
+- job nào pass/fail
+- coverage từng phần
+- số test passed/failed/skipped
+- terminal output quan trọng của frontend, backend, docker
 
-Job này chỉ chạy khi đồng thời thỏa các điều kiện:
+Đây là điểm cộng lớn về khả năng vận hành và debug.
+
+## 10. Job `report-failure`
+
+### 10.1 Khi nào job này chạy
+
+Job chỉ chạy khi đồng thời thỏa các điều kiện:
 
 - `always()`
 - event là `push`
-- ít nhất một trong ba job `frontend`, `backend`, `docker-compose-smoke` có kết quả `failure`
+- ít nhất một trong ba job `frontend`, `backend`, `docker-compose-smoke` thất bại
 
-Hành vi:
+### 10.2 Job này làm gì
 
-- tạo mới hoặc cập nhật GitHub Issue
-- title theo nhánh
-- ghi trạng thái từng job
-- đính kèm link tới run Actions
+Job dùng `actions/github-script` để:
 
-Nhận xét:
+- tạo mới GitHub Issue khi nhánh đó chưa có issue lỗi mở sẵn
+- hoặc cập nhật issue cũ nếu cùng nhánh tiếp tục fail
 
-- Cơ chế này tránh spam issue mới cho cùng một nhánh.
-- Pull request fail sẽ không tự tạo issue, vì workflow đã giới hạn vào event `push`.
+### 10.3 Tại sao chỉ mở issue trên `push`
 
-## 9. Những gì CI hiện có và chưa có
+Đây là một lựa chọn hợp lý để giảm spam.
 
-### 9.1 Đang có
+- PR có thể fail nhiều lần trong lúc sửa tạm thời
+- `push` lên nhánh phản ánh sát hơn một trạng thái code đã được đẩy lên repo
 
-- lint frontend
-- unit/integration test frontend qua Vitest
-- coverage frontend có threshold
-- pytest backend có threshold coverage
-- docker compose smoke test cho toàn stack
-- dashboard summary ngay trong GitHub Actions
-- tự tạo/cập nhật issue khi CI fail trên `push`
+## 11. Dữ liệu đầu ra quan trọng của CI
 
-### 9.2 Chưa có
+CI hiện tạo ra các đầu ra hữu ích sau:
 
-- backend lint riêng như `ruff`, `flake8` hoặc `mypy`
-- test matrix nhiều phiên bản Node/Python
-- caching nâng cao cho Docker layers
+### 11.1 Artifact
+
+- `frontend-coverage-report`
+- `backend-coverage-report`
+
+### 11.2 Summary
+
+- dashboard tổng hợp ở GitHub Actions Summary
+
+### 11.3 Issue tự động khi fail
+
+- issue CI failure theo nhánh trong trường hợp `push`
+
+## 12. CI hiện tại mạnh ở đâu
+
+CI hiện tại có các điểm mạnh rõ ràng:
+
+1. **Có nhiều lớp kiểm tra**
+   - frontend
+   - backend
+   - toàn stack bằng Docker
+
+2. **Có tính quan sát tốt**
+   - summary đẹp
+   - metrics rõ
+   - log dễ xem
+
+3. **Có cơ chế phản hồi khi lỗi**
+   - tự mở/cập nhật issue
+
+4. **Có gate đủ tốt trước CD**
+   - CD hiện phụ thuộc thực tế vào việc CI đi qua được
+
+## 13. CI hiện tại chưa có gì
+
+Đây là các khoảng trống hiện tại nếu nhìn CI theo chuẩn khắt khe hơn:
+
+- backend lint riêng (`ruff`, `flake8`)
+- backend type-check (`mypy`)
 - e2e test trình duyệt
-- PR comment tự động cho coverage delta
-- secret scanning, dependency scanning, SAST
+- test matrix nhiều version Node/Python
+- Docker layer cache nâng cao
+- dependency scanning / SAST / secret scanning
+- PR comment coverage delta
 
-## 10. Kết luận review CI
+Những phần này không làm CI hiện tại sai, chỉ cho thấy repo vẫn còn không gian để nâng chất lượng tiếp.
 
-CI hiện tại có cấu trúc khá đầy đủ cho mức project application:
+## 14. Kết luận tổng thể về CI
 
-- có kiểm tra riêng cho frontend
-- có kiểm tra riêng cho backend
-- có smoke test ở cấp độ stack
-- có summary và cơ chế issue khi fail
+CI hiện tại của dự án là một pipeline khá tốt cho mức ứng dụng full-stack đang phát triển:
 
-Tuy nhiên có hai điểm tài liệu cũ sai lệch quan trọng cần sửa:
+- có kiểm tra frontend riêng
+- có kiểm tra backend riêng
+- có smoke test tích hợp cả stack
+- có summary để vận hành
+- có alert bằng issue khi fail
 
-1. `requirements-test.txt` không còn là bộ dependency test tối giản, vì đang include toàn bộ `requirements.txt`.
-2. Smoke test thực tế chạy trên `docker-compose.ci.yml`, không phải mô tả chung chung là "Docker của repo".
+Ba điểm quan trọng nhất cần nhớ khi review CI repo này là:
 
-Nếu cần siết chất lượng CI ở bước tiếp theo, ba việc ưu tiên hợp lý nhất là:
+1. **CI không chỉ test code, mà còn test khả năng boot stack bằng Docker.**
+2. **Smoke test đang chạy bằng `docker-compose.ci.yml`, không phải compose dev thường.**
+3. **CI là lớp gate chính trước khi CD publish image lên GHCR.**
 
-1. tách backend test dependencies thật sự tối giản
-2. bổ sung backend lint/type-check
-3. nâng smoke test lên e2e ngắn cho vài luồng chính
+Nếu muốn nâng CI lên thêm một bậc nữa, thứ tự ưu tiên hợp lý nhất là:
+
+1. thêm backend lint và type-check
+2. thêm e2e ngắn cho vài luồng chính
+3. tối ưu dependency/caching để rút ngắn thời gian chạy
