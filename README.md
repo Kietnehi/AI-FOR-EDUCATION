@@ -509,23 +509,33 @@ npm run dev
 
 ## 6. CI / CD
 
-Hiện tại dự án có **CI đầy đủ** và **CD dạng placeholder**. Pipeline CD mới nhất **chưa push Docker image lên GHCR** và **chưa deploy lên server thật**; nó đang dừng ở bước build, đóng gói artifact, tạo báo cáo deploy placeholder và gộp `full-release-bundle`.
+Hiện tại dự án có **CI đầy đủ**, và **CD bán thực tế**: đã build artifact, publish Docker image lên GHCR, nhưng **chưa deploy lên server thật**. Bước triển khai hiện vẫn là `deploy-placeholder` để tổng hợp metadata và báo cáo phát hành.
 
 - Workflow CI: `.github/workflows/project-ci.yml`
 - Workflow CD: `.github/workflows/project-cd.yml`
-- CI trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/`, `docker-compose.yml`, `docker-compose.ci.yml`, `.env.docker.example` hoặc file workflow
-- CD trigger: `workflow_dispatch`, hoặc `workflow_run` sau khi `CI Dự Án` thành công trên nhánh `main` hoặc `kiet`
+- CI trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/`, `docker-compose.yml`, `docker-compose.ci.yml`, `.env.docker.example`, `project-ci.yml`, `project-cd.yml`
+- CD trigger: `workflow_dispatch`, hoặc `workflow_run` sau khi `CI Dự Án` thành công trên `main` hoặc `kiet`
 - Flow hiện tại:
-  `CI` pass -> `CD Dự Án` tạo metadata phát hành -> build frontend artifact -> package backend artifact -> resolve Docker bundle -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
-- Frontend CI: chạy `npm ci`, `npm run lint`, `vitest --coverage`
-- Backend CI: cài `requirements-test.txt`, chạy `pytest` và xuất coverage
-- Docker CI: chạy smoke test bằng `docker compose -f docker-compose.ci.yml up -d --build`, health check backend/frontend, rồi `down -v`
+  `CI` pass -> `CD Dự Án` tạo metadata -> build frontend artifact -> package backend artifact -> resolve Docker bundle -> publish image frontend/backend lên GHCR -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
+- Frontend CI: `npm ci` -> `npm run lint` -> `npx vitest run --coverage --reporter=json`
+- Backend CI: `pip install -r requirements-test.txt` -> `pytest --junitxml=junit.xml`
+- Docker CI: `docker compose -f docker-compose.ci.yml up -d --build`, chờ `/health` của backend và HTTP response của frontend, rồi `down -v`
 - Khi CI fail trên sự kiện `push`, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
 - Nếu CD fail, workflow CD cũng sẽ tự tạo hoặc cập nhật GitHub Issue
-- Tóm tắt CD: `markdown_docs/TOM_TAT_CD_2026-03-28.md`
+- GHCR login hiện dùng secret cố định `GHCR_TOKEN`
+- Docker images được publish lên:
+  - `ghcr.io/kietnehi/ai-for-education-backend`
+  - `ghcr.io/kietnehi/ai-for-education-frontend`
+- Tag image hiện có thể bao gồm:
+  - `latest` cho default branch
+  - `<sha7>`
+  - `<branch>`
 - Artifact CD quan trọng nhất: `full-release-bundle-<sha>` trong tab Actions Artifacts của workflow `CD Dự Án`
 - Các artifact trung gian:
-  `cd-release-metadata`, `frontend-release-bundle-<sha>`, `backend-release-bundle-<sha>`, `docker-release-bundle-<sha>`, `deployment-summary-<sha>`
+  `cd-release-metadata`, `frontend-release-bundle-<sha>`, `backend-release-bundle-<sha>`, `docker-release-bundle-<sha>`, `ghcr-images-<sha>`, `deployment-summary-<sha>`
+- Tài liệu chi tiết:
+  - `markdown_docs/CI_SUMMARY_2026-03-28.md`
+  - `markdown_docs/TOM_TAT_CD_2026-03-28.md`
 
 ### 6.1 Sơ đồ Pipeline CI/CD
 
@@ -553,10 +563,10 @@ flowchart TD
 
         E --> E1[Checkout]
         E1 --> E2[Prepare .env]
-        E2 --> E3[Docker Buildx Setup]
-        E3 --> E4[docker compose up -d --build --wait]
-        E4 --> E5[Backend Health Check<br/>15 iterations × 3s]
-        E5 --> E6[Frontend Health Check]
+        E2 --> E3[docker compose up -d --build]
+        E3 --> E4[Backend Health Check<br/>30 iterations x 3s]
+        E4 --> E5[Frontend HTTP Check<br/>20 iterations x 3s]
+        E5 --> E6[Thu thập ps + logs]
         E6 --> E7[docker compose down]
 
         C6 --> F{All Jobs Pass?}
@@ -580,6 +590,7 @@ flowchart TD
         J4 --> K[Build Frontend Artifact]
         J4 --> L[Package Backend Artifact]
         J4 --> M[Package Docker Bundle]
+        J4 --> P[Publish GHCR Images]
 
         K --> K1[Checkout + Node.js Setup]
         K1 --> K2[npm ci]
@@ -597,9 +608,16 @@ flowchart TD
         M2 --> M3[docker compose config]
         M3 --> M4[Upload Docker Bundle]
 
+        P --> P1[Checkout theo SOURCE_SHA]
+        P1 --> P2[Login GHCR bằng GHCR_TOKEN]
+        P2 --> P3[Build + Push backend image]
+        P3 --> P4[Build + Push frontend image]
+        P4 --> P5[Upload ghcr-images-<sha>]
+
         K5 --> N[Deploy Placeholder]
         L4 --> N
         M4 --> N
+        P5 --> N
 
         N --> N1[Download Metadata]
         N1 --> N2[Generate Deployment Summary]
@@ -628,12 +646,12 @@ sequenceDiagram
     participant BE as Backend :8000
     participant FE as Frontend :3000
 
-    GH->>DC: docker compose up -d --build --wait
-    Note over DC: Build Backend + Frontend<br/>with Buildx caching
+    GH->>DC: docker compose up -d --build
+    Note over DC: Build backend + frontend bằng docker-compose.ci.yml
 
     DC-->>GH: Containers started
 
-    loop Health Check Backend (max 45s)
+    loop Health Check Backend (max 90s)
         GH->>BE: curl /health (every 3s)
         alt Backend ready
             BE-->>GH: 200 OK
@@ -643,7 +661,14 @@ sequenceDiagram
     end
 
     alt Backend healthy
-        GH->>FE: curl :3000
+        loop Frontend HTTP Check (max 60s)
+            GH->>FE: curl :3000
+            alt Frontend ready
+                FE-->>GH: 200 OK
+            else Frontend not ready
+                FE-->>GH: Connection refused
+            end
+        end
         alt Frontend ready
             FE-->>GH: 200 OK
             GH->>DC: docker compose down -v
@@ -671,6 +696,7 @@ sequenceDiagram
 | **CD Build Frontend** | 2-3 phút | 1-2 phút | npm build + bundle |
 | **CD Package Backend** | 30 giây | 30 giây | Syntax check + bundle |
 | **CD Package Docker** | 30 giây | 30 giây | Compose config + bundle |
+| **CD Publish GHCR Images** | 2-5 phút | 1-3 phút | Build và push image frontend/backend |
 | **CD Deploy Placeholder** | 30 giây | 30 giây | Tạo deployment summary placeholder |
 | **CD Release Bundle** | 1 phút | 1 phút | Download + merge all release artifacts |
 
@@ -703,7 +729,9 @@ Coverage report sau khi chạy:
 
 - Frontend có coverage threshold trong `frontend/vitest.config.ts`
 - Backend có coverage threshold trong `backend/pytest.ini`
-- Tài liệu chi tiết hơn: `markdown_docs/CI_SUMMARY_2026-03-28.md`
+- Tài liệu chi tiết hơn:
+  - `markdown_docs/CI_SUMMARY_2026-03-28.md`
+  - `markdown_docs/TOM_TAT_CD_2026-03-28.md`
 
 ### 6.6 Hướng dẫn tải full-release-bundle từ CD
 
@@ -711,7 +739,7 @@ Coverage report sau khi chạy:
 2. Chọn workflow **CD Dự Án**
 3. Click vào lần chạy gần nhất (có status ✅ thành công)
 4. Kéo xuống phần **Artifacts** ở cuối trang
-5. Click vào `full-release-bundle-<sha>` để tải về
+5. Click vào `full-release-bundle-<sha>` để tải release bundle hoặc `ghcr-images-<sha>` để xem danh sách image đã publish
 
 > 💡 **Lưu ý:** Artifact chỉ được lưu trong **90 ngày**. Tải về ngay sau khi CD chạy thành công.
 
