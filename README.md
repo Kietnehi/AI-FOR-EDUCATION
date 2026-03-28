@@ -509,22 +509,23 @@ npm run dev
 
 ## 6. CI / CD
 
-Hiện tại dự án có **CI** đầy đủ và **CD bán thật**: đã publish Docker image lên GitHub Container Registry nhưng vẫn chưa triển khai lên server thật.
+Hiện tại dự án có **CI đầy đủ** và **CD dạng placeholder**. Pipeline CD mới nhất **chưa push Docker image lên GHCR** và **chưa deploy lên server thật**; nó đang dừng ở bước build, đóng gói artifact, tạo báo cáo deploy placeholder và gộp `full-release-bundle`.
 
-- Workflow: `.github/workflows/project-ci.yml`
-- CD tượng trưng: `.github/workflows/project-cd.yml`
-- Trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/` hoặc file workflow
-- CD trigger: tự chạy sau khi `CI Dự Án` trên `main` thành công, hoặc chạy tay bằng `workflow_dispatch`
-- Flow hiện tại: `CI` pass trên `main` -> `CD Dự Án` build artifact -> publish Docker image lên `ghcr.io` -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
-- Frontend: chạy `lint` + `test` + `coverage`
-- Backend: chạy `pytest` + `coverage`
-- Docker: chạy smoke test `docker compose`
-- Khi `push` fail, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
-- CD hiện build, đóng gói artifact, publish ảnh Docker lên `ghcr.io` và tạo `deploy-placeholder`, nhưng chưa triển khai lên server thật
-- Nếu CD fail, workflow cũng sẽ tự tạo hoặc cập nhật GitHub Issue
+- Workflow CI: `.github/workflows/project-ci.yml`
+- Workflow CD: `.github/workflows/project-cd.yml`
+- CI trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/`, `docker-compose.yml`, `docker-compose.ci.yml`, `.env.docker.example` hoặc file workflow
+- CD trigger: `workflow_dispatch`, hoặc `workflow_run` sau khi `CI Dự Án` thành công trên nhánh `main` hoặc `kiet`
+- Flow hiện tại:
+  `CI` pass -> `CD Dự Án` tạo metadata phát hành -> build frontend artifact -> package backend artifact -> resolve Docker bundle -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
+- Frontend CI: chạy `npm ci`, `npm run lint`, `vitest --coverage`
+- Backend CI: cài `requirements-test.txt`, chạy `pytest` và xuất coverage
+- Docker CI: chạy smoke test bằng `docker compose -f docker-compose.ci.yml up -d --build`, health check backend/frontend, rồi `down -v`
+- Khi CI fail trên sự kiện `push`, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
+- Nếu CD fail, workflow CD cũng sẽ tự tạo hoặc cập nhật GitHub Issue
 - Tóm tắt CD: `markdown_docs/TOM_TAT_CD_2026-03-28.md`
 - Artifact CD quan trọng nhất: `full-release-bundle-<sha>` trong tab Actions Artifacts của workflow `CD Dự Án`
-- Ảnh Docker phát hành: `ghcr.io/<owner>/<repo>-backend` và `ghcr.io/<owner>/<repo>-frontend`
+- Các artifact trung gian:
+  `cd-release-metadata`, `frontend-release-bundle-<sha>`, `backend-release-bundle-<sha>`, `docker-release-bundle-<sha>`, `deployment-summary-<sha>`
 
 ### 6.1 Sơ đồ Pipeline CI/CD
 
@@ -579,7 +580,6 @@ flowchart TD
         J4 --> K[Build Frontend Artifact]
         J4 --> L[Package Backend Artifact]
         J4 --> M[Package Docker Bundle]
-        J4 --> P[Publish Docker Images]
 
         K --> K1[Checkout + Node.js Setup]
         K1 --> K2[npm ci]
@@ -597,16 +597,9 @@ flowchart TD
         M2 --> M3[docker compose config]
         M3 --> M4[Upload Docker Bundle]
 
-        P --> P1[Login GHCR]
-        P1 --> P2[Build Backend Image]
-        P2 --> P3[Push Backend Tags]
-        P3 --> P4[Build Frontend Image]
-        P4 --> P5[Push Frontend Tags]
-
         K5 --> N[Deploy Placeholder]
         L4 --> N
         M4 --> N
-        P5 --> N
 
         N --> N1[Download Metadata]
         N1 --> N2[Generate Deployment Summary]
@@ -614,7 +607,7 @@ flowchart TD
 
         N3 --> O[Release Bundle]
         O --> O1[Download All Artifacts]
-        O1 --> O2[Merge: Frontend + Backend + Docker + GHCR + Deploy]
+        O1 --> O2[Merge: Frontend + Backend + Docker + Deploy]
         O2 --> O3[Upload full-release-bundle-<sha>]
     end
 
@@ -678,7 +671,8 @@ sequenceDiagram
 | **CD Build Frontend** | 2-3 phút | 1-2 phút | npm build + bundle |
 | **CD Package Backend** | 30 giây | 30 giây | Syntax check + bundle |
 | **CD Package Docker** | 30 giây | 30 giây | Compose config + bundle |
-| **CD Release Bundle** | 1 phút | 1 phút | Download + merge all artifacts |
+| **CD Deploy Placeholder** | 30 giây | 30 giây | Tạo deployment summary placeholder |
+| **CD Release Bundle** | 1 phút | 1 phút | Download + merge all release artifacts |
 
 > 💡 **Lưu ý:** Thời gian có thể thay đổi tùy thuộc vào kích thước code changes và tình trạng cache của GitHub Actions.
 
