@@ -7,6 +7,160 @@
 - `frontend/Dockerfile.dev`
 - `frontend/scripts/warmup-routes.mjs`
 
+## Cập nhật (2026-03-29) - MongoDB Atlas & Optional Local Container
+
+### Đã thay đổi:
+1. **Mongo container giờ là optional** (profile `local-db`)
+2. **Mặc định dùng MongoDB Atlas** từ `.env`
+3. **Backend không bắt buộc chờ mongo** khi dùng Atlas
+
+### Cấu hình trong `.env`:
+```env
+# Atlas URI
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority&appName=<app-name>
+```
+
+---
+
+## Cách chạy Docker
+
+### 1. Chạy với MongoDB Atlas (Mặc định - Khuyến nghị)
+
+**Không chạy container MongoDB local**, tiết kiệm RAM (~500MB):
+
+```bash
+# Start tất cả (chỉ backend + frontend)
+docker-compose up
+
+# Hoặc chạy detached mode (chạy nền)
+docker-compose up -d
+
+# Xem logs
+docker-compose logs -f
+
+# Dừng
+docker-compose down
+```
+
+**Yêu cầu:** File `.env` phải có `MONGO_URI` kết nối Atlas.
+
+---
+
+### 2. Chạy với Local MongoDB (Khi cần test local)
+
+**Có chạy container MongoDB** local:
+
+```bash
+# Start với profile local-db
+docker-compose --profile local-db up
+
+# Hoặc detached mode
+docker-compose --profile local-db up -d
+
+# Xem logs tất cả containers
+docker-compose logs -f
+
+# Xem logs từng service
+docker-compose logs -f mongo
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# Dừng
+docker-compose --profile local-db down
+```
+
+**Lưu ý:** Khi dùng local MongoDB, backend sẽ connect tới `mongodb://mongo:27017`.
+
+---
+
+### 3. Chạy từng service riêng lẻ
+
+```bash
+# Chỉ backend (dùng Atlas)
+docker-compose up backend
+
+# Chỉ frontend
+docker-compose up frontend
+
+# Chỉ MongoDB (khi cần debug)
+docker-compose --profile local-db up mongo
+```
+
+---
+
+### 4. Build lại từ đầu (khi có thay đổi code/Dockerfile)
+
+```bash
+# Build lại không dùng cache
+docker-compose build --no-cache
+
+# Build với profile
+docker-compose --profile local-db build --no-cache
+
+# Sau đó start
+docker-compose up -d
+```
+
+---
+
+### 5. Một số lệnh hữu ích khác
+
+```bash
+# Xem trạng thái containers
+docker-compose ps
+
+# Xem danh sách profiles
+docker-compose config --profiles
+
+# Truy cập vào container
+docker-compose exec backend bash
+docker-compose exec frontend bash
+docker-compose --profile local-db exec mongo mongosh
+
+# Xem biến môi trường
+docker-compose config
+```
+
+---
+
+## Troubleshooting
+
+### Backend không connect được MongoDB
+
+**Kiểm tra `.env`:**
+```bash
+# Nếu dùng Atlas:
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/dbname
+
+# Nếu dùng local:
+MONGO_URI=mongodb://mongo:27017
+```
+
+### Container mongo vẫn chạy dù không muốn
+
+```bash
+# Dừng container
+docker-compose stop mongo
+docker rm any2-mongo
+
+# Hoặc down toàn bộ
+docker-compose down
+```
+
+### Port bị chiếm (3000, 8000, 27017)
+
+```bash
+# Windows: Tìm process đang chiếm port
+netstat -ano | findstr :3000
+netstat -ano | findstr :8000
+netstat -ano | findstr :27017
+
+# Dừng process (thay PID)
+taskkill /PID <PID> /F
+```
+
+---
+
 ## Findings (ưu tiên theo mức độ nghiêm trọng)
 
 ### 1) Critical - Script warm-up có lỗi cú pháp JavaScript

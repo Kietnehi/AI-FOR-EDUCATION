@@ -77,7 +77,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
       }}
       className="
         fixed top-0 left-0 z-40 h-screen flex flex-col
-        bg-white border-r border-slate-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)]
+        bg-[var(--bg-elevated)] border-r border-[var(--border-light)] shadow-[var(--shadow-md)]
       "
     >
       {!collapsed && (
@@ -91,8 +91,8 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
           <div className="w-[2px] h-8 bg-indigo-400 rounded-full opacity-0 hover:opacity-100 transition-opacity" />
         </div>
       )}
-      <Link href="/" className="flex items-center gap-3 px-6 h-20 border-b border-slate-100 no-underline group overflow-hidden shrink-0">
-        <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 bg-slate-50 rounded-[14px] shadow-sm border border-slate-200/60 group-hover:shadow group-hover:scale-105 transition-all duration-300 p-0.5">
+      <Link href="/" className="flex items-center gap-3 px-6 h-20 border-b border-[var(--border-light)] no-underline group overflow-hidden shrink-0">
+        <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 bg-[var(--bg-secondary)] rounded-[14px] shadow-sm border border-[var(--border-light)] group-hover:shadow group-hover:scale-105 transition-all duration-300 p-0.5">
           <img src="/logo.png" alt="AI Learning Studio" className="w-full h-full object-cover rounded-xl" onError={(e) => { e.currentTarget.style.display = 'none' }} />
         </div>
         <div
@@ -103,7 +103,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
           }}
         >
           <span 
-            className="font-black text-[18px] text-slate-800 tracking-tight leading-none mb-0.5"
+            className="font-black text-[18px] text-[var(--text-primary)] tracking-tight leading-none mb-0.5"
             style={{ fontFamily: "var(--font-display, inherit)" }}
           >
             AI Learning
@@ -117,7 +117,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
       <nav className="flex-1 py-6 px-4 space-y-8 overflow-y-auto custom-scrollbar">
         <div className="space-y-1.5">
           {!collapsed && (
-            <h3 className="px-4 text-[11px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-3">
+            <h3 className="px-4 text-[11px] font-bold tracking-[0.15em] text-[var(--text-tertiary)] uppercase mb-3">
               Overview
             </h3>
           )}
@@ -144,12 +144,12 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
                   text-[14px] font-semibold no-underline transition-all duration-300 ease-out
                   ${
                     isActive
-                      ? "text-indigo-700 bg-indigo-50 shadow-sm ring-1 ring-indigo-100/50"
-                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                      ? "text-indigo-600 bg-indigo-50/50 dark:bg-indigo-500/10 shadow-sm ring-1 ring-indigo-100/50 dark:ring-indigo-500/20"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                   }
                 `}
               >
-                <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-indigo-100/50 text-indigo-600' : 'text-slate-400 group-hover:text-slate-600 group-hover:bg-slate-100'}`}>
+                <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-indigo-100/50 text-indigo-600' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:bg-[var(--bg-secondary)]'}`}>
                   <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />
                 </div>
                 <span
@@ -169,7 +169,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
 
         <div className="space-y-1.5">
           {!collapsed && (
-            <h3 className="px-4 text-[11px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-3">
+            <h3 className="px-4 text-[11px] font-bold tracking-[0.15em] text-[var(--text-tertiary)] uppercase mb-3">
               Settings
             </h3>
           )}
@@ -178,10 +178,10 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
             className="
               group relative flex items-center gap-3.5 px-3 py-2.5 rounded-xl
               text-[14px] font-semibold no-underline transition-all duration-300 ease-out  
-              text-slate-500 hover:text-slate-900 hover:bg-slate-50
+              text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]
             "
           >
-            <div className="p-1.5 rounded-lg transition-colors text-slate-400 group-hover:text-slate-600 group-hover:bg-slate-100">
+            <div className="p-1.5 rounded-lg transition-colors text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:bg-[var(--bg-secondary)]">
                 <Settings className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
             </div>
             <span
@@ -194,13 +194,13 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
         </div>
       </nav>
 
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">      
+      <div className="p-4 border-t border-[var(--border-light)] bg-[var(--bg-secondary)]/50 shrink-0">      
         <button
           onClick={onToggle}
           className="
             w-full flex items-center justify-center gap-2 py-2.5 rounded-xl      
-            text-slate-500 hover:text-indigo-600      
-            hover:bg-white bg-transparent border border-transparent hover:border-slate-200 hover:shadow-sm
+            text-[var(--text-secondary)] hover:text-indigo-600      
+            hover:bg-[var(--bg-elevated)] bg-transparent border border-transparent hover:border-[var(--border-light)] hover:shadow-sm
             transition-all duration-300 cursor-pointer group
           "
           title={collapsed ? "Mở rộng" : "Thu gọn"}

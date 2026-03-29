@@ -12,6 +12,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    profiles:
+      - local-db
 
   backend:
     build:
@@ -37,7 +39,6 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
       WHISPER_MODEL: ${WHISPER_MODEL:-base}
-      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-en}
       OPENROUTER_SITE_URL: ${OPENROUTER_SITE_URL:-}
       OPENROUTER_SITE_NAME: ${OPENROUTER_SITE_NAME:-}
       PEXELS_API_KEY: ${PEXELS_API_KEY:-}
@@ -64,6 +65,7 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+        required: false
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio --reload --reload-dir /app/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
