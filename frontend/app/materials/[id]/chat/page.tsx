@@ -972,6 +972,31 @@ export default function ChatbotPage() {
               {!isTtsPanelCollapsed && ttsDuration > 0 && ttsCurrentTime > 0 && ttsCurrentTime < ttsDuration && (
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl animate-pulse pointer-events-none" />
               )}
+              <audio
+                ref={ttsAudioRef}
+                src={ttsAudioUrl}
+                controls={false}
+                className="hidden"
+                onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
+                onTimeUpdate={(e) => {
+                  const now = performance.now();
+                  if (now - ttsUiTickRef.current < 200) return;
+                  ttsUiTickRef.current = now;
+                  const audio = e.target as HTMLAudioElement;
+                  setTtsCurrentTime(audio.currentTime || 0);
+                  setTtsDuration(audio.duration || 0);
+                }}
+                onEnded={() => {
+                  setIsTtsPlaying(false);
+                  resetTtsState();
+                }}
+                onError={() => {
+                  setIsTtsPlaying(false);
+                  resetTtsState();
+                }}
+                onPlay={() => setIsTtsPlaying(true)}
+                onPause={() => setIsTtsPlaying(false)}
+              />
               <div className="mb-3 flex items-center justify-between text-xs text-slate-700 relative z-10">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex w-7 h-7 items-center justify-center rounded-full bg-brand-100 text-brand-700 shadow-inner">
@@ -991,40 +1016,68 @@ export default function ChatbotPage() {
               </div>
 
               {isTtsPanelCollapsed ? (
-                <div className="h-2 w-full overflow-hidden rounded-full bg-brand-100/80 shadow-inner">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-brand-400 via-brand-500 to-accent-500 transition-all duration-300 ease-out"
-                    style={{ width: `${Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%` }}
-                  />
+                <div className="mt-2 flex flex-col gap-2">
+                  <div className="flex items-center gap-3 rounded-full border border-brand-200/50 bg-white/90 p-2.5 shadow-sm backdrop-blur-md">
+                    <button 
+                      onClick={() => {
+                        if (ttsAudioRef.current) {
+                          if (isTtsPlaying) ttsAudioRef.current.pause();
+                          else ttsAudioRef.current.play();
+                        }
+                      }}
+                      className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600 transition-all shadow-md active:scale-95"
+                      aria-label={isTtsPlaying ? "Dừng" : "Phát"}
+                    >
+                      {isTtsPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-1 fill-current" />}
+                    </button>
+                    <div className="group relative h-9 min-w-0 flex-1">
+                      <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 rounded-full bg-slate-200 shadow-inner ring-1 ring-brand-200/70" />
+                      <div
+                        className="absolute left-0 top-1/2 h-3 -translate-y-1/2 rounded-full bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500 shadow-[0_0_12px_rgba(59,130,246,0.35)] transition-all duration-300 ease-out"
+                        style={{ width: `${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}%` }}
+                      />
+                      <div
+                        className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border-2 border-white bg-brand-600 shadow-md ring-2 ring-brand-200 transition-transform duration-150 group-hover:scale-110"
+                        style={{ left: `calc(${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}% - 10px)` }}
+                      />
+                      <input
+                        type="range"
+                        min={0}
+                        max={ttsDuration || 0}
+                        step={0.1}
+                        value={Math.min(ttsCurrentTime, ttsDuration || 0)}
+                        onChange={(e) => {
+                          const nextTime = Number(e.target.value);
+                          if (ttsAudioRef.current) ttsAudioRef.current.currentTime = nextTime;
+                          ttsUiTickRef.current = performance.now();
+                          setTtsCurrentTime(nextTime);
+                        }}
+                        className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                        title="Tua âm thanh"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setTtsPlaybackRate(r => r === 1 ? 1.25 : r === 1.25 ? 1.5 : r === 1.5 ? 2 : 1)}
+                      className="px-2 py-1 text-[10px] font-bold rounded-md bg-brand-100 text-brand-800 hover:bg-brand-200 transition-colors"
+                      title="Tốc độ phát"
+                    >
+                      {ttsPlaybackRate}x
+                    </button>
+                    <button
+                      onClick={() => setIsTtsMuted(m => !m)}
+                      className="p-1.5 rounded-md text-brand-700 hover:bg-brand-100 transition-colors"
+                      title={isTtsMuted ? "Bật âm" : "Tắt âm"}
+                    >
+                      {isTtsMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-700 tabular-nums">
+                    <span>{formatTime(ttsCurrentTime)}</span>
+                    <span>{formatTime(ttsDuration)}</span>
+                  </div>
                 </div>
               ) : (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                  <audio
-                    ref={ttsAudioRef}
-                    src={ttsAudioUrl}
-                    controls={false}
-                    className="hidden"
-                    onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
-                    onTimeUpdate={(e) => {
-                      const now = performance.now();
-                      if (now - ttsUiTickRef.current < 200) return;
-                      ttsUiTickRef.current = now;
-                      const audio = e.target as HTMLAudioElement;
-                      setTtsCurrentTime(audio.currentTime || 0);
-                      setTtsDuration(audio.duration || 0);
-                    }}
-                    onEnded={() => {
-                      setIsTtsPlaying(false);
-                      resetTtsState();
-                    }}
-                    onError={() => {
-                      setIsTtsPlaying(false);
-                      resetTtsState();
-                    }}
-                    onPlay={() => setIsTtsPlaying(true)}
-                    onPause={() => setIsTtsPlaying(false)}
-                  />
-
                   {/* Custom Audio Player Controls */}
                   <div className="flex items-center gap-4 w-full bg-white/90 border border-brand-200/50 p-2.5 rounded-full shadow-sm backdrop-blur-md mt-1">
                     <button 

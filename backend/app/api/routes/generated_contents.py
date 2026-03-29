@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from celery.result import AsyncResult
 
 from app.api.dependencies import get_database
 from app.schemas.generated_content import (
@@ -12,10 +13,18 @@ from app.schemas.generated_content import (
     GeneratedContentResponse,
     NotebookLMConfirmationResponse,
     ConfirmNotebookLMDownloadResponse,
+    GenerationTaskQueuedResponse,
+    GenerationTaskStatusResponse,
 )
 from app.services.generation_service import GenerationService
 from app.services.material_service import MaterialService
 from app.services.notebooklm_service import NotebookLMService
+from app.tasks import (
+    celery_app,
+    generate_minigame_task,
+    generate_podcast_task,
+    generate_slides_task,
+)
 
 router = APIRouter()
 
@@ -60,6 +69,92 @@ async def generate_minigame(
     service = GenerationService(db)
     result = await service.generate_minigame(material_id, game_type=payload.game_type)
     return GeneratedContentResponse(**result)
+
+
+@router.post("/materials/{material_id}/generate/slides/async", response_model=GenerationTaskQueuedResponse)
+async def queue_generate_slides(
+    material_id: str,
+    payload: GenerateSlidesRequest,
+) -> GenerationTaskQueuedResponse:
+    task = generate_slides_task.delay(
+        material_id,
+        payload.tone,
+        payload.max_slides,
+        payload.skip_refine,
+    )
+    return GenerationTaskQueuedResponse(
+        task_id=task.id,
+        message="Slide generation task queued",
+    )
+
+
+@router.post("/materials/{material_id}/generate/podcast/async", response_model=GenerationTaskQueuedResponse)
+async def queue_generate_podcast(
+    material_id: str,
+    payload: GeneratePodcastRequest,
+) -> GenerationTaskQueuedResponse:
+    task = generate_podcast_task.delay(
+        material_id,
+        payload.style,
+        payload.target_duration_minutes,
+    )
+    return GenerationTaskQueuedResponse(
+        task_id=task.id,
+        message="Podcast generation task queued",
+    )
+
+
+@router.post("/materials/{material_id}/generate/minigame/async", response_model=GenerationTaskQueuedResponse)
+async def queue_generate_minigame(
+    material_id: str,
+    payload: GenerateMinigameRequest,
+) -> GenerationTaskQueuedResponse:
+    task = generate_minigame_task.delay(material_id, payload.game_type)
+    return GenerationTaskQueuedResponse(
+        task_id=task.id,
+        message="Minigame generation task queued",
+    )
+
+
+@router.get("/tasks/{task_id}/status", response_model=GenerationTaskStatusResponse)
+async def get_generation_task_status(task_id: str) -> GenerationTaskStatusResponse:
+    task = AsyncResult(task_id, app=celery_app)
+    info = task.info if isinstance(task.info, dict) else {}
+
+    state = task.state.upper()
+    if state == "PENDING":
+        return GenerationTaskStatusResponse(
+            task_id=task_id,
+            status="pending",
+            celery_state=state,
+            progress=0,
+        )
+
+    if state in {"STARTED", "RETRY"}:
+        return GenerationTaskStatusResponse(
+            task_id=task_id,
+            status="processing",
+            celery_state=state,
+            progress=info.get("progress") if isinstance(info.get("progress"), int) else None,
+        )
+
+    if state == "SUCCESS":
+        result_payload = task.result if isinstance(task.result, dict) else {"value": task.result}
+        return GenerationTaskStatusResponse(
+            task_id=task_id,
+            status="completed",
+            celery_state=state,
+            progress=100,
+            result=result_payload,
+        )
+
+    error_detail = str(task.info) if task.info else "Task failed"
+    return GenerationTaskStatusResponse(
+        task_id=task_id,
+        status="failed",
+        celery_state=state,
+        error=error_detail,
+    )
 
 
 @router.get("/generated-contents/{content_id}", response_model=GeneratedContentResponse)

@@ -5,10 +5,14 @@ pydantic
 pydantic-settings
 motor
 pymongo
+redis
+celery
+flower
 chromadb
 openai
 google-genai
 python-dotenv
+boto3
 python-pptx
 python-docx
 pypdf

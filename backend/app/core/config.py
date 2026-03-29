@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db_name: str = "ai_learning_platform"
 
+    redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/1"
+
     chroma_persist_dir: str = "./storage/chroma"
     chroma_collection_name: str = "material_chunks"
 
@@ -47,6 +51,17 @@ class Settings(BaseSettings):
     notebooklm_user_data_dir: str = "./storage/notebooklm/chrome-profile"
     notebooklm_generate_wait_seconds: int = 120
     notebooklm_headless: bool = False
+
+    use_s3: bool = False
+    minio_endpoint: str = "http://localhost:9000"
+    minio_root_user: str = "minioadmin"
+    minio_root_password: str = "minioadmin123"
+    minio_bucket: str = "ai-learning-storage"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_region: str = "ap-southeast-1"
+    aws_s3_bucket: str = ""
+    storage_presigned_expiration_seconds: int = 3600
 
     cors_origins: list[str] = ["http://localhost:3000"]
 

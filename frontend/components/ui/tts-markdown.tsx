@@ -72,6 +72,9 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
       });
 
       displayRef.current.innerHTML = template.innerHTML;
+      if (containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
       setTotalWords(currentWordIndex);
     };
 
@@ -105,12 +108,24 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
     const targetIndex = Math.min(totalWords - 1, Math.floor(totalWords * progress));
     if (targetIndex >= 0) {
        const current = displayRef.current.querySelector(`[data-tts-word-index="${targetIndex}"]`);
-       if (current) {
-          current.classList.add('tts-highlight', 'bg-brand-500/30', 'text-brand-900', 'dark:text-brand-300', 'font-medium', 'border-brand-500/20');
-          current.classList.remove('border-transparent');
-          
-        }
-     }
+        if (current) {
+           current.classList.add('tts-highlight', 'bg-brand-500/30', 'text-brand-900', 'dark:text-brand-300', 'font-medium', 'border-brand-500/20');
+           current.classList.remove('border-transparent');
+           if (containerRef.current) {
+             const containerHeight = containerRef.current.clientHeight;
+             const displayHeight = displayRef.current.scrollHeight;
+             const targetElement = current as HTMLElement;
+             const desiredOffset = targetElement.offsetTop + targetElement.offsetHeight / 2 - containerHeight / 2;
+             const maxOffset = Math.max(0, displayHeight - containerHeight);
+             const nextOffset = Math.min(Math.max(desiredOffset, 0), maxOffset);
+              containerRef.current.scrollTop = nextOffset;
+            }
+          }
+     } else {
+       if (containerRef.current) {
+         containerRef.current.scrollTop = 0;
+       }
+       }
   }, [progress, totalWords]);
 
   return (
@@ -128,13 +143,16 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
          <Markdown content={content} />
       </div>
 
-       <div 
-         ref={containerRef}
-         className="w-full text-[13px] leading-relaxed overflow-hidden"
-       >
+        <div 
+          ref={containerRef}
+          className="w-full overflow-y-auto text-[13px] leading-relaxed custom-scrollbar"
+          style={{
+            height: "5.4em",
+          }}
+        >
         <div
           ref={displayRef}
-          className="tts-display-container markdown-body [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+          className="tts-display-container markdown-body"
         />
        </div>
     </div>
