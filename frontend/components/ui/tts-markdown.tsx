@@ -13,6 +13,8 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
   const markdownRef = useRef<HTMLDivElement>(null);
   const displayRef = useRef<HTMLDivElement>(null);
   const [totalWords, setTotalWords] = useState(0);
+  const wordWeightsRef = useRef<number[]>([]);
+  const totalWeightRef = useRef(0);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -47,6 +49,7 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
       }
 
       let currentWordIndex = 0;
+      const wordWeights: number[] = [];
       textNodes.forEach(textNode => {
         const text = textNode.nodeValue || "";
         const parts = text.split(/(\s+)/);
@@ -56,15 +59,20 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
            if (part.length === 0) return;
            if (part.trim().length === 0) {
               fragment.appendChild(document.createTextNode(part));
-           } else {
-              const span = document.createElement("span");
-              span.textContent = part;
-              span.dataset.ttsWordIndex = currentWordIndex.toString();
-              span.className = "transition-all duration-200 rounded px-[2px] border border-transparent";
-              fragment.appendChild(span);
-              currentWordIndex++;
-           }
-        });
+            } else {
+               const span = document.createElement("span");
+               span.textContent = part;
+               span.dataset.ttsWordIndex = currentWordIndex.toString();
+               span.className = "transition-all duration-200 rounded px-[2px] border border-transparent";
+               fragment.appendChild(span);
+               const cleanPart = part.replace(/[“”"(){}\[\]]/g, "");
+               let weight = Math.max(1, cleanPart.length / 4);
+               if (/[,:;]$/.test(cleanPart)) weight += 1.25;
+               if (/[.!?…]$/.test(cleanPart)) weight += 3;
+               wordWeights.push(weight);
+               currentWordIndex++;
+            }
+         });
         
         if (textNode.parentNode) {
             textNode.parentNode.replaceChild(fragment, textNode);
@@ -75,6 +83,8 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
       }
+      wordWeightsRef.current = wordWeights;
+      totalWeightRef.current = wordWeights.reduce((sum, weight) => sum + weight, 0);
       setTotalWords(currentWordIndex);
     };
 
@@ -105,7 +115,19 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
        el.classList.add('border-transparent');
     });
 
-    const targetIndex = Math.min(totalWords - 1, Math.floor(totalWords * progress));
+    const totalWeight = totalWeightRef.current;
+    let targetIndex = Math.min(totalWords - 1, Math.floor(totalWords * progress));
+    if (totalWeight > 0) {
+      const targetWeight = totalWeight * Math.min(Math.max(progress, 0), 1);
+      let cumulativeWeight = 0;
+      for (let index = 0; index < wordWeightsRef.current.length; index += 1) {
+        cumulativeWeight += wordWeightsRef.current[index] || 0;
+        if (cumulativeWeight >= targetWeight) {
+          targetIndex = index;
+          break;
+        }
+      }
+    }
     if (targetIndex >= 0) {
        const current = displayRef.current.querySelector(`[data-tts-word-index="${targetIndex}"]`);
         if (current) {
@@ -147,7 +169,7 @@ export function TtsMarkdown({ content, progress }: TtsMarkdownProps) {
           ref={containerRef}
           className="w-full overflow-y-auto text-[13px] leading-relaxed custom-scrollbar"
           style={{
-            height: "5.4em",
+            height: "8.8em",
           }}
         >
         <div

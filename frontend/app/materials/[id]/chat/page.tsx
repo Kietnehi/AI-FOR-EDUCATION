@@ -31,7 +31,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import { WebSearchResult } from "@/components/ui/web-search-result";
 import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio, webSearch } from "@/lib/api";
-import { markdownToPlainText } from "@/lib/tts";
+import { getAudioDurationFromUrl, getSegmentBaseTime, splitTextForTts } from "@/lib/tts";
 import type { ChatMessage, SttModel } from "@/types";
 
 const EMPTY_CHAT_SUGGESTIONS = [
@@ -45,6 +45,12 @@ type ChatMessageItemProps = {
   isSpeaking: boolean;
   onToggleSpeak: (messageId: string, content: string) => void;
   onOpenImage: (image: string) => void;
+};
+
+type PreparedTtsSegment = {
+  text: string;
+  audioUrl: string;
+  duration: number;
 };
 
 const ChatMessageItem = memo(function ChatMessageItem({
@@ -188,6 +194,8 @@ export default function ChatbotPage() {
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [ttsLang, setTtsLang] = useState("vi");
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsSegments, setTtsSegments] = useState<PreparedTtsSegment[]>([]);
+  const [ttsSegmentIndex, setTtsSegmentIndex] = useState(0);
   const [ttsCurrentTime, setTtsCurrentTime] = useState(0);
   const [ttsDuration, setTtsDuration] = useState(0);
   const [ttsActiveText, setTtsActiveText] = useState("");
@@ -206,19 +214,23 @@ export default function ChatbotPage() {
   const audioChunksRef = useRef<BlobPart[]>([]);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsUiTickRef = useRef(0);
+  const ttsSegmentsRef = useRef<PreparedTtsSegment[]>([]);
+  const ttsSeekTargetRef = useRef<number | null>(null);
+  const ttsShouldAutoplayRef = useRef(false);
 
   const resetTtsState = useCallback(() => {
+    ttsSegmentsRef.current.forEach((segment) => URL.revokeObjectURL(segment.audioUrl));
+    ttsSegmentsRef.current = [];
+    ttsSeekTargetRef.current = null;
+    ttsShouldAutoplayRef.current = false;
     setSpeakingMessageId(null);
+    setTtsSegments([]);
+    setTtsSegmentIndex(0);
     setTtsCurrentTime(0);
     setTtsDuration(0);
     setTtsActiveText("");
     setIsTtsPlaying(false);
-    setTtsAudioUrl((prev) => {
-      if (prev) {
-        URL.revokeObjectURL(prev);
-      }
-      return null;
-    });
+    setTtsAudioUrl(null);
   }, []);
 
   const formatTime = (seconds: number) => {
@@ -240,6 +252,43 @@ export default function ChatbotPage() {
       audio.currentTime = 0;
     }
   }, []);
+
+  const handleTtsSeek = useCallback((nextTime: number) => {
+    const boundedTime = Math.min(Math.max(nextTime, 0), ttsDuration || 0);
+    if (!ttsSegments.length) {
+      setTtsCurrentTime(boundedTime);
+      return;
+    }
+
+    let accumulated = 0;
+    let targetIndex = 0;
+    let targetOffset = boundedTime;
+
+    for (let index = 0; index < ttsSegments.length; index += 1) {
+      const segmentDuration = ttsSegments[index].duration;
+      if (boundedTime <= accumulated + segmentDuration || index === ttsSegments.length - 1) {
+        targetIndex = index;
+        targetOffset = Math.min(Math.max(boundedTime - accumulated, 0), segmentDuration || 0);
+        break;
+      }
+      accumulated += segmentDuration;
+    }
+
+    const shouldResume = !!ttsAudioRef.current && !ttsAudioRef.current.paused;
+    ttsShouldAutoplayRef.current = shouldResume;
+    setTtsCurrentTime(boundedTime);
+
+    if (targetIndex === ttsSegmentIndex && ttsAudioRef.current) {
+      ttsAudioRef.current.currentTime = targetOffset;
+      if (shouldResume) {
+        ttsAudioRef.current.play().catch(() => undefined);
+      }
+      return;
+    }
+
+    ttsSeekTargetRef.current = targetOffset;
+    setTtsSegmentIndex(targetIndex);
+  }, [ttsDuration, ttsSegmentIndex, ttsSegments]);
 
   const handleOpenImage = useCallback((image: string) => {
     setSelectedImage(image);
@@ -277,16 +326,23 @@ export default function ChatbotPage() {
   }, [messages]);
 
   useEffect(() => {
+    ttsSegmentsRef.current = ttsSegments;
+  }, [ttsSegments]);
+
+  useEffect(() => {
     return () => {
       stopCurrentTtsAudio();
-      if (ttsAudioUrl) {
-        URL.revokeObjectURL(ttsAudioUrl);
-      }
+      ttsSegmentsRef.current.forEach((segment) => URL.revokeObjectURL(segment.audioUrl));
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
     };
-  }, [ttsAudioUrl]);
+  }, [stopCurrentTtsAudio]);
+
+  useEffect(() => {
+    const activeSegment = ttsSegments[ttsSegmentIndex];
+    setTtsAudioUrl(activeSegment ? activeSegment.audioUrl : null);
+  }, [ttsSegments, ttsSegmentIndex]);
 
   async function handleNewChat() {
     if (!materialId || isStartingNewChat) {
@@ -322,6 +378,9 @@ export default function ChatbotPage() {
     if (!ttsAudioUrl || !ttsAudioRef.current) {
       return;
     }
+    if (!ttsShouldAutoplayRef.current) {
+      return;
+    }
     ttsAudioRef.current.play().catch(() => undefined);
   }, [ttsAudioUrl]);
 
@@ -349,11 +408,24 @@ export default function ChatbotPage() {
       setSpeakingMessageId(messageId);
       setTtsActiveText(content);
       setIsTtsPanelCollapsed(false);
-      // Convert markdown to plain text so TTS reads the rendered content
-      const plainText = markdownToPlainText(content);
-      const audioBlob = await synthesizeChatSpeech(plainText, ttsLang);
-      const audioUrl = URL.createObjectURL(audioBlob);
-      setTtsAudioUrl(audioUrl);
+      ttsShouldAutoplayRef.current = true;
+      const textSegments = splitTextForTts(content);
+      const preparedSegments: PreparedTtsSegment[] = [];
+      for (const segment of textSegments) {
+        const audioBlob = await synthesizeChatSpeech(segment.text, ttsLang);
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const duration = await getAudioDurationFromUrl(audioUrl);
+        preparedSegments.push({ text: segment.text, audioUrl, duration });
+      }
+
+      if (preparedSegments.length === 0) {
+        throw new Error("No TTS segments generated");
+      }
+
+      setTtsSegments(preparedSegments);
+      setTtsSegmentIndex(0);
+      setTtsCurrentTime(0);
+      setTtsDuration(preparedSegments.reduce((sum, segment) => sum + segment.duration, 0));
     } catch {
       setSpeakingMessageId((prev) => (prev === messageId ? null : prev));
       alert("Không thể tạo âm thanh TTS");
@@ -977,16 +1049,24 @@ export default function ChatbotPage() {
                 src={ttsAudioUrl}
                 controls={false}
                 className="hidden"
-                onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
-                onTimeUpdate={(e) => {
-                  const now = performance.now();
-                  if (now - ttsUiTickRef.current < 200) return;
-                  ttsUiTickRef.current = now;
+                onLoadedMetadata={(e) => {
                   const audio = e.target as HTMLAudioElement;
-                  setTtsCurrentTime(audio.currentTime || 0);
-                  setTtsDuration(audio.duration || 0);
+                  if (ttsSeekTargetRef.current !== null) {
+                    audio.currentTime = ttsSeekTargetRef.current;
+                    ttsSeekTargetRef.current = null;
+                  }
+                }}
+                onTimeUpdate={(e) => {
+                  const audio = e.target as HTMLAudioElement;
+                  const baseTime = getSegmentBaseTime(ttsSegments, ttsSegmentIndex);
+                  setTtsCurrentTime(baseTime + (audio.currentTime || 0));
                 }}
                 onEnded={() => {
+                  if (ttsSegmentIndex < ttsSegments.length - 1) {
+                    ttsShouldAutoplayRef.current = true;
+                    setTtsSegmentIndex((prev) => prev + 1);
+                    return;
+                  }
                   setIsTtsPlaying(false);
                   resetTtsState();
                 }}
@@ -994,8 +1074,14 @@ export default function ChatbotPage() {
                   setIsTtsPlaying(false);
                   resetTtsState();
                 }}
-                onPlay={() => setIsTtsPlaying(true)}
-                onPause={() => setIsTtsPlaying(false)}
+                onPlay={() => {
+                  ttsShouldAutoplayRef.current = true;
+                  setIsTtsPlaying(true);
+                }}
+                onPause={() => {
+                  ttsShouldAutoplayRef.current = false;
+                  setIsTtsPlaying(false);
+                }}
               />
               <div className="mb-3 flex items-center justify-between text-xs text-slate-700 relative z-10">
                 <div className="flex items-center gap-2">
@@ -1045,13 +1131,12 @@ export default function ChatbotPage() {
                         min={0}
                         max={ttsDuration || 0}
                         step={0.1}
-                        value={Math.min(ttsCurrentTime, ttsDuration || 0)}
-                        onChange={(e) => {
-                          const nextTime = Number(e.target.value);
-                          if (ttsAudioRef.current) ttsAudioRef.current.currentTime = nextTime;
-                          ttsUiTickRef.current = performance.now();
-                          setTtsCurrentTime(nextTime);
-                        }}
+                      value={Math.min(ttsCurrentTime, ttsDuration || 0)}
+                      onChange={(e) => {
+                        const nextTime = Number(e.target.value);
+                        ttsUiTickRef.current = performance.now();
+                        handleTtsSeek(nextTime);
+                      }}
                         className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                         title="Tua âm thanh"
                       />
@@ -1116,9 +1201,8 @@ export default function ChatbotPage() {
                         value={Math.min(ttsCurrentTime, ttsDuration || 0)}
                         onChange={(e) => {
                           const nextTime = Number(e.target.value);
-                          if (ttsAudioRef.current) ttsAudioRef.current.currentTime = nextTime;
                           ttsUiTickRef.current = performance.now();
-                          setTtsCurrentTime(nextTime);
+                          handleTtsSeek(nextTime);
                         }}
                         className="absolute w-full h-full opacity-0 cursor-pointer z-10"
                         title="Tua âm thanh"

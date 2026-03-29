@@ -7,7 +7,7 @@ import { Bot as BotIcon, Globe, Loader2, Mic, Plus, Send, Settings2, Square, Vol
 import * as THREE from "three";
 
 import { sendMascotChatMessage, synthesizeChatSpeech, transcribeChatAudio } from "@/lib/api";
-import { markdownToPlainText } from "@/lib/tts";
+import { getAudioDurationFromUrl, getSegmentBaseTime, splitTextForTts } from "@/lib/tts";
 import { Markdown } from "@/components/ui/markdown";
 import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import type { SttModel } from "@/types";
@@ -16,6 +16,12 @@ type MiniChatMessage = {
   role: "user" | "assistant";
   content: string;
   images?: string[];
+};
+
+type PreparedTtsSegment = {
+  text: string;
+  audioUrl: string;
+  duration: number;
 };
 
 const MASCOT_SESSION_STORAGE_KEY = "mascot-chat-session-id";
@@ -123,6 +129,8 @@ export function FloatingMascot() {
 
   const [speakingMessageKey, setSpeakingMessageKey] = useState<string | null>(null);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsSegments, setTtsSegments] = useState<PreparedTtsSegment[]>([]);
+  const [ttsSegmentIndex, setTtsSegmentIndex] = useState(0);
   const [ttsCurrentTime, setTtsCurrentTime] = useState(0);
   const [ttsDuration, setTtsDuration] = useState(0);
   const [ttsActiveText, setTtsActiveText] = useState("");
@@ -144,19 +152,23 @@ export function FloatingMascot() {
   const audioChunksRef = useRef<BlobPart[]>([]);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsUiTickRef = useRef(0);
+  const ttsSegmentsRef = useRef<PreparedTtsSegment[]>([]);
+  const ttsSeekTargetRef = useRef<number | null>(null);
+  const ttsShouldAutoplayRef = useRef(false);
 
   const resetTtsState = () => {
+    ttsSegmentsRef.current.forEach((segment) => URL.revokeObjectURL(segment.audioUrl));
+    ttsSegmentsRef.current = [];
+    ttsSeekTargetRef.current = null;
+    ttsShouldAutoplayRef.current = false;
     setSpeakingMessageKey(null);
+    setTtsSegments([]);
+    setTtsSegmentIndex(0);
     setTtsCurrentTime(0);
     setTtsDuration(0);
     setTtsActiveText("");
     setIsTtsPlaying(false);
-    setTtsAudioUrl((prev) => {
-      if (prev) {
-        URL.revokeObjectURL(prev);
-      }
-      return null;
-    });
+    setTtsAudioUrl(null);
   };
 
   const stopCurrentTtsAudio = () => {
@@ -165,6 +177,43 @@ export function FloatingMascot() {
       audio.pause();
       audio.currentTime = 0;
     }
+  };
+
+  const handleTtsSeek = (nextTime: number) => {
+    const boundedTime = Math.min(Math.max(nextTime, 0), ttsDuration || 0);
+    if (!ttsSegments.length) {
+      setTtsCurrentTime(boundedTime);
+      return;
+    }
+
+    let accumulated = 0;
+    let targetIndex = 0;
+    let targetOffset = boundedTime;
+
+    for (let index = 0; index < ttsSegments.length; index += 1) {
+      const segmentDuration = ttsSegments[index].duration;
+      if (boundedTime <= accumulated + segmentDuration || index === ttsSegments.length - 1) {
+        targetIndex = index;
+        targetOffset = Math.min(Math.max(boundedTime - accumulated, 0), segmentDuration || 0);
+        break;
+      }
+      accumulated += segmentDuration;
+    }
+
+    const shouldResume = !!ttsAudioRef.current && !ttsAudioRef.current.paused;
+    ttsShouldAutoplayRef.current = shouldResume;
+    setTtsCurrentTime(boundedTime);
+
+    if (targetIndex === ttsSegmentIndex && ttsAudioRef.current) {
+      ttsAudioRef.current.currentTime = targetOffset;
+      if (shouldResume) {
+        ttsAudioRef.current.play().catch(() => undefined);
+      }
+      return;
+    }
+
+    ttsSeekTargetRef.current = targetOffset;
+    setTtsSegmentIndex(targetIndex);
   };
 
   const formatTime = (seconds: number) => {
@@ -177,21 +226,6 @@ export function FloatingMascot() {
       .padStart(2, "0");
     const secs = (total % 60).toString().padStart(2, "0");
     return `${mins}:${secs}`;
-  };
-
-  const getApproxReadingSegment = (text: string, progress: number) => {
-    if (!text) {
-      return "";
-    }
-    const normalized = text.replace(/\s+/g, " ").trim();
-    if (!normalized) {
-      return "";
-    }
-    const ratio = Math.min(Math.max(progress, 0), 1);
-    const index = Math.floor(normalized.length * ratio);
-    const start = Math.max(0, index - 14);
-    const end = Math.min(normalized.length, index + 34);
-    return normalized.slice(start, end);
   };
 
   useEffect(() => {
@@ -308,19 +342,29 @@ export function FloatingMascot() {
   }, [sttModel]);
 
   useEffect(() => {
+    ttsSegmentsRef.current = ttsSegments;
+  }, [ttsSegments]);
+
+  useEffect(() => {
     return () => {
       stopCurrentTtsAudio();
-      if (ttsAudioUrl) {
-        URL.revokeObjectURL(ttsAudioUrl);
-      }
+      ttsSegmentsRef.current.forEach((segment) => URL.revokeObjectURL(segment.audioUrl));
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
     };
-  }, [ttsAudioUrl]);
+  }, []);
+
+  useEffect(() => {
+    const activeSegment = ttsSegments[ttsSegmentIndex];
+    setTtsAudioUrl(activeSegment ? activeSegment.audioUrl : null);
+  }, [ttsSegments, ttsSegmentIndex]);
 
   useEffect(() => {
     if (!ttsAudioUrl || !ttsAudioRef.current) {
+      return;
+    }
+    if (!ttsShouldAutoplayRef.current) {
       return;
     }
     ttsAudioRef.current.play().catch(() => undefined);
@@ -392,11 +436,24 @@ export function FloatingMascot() {
       setSpeakingMessageKey(messageKey);
       setTtsActiveText(content);
       setIsTtsPanelCollapsed(true);
-      // Convert markdown to plain text so TTS reads the rendered content
-      const plainText = markdownToPlainText(content);
-      const audioBlob = await synthesizeChatSpeech(plainText, ttsLang);
-      const audioUrl = URL.createObjectURL(audioBlob);
-      setTtsAudioUrl(audioUrl);
+      ttsShouldAutoplayRef.current = true;
+      const textSegments = splitTextForTts(content);
+      const preparedSegments: PreparedTtsSegment[] = [];
+      for (const segment of textSegments) {
+        const audioBlob = await synthesizeChatSpeech(segment.text, ttsLang);
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const duration = await getAudioDurationFromUrl(audioUrl);
+        preparedSegments.push({ text: segment.text, audioUrl, duration });
+      }
+
+      if (preparedSegments.length === 0) {
+        throw new Error("No TTS segments generated");
+      }
+
+      setTtsSegments(preparedSegments);
+      setTtsSegmentIndex(0);
+      setTtsCurrentTime(0);
+      setTtsDuration(preparedSegments.reduce((sum, segment) => sum + segment.duration, 0));
     } catch {
       setSpeakingMessageKey((prev) => (prev === messageKey ? null : prev));
       alert("Không thể tạo âm thanh TTS");
@@ -767,16 +824,24 @@ export function FloatingMascot() {
                     src={ttsAudioUrl}
                     controls={false}
                     className="hidden"
-                    onLoadedMetadata={(e) => setTtsDuration((e.target as HTMLAudioElement).duration || 0)}
-                    onTimeUpdate={(e) => {
-                      const now = performance.now();
-                      if (now - ttsUiTickRef.current < 200) return;
-                      ttsUiTickRef.current = now;
+                    onLoadedMetadata={(e) => {
                       const audio = e.target as HTMLAudioElement;
-                      setTtsCurrentTime(audio.currentTime || 0);
-                      setTtsDuration(audio.duration || 0);
+                      if (ttsSeekTargetRef.current !== null) {
+                        audio.currentTime = ttsSeekTargetRef.current;
+                        ttsSeekTargetRef.current = null;
+                      }
+                    }}
+                    onTimeUpdate={(e) => {
+                      const audio = e.target as HTMLAudioElement;
+                      const baseTime = getSegmentBaseTime(ttsSegments, ttsSegmentIndex);
+                      setTtsCurrentTime(baseTime + (audio.currentTime || 0));
                     }}
                     onEnded={() => {
+                      if (ttsSegmentIndex < ttsSegments.length - 1) {
+                        ttsShouldAutoplayRef.current = true;
+                        setTtsSegmentIndex((prev) => prev + 1);
+                        return;
+                      }
                       setIsTtsPlaying(false);
                       resetTtsState();
                     }}
@@ -784,8 +849,14 @@ export function FloatingMascot() {
                       setIsTtsPlaying(false);
                       resetTtsState();
                     }}
-                    onPlay={() => setIsTtsPlaying(true)}
-                    onPause={() => setIsTtsPlaying(false)}
+                    onPlay={() => {
+                      ttsShouldAutoplayRef.current = true;
+                      setIsTtsPlaying(true);
+                    }}
+                    onPause={() => {
+                      ttsShouldAutoplayRef.current = false;
+                      setIsTtsPlaying(false);
+                    }}
                   />
                   <div className="mb-2 flex items-center justify-between text-[11px] text-slate-700 min-w-0 relative z-10">
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
@@ -838,9 +909,8 @@ export function FloatingMascot() {
                             value={Math.min(ttsCurrentTime, ttsDuration || 0)}
                             onChange={(e) => {
                               const nextTime = Number(e.target.value);
-                              if (ttsAudioRef.current) ttsAudioRef.current.currentTime = nextTime;
                               ttsUiTickRef.current = performance.now();
-                              setTtsCurrentTime(nextTime);
+                              handleTtsSeek(nextTime);
                             }}
                             className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                             title="Tua âm thanh"
@@ -904,9 +974,8 @@ export function FloatingMascot() {
                             value={Math.min(ttsCurrentTime, ttsDuration || 0)}
                             onChange={(e) => {
                               const nextTime = Number(e.target.value);
-                              if (ttsAudioRef.current) ttsAudioRef.current.currentTime = nextTime;
                               ttsUiTickRef.current = performance.now();
-                              setTtsCurrentTime(nextTime);
+                              handleTtsSeek(nextTime);
                             }}
                             className="absolute w-full h-full opacity-0 cursor-pointer z-10"
                             title="Tua âm thanh"
