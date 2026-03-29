@@ -14,6 +14,20 @@ services:
       retries: 5
     command: redis-server --appendonly yes
 
+  redis-commander:
+    image: redis/redisinsight:latest
+    container_name: any2-redis-insight
+    restart: unless-stopped
+    ports:
+      - "8081:5540"
+    volumes:
+      - redis_insight_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   minio:
     image: minio/minio:latest
     container_name: any2-minio
@@ -213,6 +227,12 @@ services:
       minio:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping --timeout=5 | grep -q 'pong'"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
 
   celery-flower:
     build: ./backend
@@ -233,5 +253,6 @@ volumes:
   minio_data:
   mongo_data:
   backend_storage:
+  redis_insight_data:
   frontend_node_modules:
   frontend_next_cache:

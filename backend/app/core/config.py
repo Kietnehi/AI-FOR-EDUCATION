@@ -43,6 +43,8 @@ class Settings(BaseSettings):
 
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com"
+    
+    pexels_api_key: str = ""
 
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"

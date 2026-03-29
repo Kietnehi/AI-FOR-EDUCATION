@@ -24,10 +24,19 @@ async def lifespan(_: FastAPI):
     # Optimize ThreadPool for AI/Blocking tasks
     loop = asyncio.get_running_loop()
     loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
-    
+
     configure_logging()
     await connect_mongo()
     await ensure_indexes()
+    
+    # Initialize MinIO bucket
+    from app.services.storage import storage_service
+    try:
+        storage_service.ensure_bucket_exists()
+        logger.info("MinIO bucket '%s' initialized successfully", storage_service.bucket_name)
+    except Exception as e:
+        logger.warning("Failed to initialize MinIO bucket: %s", e)
+    
     logger.info("Application startup complete")
     try:
         yield
