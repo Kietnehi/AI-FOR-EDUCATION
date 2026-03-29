@@ -11,6 +11,7 @@ import {
   Sparkles,
   Clapperboard,
   FileText,
+  Globe,
   ChevronLeft,
   Settings,
 } from "lucide-react";
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/materials/upload", label: "Tải lên", icon: Upload },
   { href: "/materials/video", label: "Tạo Video AI", icon: Clapperboard },      
   { href: "/chatbot", label: "Chatbot RAG", icon: MessageSquareText },
+  { href: "/web-search", label: "Search Website Online", icon: Globe },
   { href: "/generated", label: "Nội dung AI", icon: Sparkles },
   { href: "/converter", label: "Chuyển đổi & trích xuất", icon: FileText }, 
 ];
@@ -86,9 +88,35 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
             e.preventDefault();
             setIsResizing(true);
           }}
-          className="absolute top-0 -right-1 w-2 h-full cursor-col-resize hover:bg-indigo-500/20 active:bg-indigo-500/30 transition-colors z-50 flex items-center justify-center pointer-events-auto"
+          title="Kéo để thay đổi độ rộng sidebar"
+          className="absolute top-0 -right-3 h-full w-6 cursor-col-resize z-50 flex items-center justify-center pointer-events-auto group/sidebar-resize"
         >
-          <div className="w-[2px] h-8 bg-indigo-400 rounded-full opacity-0 hover:opacity-100 transition-opacity" />
+          <div
+            className={`relative flex h-full w-full items-center justify-center transition-colors ${
+              isResizing ? "bg-indigo-500/14" : "bg-transparent hover:bg-indigo-500/10"
+            }`}
+          >
+            <div
+              className={`flex h-16 w-3 flex-col items-center justify-center gap-1 rounded-full border border-indigo-200/80 bg-white/92 shadow-sm transition-all ${
+                isResizing
+                  ? "scale-105 border-indigo-300 bg-indigo-50 shadow-md"
+                  : "opacity-90 group-hover/sidebar-resize:scale-105 group-hover/sidebar-resize:border-indigo-300"
+              }`}
+            >
+              <span className="h-1 w-1 rounded-full bg-indigo-400" />
+              <span className="h-1 w-1 rounded-full bg-indigo-400" />
+              <span className="h-1 w-1 rounded-full bg-indigo-400" />
+            </div>
+            <div
+              className={`absolute left-1/2 top-1/2 -translate-y-1/2 translate-x-4 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-600 shadow-sm whitespace-nowrap transition-all ${
+                isResizing
+                  ? "opacity-100"
+                  : "pointer-events-none opacity-0 group-hover/sidebar-resize:opacity-100 group-hover/sidebar-resize:translate-x-5"
+              }`}
+            >
+              Kéo để resize
+            </div>
+          </div>
         </div>
       )}
       <Link href="/" className="flex items-center gap-3 px-6 h-20 border-b border-[var(--border-light)] no-underline group overflow-hidden shrink-0">

@@ -30,3 +30,5 @@ pandas
 openpyxl
 pillow
 tavily-python
+duckduckgo-search
+ddgs

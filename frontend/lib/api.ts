@@ -9,6 +9,8 @@
   NotebookLMResponse,
   NotebookLMSavedResult,
   SttModel,
+  DuckDuckGoSearchItem,
+  DuckDuckGoSearchType,
 } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
@@ -267,6 +269,22 @@ export async function webSearch(sessionId: string, query: string, useGoogle: boo
   });
   invalidateCache(`/chat/sessions/${sessionId}`);
   return result;
+}
+
+export async function searchDuckDuckGo(
+  query: string,
+  searchType: DuckDuckGoSearchType = "text",
+  maxResults: number = 10
+): Promise<DuckDuckGoSearchItem[]> {
+  const params = new URLSearchParams({
+    q: query,
+    type: searchType,
+    max_results: String(maxResults),
+  });
+
+  return apiFetch<DuckDuckGoSearchItem[]>(`/web-search/duckduckgo?${params.toString()}`, {
+    skipCache: true,
+  });
 }
 
 export async function transcribeChatAudio(

@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=150&section=header&text=AI%20Learning%20Studio&fontSize=40&fontAlignY=35&animation=twinkling&fontColor=ffffff" width="100%" alt="Header"/>
 
@@ -81,6 +81,8 @@ Dự án được chia thành 2 luồng xử lý chính:
 - 📱 **Responsive** trên mọi kích thước màn hình
 
 > **Lưu ý:** MongoDB sử dụng MongoDB Atlas qua `MONGO_URI`
+
+ - **Search Website Online**: Trang tìm kiếm web tích hợp ngay trong AI Learning Studio, cho phép tra cứu theo từ khóa với các nhóm kết quả như website, tin tức, hình ảnh, video và sách để người dùng tổng hợp thông tin nhanh hơn.
 
 ---
 
