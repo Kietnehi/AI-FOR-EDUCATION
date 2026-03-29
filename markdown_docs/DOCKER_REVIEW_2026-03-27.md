@@ -7,17 +7,25 @@
 - `frontend/Dockerfile.dev`
 - `frontend/scripts/warmup-routes.mjs`
 
-## Cập nhật (2026-03-29) - MongoDB Atlas & Optional Local Container
+## Cập nhật (2026-03-29) - MongoDB Atlas & Hot-Reload Optimization
 
-### Đã thay đổi:
-1. **Mongo container giờ là optional** (profile `local-db`)
-2. **Mặc định dùng MongoDB Atlas** từ `.env`
-3. **Backend không bắt buộc chờ mongo** khi dùng Atlas
+### 🛠️ Thay đổi chính:
+1.  **Mongo container là optional:** Sử dụng profile `local-db`. Mặc định dùng MongoDB Atlas qua `.env`.
+2.  **Tối ưu Hot-Reload (Windows/WSL2):** 
+    - Kích hoạt **Polling** cho cả Backend và Frontend để đảm bảo nhận diện thay đổi file ngay lập tức trên hệ thống file NTFS của Windows.
+    - Cấu hình `CHOKIDAR_USEPOLLING=true` và `WATCHPACK_POLLING=true` cho Frontend.
+    - Cấu hình `WATCHFILES_FORCE_POLLING=true` cho Backend.
+    - Mở rộng `--reload-dir` của uvicorn sang toàn bộ thư mục `/app`.
+3.  **Tắt chế độ `--turbo` ở dev:** Tạm thời tắt để đảm bảo tính ổn định của Hot-reload trong môi trường Docker trên Windows.
 
-### Cấu hình trong `.env`:
+### 📝 Cấu hình trong `.env`:
 ```env
-# Atlas URI
+# Atlas URI (Khuyến nghị dùng Atlas để tiết kiệm RAM container)
 MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority&appName=<app-name>
+
+# Polling configuration (Mặc định là true trong docker-compose)
+CHOKIDAR_USEPOLLING=true
+WATCHFILES_FORCE_POLLING=true
 ```
 
 ---
