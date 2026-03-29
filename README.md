@@ -275,79 +275,42 @@ AI-FOR-EDUCATION/
 ---
 
 
-## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose
+## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose (Khuyên dùng)
 
-Dự án đã được cấu hình đầy đủ Docker cho các service:
+Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/macOS/Linux với tính năng **Hot-reload** hoàn chỉnh (sửa code cập nhật ngay lập tức mà không cần restart container).
 
-* `frontend`
-* `backend`
-* `mongo`
+### ⚙️ Hướng dẫn các bước:
 
-
-
-## 📁 Các file liên quan
-
-* `docker-compose.yml`
-* `backend/Dockerfile`
-* `frontend/Dockerfile`
-* `.env.docker.example`
-
-
-## ⚙️ Hướng dẫn chạy nhanh
-
-### 1. Tạo file môi trường
-
+#### 1. Chuẩn bị file môi trường
+Tạo file `.env` ở thư mục gốc của dự án:
 ```bash
 cp .env.docker.example .env
 ```
+Mở file `.env` và điền ít nhất `MONGO_URI` (Khuyến nghị dùng MongoDB Atlas) và các API Key cần thiết (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`).
 
----
-
-### 2. Cấu hình biến môi trường
-
-Mở file `.env` và điền các API key cần thiết, ví dụ:
-
-* OpenAI
-* Gemini
-* Groq
-  *(tùy theo nhu cầu sử dụng của bạn)*
-
-
-### 3. Build và chạy toàn bộ hệ thống
-
+#### 2. Khởi động hệ thống
 ```bash
+# Chạy với MongoDB Atlas (mặc định - nhẹ nhất)
 docker compose up -d --build
+
+# HOẶC Chạy với MongoDB Local (nếu không có Atlas)
+docker compose --profile local-db up -d --build
 ```
+*Lưu ý: Dùng cờ `--build` trong lần đầu hoặc khi có thay đổi cấu hình `Dockerfile`.*
 
+#### 3. Truy cập hệ thống
+*   🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
+*   🔧 **Backend API:** [http://localhost:8000](http://localhost:8000)
+*   📄 **Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 
-
-### 4. Truy cập hệ thống
-
-* 🌐 Frontend: [http://localhost:3000](http://localhost:3000)
-* 🔧 Backend API: [http://localhost:8000](http://localhost:8000)
-* 📄 Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-
-### 5. Dừng hệ thống
-
+#### 4. Dừng hệ thống
 ```bash
 docker compose down
 ```
 
----
-
-### 🧹 Xóa toàn bộ dữ liệu (bao gồm MongoDB + volume)
-
-```bash
-docker compose down -v
-```
-
----
-
-Nếu bạn muốn, mình có thể:
-
-* Viết thêm phần **troubleshooting (lỗi hay gặp Docker)**
-* Hoặc tối ưu luôn file `docker-compose.yml` cho production 🚀
+### 💡 Lưu ý về Hot-Reload:
+- **Hot-reload trên Windows:** Hệ thống sử dụng cơ chế **Polling** (`CHOKIDAR_USEPOLLING=true`) để đảm bảo nhận diện thay đổi file ngay lập tức từ ổ đĩa NTFS của Windows vào Linux container.
+- **Vị trí lưu trữ:** Để đạt hiệu năng tốt nhất trên Windows, bạn nên để code bên trong hệ thống file của **WSL2** (`\\wsl$\...`).
 
 
 ---
@@ -819,14 +782,22 @@ Lưu ý vận hành:
 
 ---
 
-## 8. Tài liệu bổ sung
+## 8. Tài liệu bổ sung & API Keys
 
-- [WEB_SEARCH_GUIDE_VI.md](markdown_docs/WEB_SEARCH_GUIDE_VI.md) — Hướng dẫn Web Search.
-- [DOCKER_REVIEW_2026-03-27.md](markdown_docs/DOCKER_REVIEW_2026-03-27.md) — Docker review.
-- [LLM_API_FLOW.md](markdown_docs/LLM_API_FLOW.md) — Luồng API LLM.
-- [MINIGAME.md](markdown_docs/MINIGAME.md) — Thiết kế minigame.
-- [NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md) — NotebookLM media notes.
-- [CI_SUMMARY_2026-03-28.md](markdown_docs/CI_SUMMARY_2026-03-28.md) — Tóm tắt đầy đủ phần CI hiện tại của dự án.
+### 🔑 Quản lý API Keys
+- **Google Gemini API:** [Google AI Studio (Lấy API Key tại đây)](https://aistudio.google.com/api-keys)
+- **OpenAI API:** [OpenAI Platform](https://openai.com/api/)
+- **OpenRouter API:** [OpenRouter Dashboard (Cho các model gpt-4o-mini, gpt-4o, claude-3...)](https://openrouter.ai/)
+- **Groq API:** [Groq Cloud (Cho Whisper STT nhanh nhất)](https://console.groq.com/keys)
+
+### 📚 Tài liệu tham khảo
+- **Gemini API:** [Gemini API Quickstart](https://ai.google.dev/gemini-api/docs/quickstart)
+- **Web Search:** [Hướng dẫn Web Search (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
+- **Docker Review:** [Đánh giá Docker & Hot-reload](markdown_docs/DOCKER_REVIEW_2026-03-27.md)
+- **LLM API Flow:** [Luồng xử lý AI & LLM](markdown_docs/LLM_API_FLOW.md)
+- **Minigame Design:** [Thiết kế & logic Minigame](markdown_docs/MINIGAME.md)
+- **NotebookLM Media:** [NotebookLM Video & Infographic](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md)
+- **CI Summary:** [Tóm tắt Pipeline CI Dự Án](markdown_docs/CI_SUMMARY_2026-03-28.md)
 
 ---
 
