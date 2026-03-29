@@ -92,28 +92,55 @@ Dự án được chia thành 2 luồng xử lý chính:
 
 | Công nghệ | Mô tả |
 |-----------|-------|
-| Next.js 14 | App Router, Server/Client Components |
-| React 18 | UI rendering |
-| TailwindCSS v4 | Utility-first CSS framework |
-| Framer Motion | Micro-interactions & animations |
-| Lucide React | Icon system (outline style) |
+| Next.js 14 | Framework frontend chính với App Router |
+| React 18 | Xây dựng UI theo mô hình component |
+| TypeScript | Kiểm soát kiểu dữ liệu ở frontend |
+| Tailwind CSS v4 | Hệ thống utility CSS cho giao diện |
+| Framer Motion | Animation và tương tác UI |
+| Lucide React | Bộ icon chính của dự án |
+| React Markdown + Remark GFM | Render nội dung Markdown trong UI |
+| Three.js + React Three Fiber + Drei | Thành phần 3D và mascot tương tác |
 
-### Backend
+### Backend & AI
 
 | Công nghệ | Mô tả |
 |-----------|-------|
+| Python 3.11+ | Ngôn ngữ chính cho backend và AI pipeline |
 | FastAPI | REST API framework |
-| Python 3.11+ | AI pipeline & business logic |
-| MongoDB Atlas | Cơ sở dữ liệu nghiệp vụ |
-| ChromaDB | Vector database (persistent local) |
-| **Redis** | **Message broker + Result backend cho Celery** |
-| **Celery** | **Distributed task queue cho background jobs** |
-| **MinIO** | **S3-compatible object storage** |
-| OpenAI API | Embedding (`text-embedding-3-small`) & generation |
-| OpenAI Whisper (local) | Speech-to-Text local model `base` |
-| Groq API | Speech-to-Text cloud (`whisper-large-v3`, `whisper-large-v3-turbo`) |
-| FFmpeg | Tiền xử lý audio cho Whisper |
-| python-pptx | Tạo file PowerPoint tự động |
+| Pydantic / pydantic-settings | Validation schema và cấu hình ứng dụng |
+| Motor / PyMongo | Kết nối và thao tác MongoDB |
+| ChromaDB | Vector database lưu embeddings cục bộ |
+| OpenAI API | Sinh nội dung, embeddings và fallback model |
+| Google Gemini (`google-genai`) | LLM chính cho nhiều luồng AI |
+| Groq API | Speech-to-Text cloud |
+| OpenAI Whisper | Speech-to-Text local |
+| gTTS | Text-to-Speech |
+| Docling / PyPDF / python-docx / pandas / openpyxl / Pillow | Trích xuất và xử lý tài liệu đa định dạng |
+| python-pptx | Tạo slide PowerPoint tự động |
+| Tavily Search / DuckDuckGo Search / DDGS / Google Books API | Tìm kiếm web và sách |
+| Playwright | Tự động hóa trình duyệt cho một số luồng tích hợp |
+
+### Dữ liệu, hàng đợi và lưu trữ
+
+| Công nghệ | Mô tả |
+|-----------|-------|
+| MongoDB | Cơ sở dữ liệu nghiệp vụ chính |
+| Redis | Broker và result backend cho Celery |
+| Celery | Xử lý background jobs |
+| Flower | Theo dõi Celery worker |
+| MinIO | Object storage S3-compatible cho file upload và file sinh ra |
+| Boto3 | Tích hợp MinIO / AWS S3 |
+
+### DevOps, kiểm thử và phát hành
+
+| Công nghệ | Mô tả |
+|-----------|-------|
+| Docker / Docker Compose | Môi trường chạy local, CI smoke test và đóng gói dịch vụ |
+| GitHub Actions | CI/CD pipeline |
+| GHCR | Publish container image frontend và backend |
+| Vitest + Testing Library + jsdom | Unit test / integration test frontend |
+| Pytest | Test backend |
+| ESLint | Kiểm tra chất lượng mã frontend |
 
 ---
 
@@ -535,155 +562,114 @@ Hiện tại dự án có **CI đầy đủ**, và **CD bán thực tế**: đã
   - `markdown_docs/CI_SUMMARY_2026-03-28.md`
   - `markdown_docs/TOM_TAT_CD_2026-03-28.md`
 
-### 6.1 Sơ đồ Pipeline CI/CD
+### 6.1 Sơ đồ CI/CD tổng thể
 
 ```mermaid
-flowchart TD
-    subgraph CI["🔄 CI Pipeline - Project CI"]
-        A[Push / PR<br/>frontend/, backend/] --> B{CI Trigger}
+flowchart LR
+    A["Lập trình viên push code hoặc mở pull request"] --> B{"CI Dự Án được kích hoạt"}
 
-        B --> C[Frontend Job]
-        B --> D[Backend Job]
-        B --> E[Docker Compose Smoke]
+    subgraph CI["CI - Kiểm tra chất lượng và smoke test"]
+        direction TB
+        B --> C["Frontend
+        checkout
+        setup Node.js 20
+        npm ci
+        npm run lint
+        vitest + coverage"]
 
-        C --> C1[Checkout]
-        C1 --> C2[Setup Node.js 20]
-        C2 --> C3[npm ci]
-        C3 --> C4[npm run lint]
-        C4 --> C5[npm run test:coverage]
-        C5 --> C6[Upload Coverage Artifact]
+        B --> D["Backend
+        checkout
+        setup Python 3.11
+        pip install -r requirements-test.txt
+        pytest + junit.xml + coverage"]
 
-        D --> D1[Checkout]
-        D1 --> D2[Setup Python 3.11]
-        D2 --> D3[Install Dependencies]
-        D3 --> D4[pytest + coverage]
-        D4 --> D5[Upload Coverage Artifact]
+        B --> E["Docker Compose smoke
+        cp .env.docker.example .env
+        docker compose up -d --build
+        health check backend
+        HTTP check frontend
+        thu thập logs
+        docker compose down -v"]
 
-        E --> E1[Checkout]
-        E1 --> E2[Prepare .env]
-        E2 --> E3[docker compose up -d --build]
-        E3 --> E4[Backend Health Check<br/>30 iterations x 3s]
-        E4 --> E5[Frontend HTTP Check<br/>20 iterations x 3s]
-        E5 --> E6[Thu thập ps + logs]
-        E6 --> E7[docker compose down]
-
-        C6 --> F{All Jobs Pass?}
-        D5 --> F
-        E7 --> F
+        C --> F{"Toàn bộ job CI đều đạt?"}
+        D --> F
+        E --> F
     end
 
-    F -->|Yes ✅| G[Merge to main]
-    F -->|No ❌| H[Create/Update GitHub Issue]
+    F -->|"Không"| G["Tạo hoặc cập nhật GitHub Issue cho lỗi CI"]
+    F -->|"Có"| H{"Có đủ điều kiện chạy CD?"}
+    H -->|"Không"| I["Dừng ở bước xác thực CI"]
+    H -->|"Có: workflow_run trên main hoặc kiet
+    hoặc workflow_dispatch"| J["Khởi động CD Dự Án"]
 
-    subgraph CD["🚀 CD Pipeline - CD Dự Án"]
-        G --> I{CD Trigger}
-        I -->|main success| J[Prepare Release]
-        I -->|workflow_dispatch| J
+    subgraph CD["CD - Đóng gói artifact và publish image"]
+        direction TB
+        J --> K["Prepare release
+        checkout theo SOURCE_SHA
+        tạo release metadata
+        tạo release notes"]
 
-        J --> J1[Checkout]
-        J1 --> J2[Generate Metadata]
-        J2 --> J3[Create Release Notes]
-        J3 --> J4[Upload Metadata Artifact]
+        K --> L["Build frontend artifact
+        npm ci
+        npm run build
+        đóng gói .next, public, package.json"]
 
-        J4 --> K[Build Frontend Artifact]
-        J4 --> L[Package Backend Artifact]
-        J4 --> M[Package Docker Bundle]
-        J4 --> P[Publish GHCR Images]
+        K --> M["Package backend artifact
+        python -m compileall app
+        đóng gói app, requirements, Dockerfile"]
 
-        K --> K1[Checkout + Node.js Setup]
-        K1 --> K2[npm ci]
-        K2 --> K3[npm run build]
-        K3 --> K4[Copy .next, public, package.json]
-        K4 --> K5[Upload Frontend Bundle]
+        K --> N["Package Docker bundle
+        cp .env.docker.example .env
+        docker compose config
+        xuất docker-compose.resolved.yml"]
 
-        L --> L1[Checkout + Python Setup]
-        L1 --> L2[python -m compileall app]
-        L2 --> L3[Copy app, requirements.txt]
-        L3 --> L4[Upload Backend Bundle]
+        K --> O["Publish container images lên GHCR
+        đăng nhập GHCR
+        build/push backend image
+        build/push frontend image
+        gắn tag latest, sha ngắn, branch"]
 
-        M --> M1[Checkout]
-        M1 --> M2[Prepare .env]
-        M2 --> M3[docker compose config]
-        M3 --> M4[Upload Docker Bundle]
+        L --> P["Deploy placeholder
+        tạo deployment summary"]
+        M --> P
+        N --> P
+        O --> P
 
-        P --> P1[Checkout theo SOURCE_SHA]
-        P1 --> P2[Login GHCR bằng GHCR_TOKEN]
-        P2 --> P3[Build + Push backend image]
-        P3 --> P4[Build + Push frontend image]
-        P4 --> P5[Upload ghcr-images-<sha>]
-
-        K5 --> N[Deploy Placeholder]
-        L4 --> N
-        M4 --> N
-        P5 --> N
-
-        N --> N1[Download Metadata]
-        N1 --> N2[Generate Deployment Summary]
-        N2 --> N3[Upload Deploy Report]
-
-        N3 --> O[Release Bundle]
-        O --> O1[Download All Artifacts]
-        O1 --> O2[Merge: Frontend + Backend + Docker + Deploy]
-        O2 --> O3[Upload full-release-bundle-<sha>]
+        P --> Q["Release bundle
+        tải lại tất cả artifact
+        gộp frontend, backend, docker, images, deploy"]
+        Q --> R["Upload full-release-bundle-<sha>"]
     end
 
-    H -.-> A
+    O --> S["GHCR frontend image
+    ghcr.io/<owner>/ai-for-education-frontend"]
+    O --> T["GHCR backend image
+    ghcr.io/<owner>/ai-for-education-backend"]
+    R --> U["Đầu ra cuối
+    artifact phát hành hoàn chỉnh"]
 
-    style CI fill:#1e3a5f,stroke:#00d9ff,stroke-width:2px,color:#fff
-    style CD fill:#2d5016,stroke:#00ff88,stroke-width:2px,color:#fff
-    style F fill:#ff9800,stroke:#fff,stroke-width:2px,color:#000
-    style H fill:#f44336,stroke:#fff,stroke-width:2px,color:#fff
+    K -. lỗi .-> V["Tạo hoặc cập nhật GitHub Issue cho lỗi CD"]
+    L -. lỗi .-> V
+    M -. lỗi .-> V
+    N -. lỗi .-> V
+    O -. lỗi .-> V
+    P -. lỗi .-> V
+    Q -. lỗi .-> V
+
+    classDef ci fill:#eaf4ff,stroke:#2563eb,stroke-width:1.5px,color:#0f172a;
+    classDef cd fill:#ecfdf3,stroke:#16a34a,stroke-width:1.5px,color:#0f172a;
+    classDef warn fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#7c2d12;
+    classDef fail fill:#fef2f2,stroke:#dc2626,stroke-width:1.5px,color:#7f1d1d;
+    classDef out fill:#f8fafc,stroke:#64748b,stroke-width:1.5px,color:#0f172a;
+
+    class C,D,E,F ci;
+    class K,L,M,N,O,P,Q,R cd;
+    class H,I,J warn;
+    class G,V fail;
+    class S,T,U out;
 ```
 
-### 6.2 Luồng Health Check Docker Compose
-
-```mermaid
-sequenceDiagram
-    participant GH as GitHub Actions
-    participant DC as Docker Compose
-    participant BE as Backend :8000
-    participant FE as Frontend :3000
-
-    GH->>DC: docker compose up -d --build
-    Note over DC: Build backend + frontend bằng docker-compose.ci.yml
-
-    DC-->>GH: Containers started
-
-    loop Health Check Backend (max 90s)
-        GH->>BE: curl /health (every 3s)
-        alt Backend ready
-            BE-->>GH: 200 OK
-        else Backend not ready
-            BE-->>GH: Connection refused
-        end
-    end
-
-    alt Backend healthy
-        loop Frontend HTTP Check (max 60s)
-            GH->>FE: curl :3000
-            alt Frontend ready
-                FE-->>GH: 200 OK
-            else Frontend not ready
-                FE-->>GH: Connection refused
-            end
-        end
-        alt Frontend ready
-            FE-->>GH: 200 OK
-            GH->>DC: docker compose down -v
-            Note over GH: ✅ Smoke test passed
-        else Frontend not ready
-            FE-->>GH: Connection refused
-            GH->>DC: docker compose logs
-            Note over GH: ❌ Frontend failed
-        end
-    else Backend unhealthy
-        GH->>DC: docker compose logs backend
-        Note over GH: ❌ Backend failed
-        GH->>DC: docker compose down -v
-    end
-```
-
-### 6.3 Các job chính và thời gian ước tính
+### 6.2 Các job chính và thời gian ước tính
 
 | Job | Thời gian (lần đầu) | Thời gian (có cache) | Mô tả |
 |-----|---------------------|----------------------|-------|
