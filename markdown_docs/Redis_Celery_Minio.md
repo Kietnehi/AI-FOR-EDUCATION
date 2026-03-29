@@ -1,194 +1,413 @@
-# Redis Celery MinIO - Ghi Chú Tiến Độ
+# 🔴 Redis - 🍀 Celery - 📦 MinIO Integration Guide
 
-Ngày: 2026-03-29
-Phạm vi: Tích hợp hạ tầng Phase 2 (Redis + Celery + lớp trừu tượng MinIO/S3)
-
-## 1) Những gì đã triển khai
-
-### 1.1 Dependencies
-- Đã bổ sung các dependency mới cho backend:
-  - redis
-  - celery
-  - flower
-  - boto3
-
-Tệp liên quan:
-- backend/requirements.txt
-
-### 1.2 Cấu hình backend (điều khiển bằng env)
-- Đã thêm các cấu hình runtime cho:
-  - Redis URL
-  - Celery broker/result backend
-  - Cờ chuyển MinIO/S3 và thông tin xác thực
-  - Region và bucket S3
-  - Thời gian hết hạn presigned URL
-
-Tệp liên quan:
-- backend/app/core/config.py
-
-### 1.3 Module Celery task
-- Đã tạo task app và định nghĩa task cho luồng generate bất đồng bộ:
-  - generate_slides_task
-  - generate_podcast_task
-  - generate_minigame_task
-- Luồng task tái sử dụng GenerationService hiện có và vòng đời connect/close Mongo.
-
-Tệp liên quan:
-- backend/app/tasks.py
-
-### 1.4 API endpoint bất đồng bộ cho generate
-- Đã thêm các endpoint đưa task vào hàng đợi:
-  - POST /materials/{material_id}/generate/slides/async
-  - POST /materials/{material_id}/generate/podcast/async
-  - POST /materials/{material_id}/generate/minigame/async
-- Đã thêm endpoint kiểm tra trạng thái task:
-  - GET /tasks/{task_id}/status
-- Đã thêm response schema:
-  - GenerationTaskQueuedResponse
-  - GenerationTaskStatusResponse
-
-Tệp liên quan:
-- backend/app/api/routes/generated_contents.py
-- backend/app/schemas/generated_content.py
-
-### 1.5 Lớp trừu tượng storage cho MinIO/S3
-- Đã thêm StorageService cho các thao tác tương thích S3:
-  - upload_file
-  - upload_file_obj
-  - download_file
-  - download_file_obj
-  - delete_file
-  - get_presigned_url
-- Hỗ trợ MinIO trong môi trường dev và AWS S3 trong production qua cờ env.
-
-Tệp liên quan:
-- backend/app/services/storage.py
-
-### 1.6 Dịch vụ trong Docker Compose
-- Đã thêm các service:
-  - redis
-  - minio
-  - celery-worker
-  - celery-flower
-- Đã thêm các volume:
-  - redis_data
-  - minio_data
-- Đã nối env cho backend và celery-worker để dùng Redis/Celery/MinIO/S3.
-
-Tệp liên quan:
-- docker-compose.yml
-
-### 1.7 Mẫu env và env runtime
-- Đã cập nhật các tệp env mẫu để có đủ key Redis/Celery/MinIO/S3.
-- Đã cập nhật các tệp env runtime để test local.
-
-Tệp liên quan:
-- .env.example
-- .env.docker.example
-- backend/.env.example
-- .env
-- backend/.env
-
-### 1.8 Sửa lỗi nhỏ
-- Đã thêm import HTTPException còn thiếu ở route xóa material.
-
-Tệp liên quan:
-- backend/app/api/routes/materials.py
-
-## 2) Kiểm tra và smoke test đã thực hiện
-
-### 2.1 Kiểm tra build/cấu hình
-- Python compile check cho các module backend đã chỉnh: pass
-- Docker compose config validation: pass
-
-### 2.2 Redis
-- redis-cli ping: PONG
-- set/get smoke key: pass
-
-### 2.3 MinIO
-- health endpoint: HTTP 200
-- test ghi/đọc object bằng boto3: pass
-  - bucket: ai-learning-storage
-  - object: smoke/minio-test.txt
-  - value: hello-minio
-
-### 2.4 Celery
-- Celery inspect ping từ worker: OK (pong)
-- Worker kết nối được đến Redis broker/result backend và hoạt động bình thường.
-
-## 3) Vấn đề đã biết ở thời điểm hiện tại
-
-### 3.1 Container Celery hiển thị unhealthy trong docker compose
-- celery-worker và celery-flower hoạt động chức năng bình thường nhưng bị gắn trạng thái unhealthy.
-- Nguyên nhân gốc:
-  - base image của backend có HTTP healthcheck tới 127.0.0.1:8000/health trong backend/Dockerfile.
-  - celery-worker/flower không chạy HTTP server tại cổng 8000.
-
-Tác động:
-- Trạng thái sức khỏe container bị âm tính giả trong compose output.
-- Không chặn việc xử lý task Celery trong các bài test hiện tại.
-
-## 4) Đề xuất phần fix tiếp theo (future work)
-
-### 4.1 Sửa healthcheck cho Celery (khuyến nghị)
-Phương án A (ưu tiên): Override healthcheck theo từng service trong docker-compose.yml
-- Ví dụ healthcheck cho celery-worker:
-  - celery -A app.tasks.celery_app inspect ping
-- Ví dụ healthcheck cho celery-flower:
-  - kiểm tra Flower HTTP endpoint ở cổng 5555
-
-Phương án B: Tắt healthcheck cho celery-worker/flower trong compose nếu chưa cần monitor.
-
-### 4.2 Tích hợp StorageService vào đầu ra generation
-- Hiện tại một số luồng generate vẫn ghi file_url theo kiểu local.
-- Bước tiếp theo:
-  - upload artifact đã generate lên MinIO thông qua StorageService
-  - lưu object URL/presigned URL vào file_url
-  - giữ cơ chế fallback nếu object storage không khả dụng
-
-### 4.3 Bổ sung test tự động
-- Thêm integration test cho:
-  - endpoint queue async + polling status
-  - upload/download object storage
-  - ánh xạ lỗi mềm mại khi Celery task thất bại
-
-### 4.4 Cải thiện khả năng quan sát
-- Thêm structured log cho task_id và material_id trong API và worker.
-- Thêm metrics tùy chọn cho queue delay và task duration.
-
-## 5) Quick runbook
-
-### 5.1 Khởi động dịch vụ
-- docker compose up -d --build
-
-### 5.2 Kiểm tra trạng thái
-- docker compose ps
-
-### 5.3 Redis smoke
-- docker compose exec redis redis-cli ping
-- docker compose exec redis redis-cli set smoke:test ok
-- docker compose exec redis redis-cli get smoke:test
-
-### 5.4 MinIO smoke
-- curl -i http://localhost:9000/minio/health/live
-
-### 5.5 Celery smoke
-- docker compose exec celery-worker celery -A app.tasks.celery_app inspect ping
-
-## 6) Danh sách tệp đã chạm trong phase này
-- docker-compose.yml
-- backend/requirements.txt
-- backend/app/core/config.py
-- backend/app/tasks.py
-- backend/app/services/storage.py
-- backend/app/api/routes/generated_contents.py
-- backend/app/schemas/generated_content.py
-- backend/app/api/routes/materials.py
-- .env.example
-- .env.docker.example
-- backend/.env.example
-- .env
-- backend/.env
+**Cập nhật:** 29/03/2026  
+**Trạng thái:** ✅ Hoàn thành & Hoạt động  
+**Dự án:** AI Learning Studio - AI For Education
 
 ---
-Tài liệu này đóng vai trò là mốc checkpoint để tiếp tục fix theo từng bước ở các lần sau.
+
+## 📋 Mục lục
+
+1. [Tổng quan](#tổng-quan)
+2. [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)
+3. [Redis - Message Broker](#redis---message-broker)
+4. [Celery - Task Queue](#celery---task-queue)
+5. [MinIO - Object Storage](#minio---object-storage)
+6. [Integration Flow](#integration-flow)
+7. [Cấu hình](#cấu-hình)
+8. [Monitoring](#monitoring)
+9. [Troubleshooting](#troubleshooting)
+
+---
+
+## Tổng quan
+
+Hệ thống đã tích hợp thành công 3 thành phần hạ tầng quan trọng:
+
+| Component | Vai trò | Port | Status |
+|-----------|---------|------|--------|
+| **Redis** | Message Broker + Result Backend | 6379 | ✅ Healthy |
+| **Celery Worker** | Execute background tasks | - | ✅ Running |
+| **Celery Flower** | Task monitoring UI | 5555 | ✅ Running |
+| **MinIO** | Object Storage (S3-compatible) | 9000, 9001 | ✅ Healthy |
+| **Redis Insight** | Redis monitoring UI | 8081 | ✅ Running |
+
+---
+
+## Kiến trúc hệ thống
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Frontend  │────▶│   Backend    │────▶│   MongoDB   │
+│  (Next.js)  │◀────│  (FastAPI)   │◀────│  (Atlas)    │
+└─────────────┘     └──────┬───────┘     └─────────────┘
+                           │
+                    ┌──────┴──────┐
+                    │             │
+             ┌──────▼──────┐ ┌───▼────────┐
+             │    Redis    │ │   MinIO    │
+             │  (Broker +  │ │  (Storage) │
+             │   Backend)  │ │            │
+             └──────┬──────┘ └────────────┘
+                    │
+             ┌──────▼──────┐
+             │   Celery    │
+             │   Worker    │
+             └─────────────┘
+```
+
+---
+
+## Redis - Message Broker
+
+### Vai trò
+- **Message Broker:** Hàng đợi cho Celery tasks (db0)
+- **Result Backend:** Lưu trữ kết quả tasks (db1)
+- **In-memory data store:** High-performance caching
+
+### Cấu hình Docker
+```yaml
+redis:
+  image: redis:7-alpine
+  ports:
+    - "6379:6379"
+  volumes:
+    - redis_data:/data
+  command: redis-server --appendonly yes
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 10s
+    retries: 5
+```
+
+### Databases
+| DB | Mục đích | Keys |
+|----|----------|------|
+| **db0** | Celery Broker | `_kombu.binding.*` |
+| **db1** | Result Backend | `celery-task-meta-*` |
+
+### Commands hữu ích
+```bash
+# Check connection
+docker exec any2-redis redis-cli ping
+
+# Xem keyspace
+docker exec any2-redis redis-cli INFO keyspace
+
+# Xem task results
+docker exec any2-redis redis-cli -n 1 KEYS "celery-task-meta-*"
+
+# Xem chi tiết task
+docker exec any2-redis redis-cli -n 1 GET "celery-task-meta-{task_id}"
+```
+
+### Redis Insight UI
+- **URL:** http://localhost:8081
+- **Container:** `any2-redis-insight`
+- **Features:** Browse keys, memory analysis, terminal
+- **Connection:** `redis://host.docker.internal:6379/0`
+
+---
+
+## Celery - Task Queue
+
+### Vai trò
+- Thực thi background tasks (generate slides, podcast, minigame)
+- Async task processing với retry logic
+- Distributed task execution
+
+### Use Cases
+- ✅ Generate slides từ tài liệu
+- ✅ Generate podcast script
+- ✅ Generate minigame/quiz
+- ✅ Process materials (chunking, embedding)
+
+### Cấu hình Celery App
+```python
+celery_app = Celery(
+    "ai_tasks",
+    broker=settings.celery_broker_url,
+    backend=settings.celery_result_backend,
+)
+
+celery_app.conf.update(
+    task_track_started=True,
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],
+    timezone="UTC",
+    task_concurrency=4,
+    task_acks_late=True,
+)
+```
+
+### Tasks định nghĩa
+```python
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_slides_task(self, material_id, tone, max_slides, ...):
+    """Generate slides from material"""
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_podcast_task(self, material_id, style, duration, ...):
+    """Generate podcast script"""
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_minigame_task(self, material_id, game_type, ...):
+    """Generate minigame"""
+```
+
+### Async API Endpoints
+```python
+# Queue tasks
+POST /api/materials/{id}/generate/slides/async
+POST /api/materials/{id}/generate/podcast/async
+POST /api/materials/{id}/generate/minigame/async
+
+# Check status
+GET /api/tasks/{task_id}/status
+```
+
+### Docker Configuration
+```yaml
+celery-worker:
+  build: ./backend
+  command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+  environment:
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_RESULT_BACKEND: redis://redis:6379/1
+  depends_on:
+    - redis
+    - minio
+  healthcheck:
+    test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping"]
+    interval: 60s
+    timeout: 30s
+    retries: 3
+    start_period: 30s
+
+celery-flower:
+  build: ./backend
+  command: celery -A app.tasks.celery_app flower --port=5555
+  ports:
+    - "5555:5555"
+  depends_on:
+    - redis
+```
+
+### Flower Monitoring UI
+- **URL:** http://localhost:5555
+- **Features:** Task dashboard, worker monitoring, retry failed tasks
+- **No authentication required**
+
+---
+
+## MinIO - Object Storage
+
+### Vai trò
+- S3-compatible object storage
+- Lưu trữ files thay vì local storage
+- Production-ready với AWS S3 compatibility
+
+### Use Cases
+- ✅ Lưu trữ tài liệu upload (`uploads/`)
+- ✅ Lưu trữ slides generated (`generated/slides/`)
+- ✅ Lưu trữ podcast audio (`generated/podcasts/`)
+
+### Docker Configuration
+```yaml
+minio:
+  image: minio/minio:latest
+  ports:
+    - "9000:9000"  # API
+    - "9001:9001"  # Console
+  environment:
+    MINIO_ROOT_USER: minioadmin
+    MINIO_ROOT_PASSWORD: minioadmin123
+  volumes:
+    - minio_data:/data
+  command: server /data --console-address ":9001"
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+    interval: 30s
+    retries: 3
+```
+
+### Storage Service
+```python
+class StorageService:
+    def __init__(self):
+        self.use_s3 = settings.use_s3
+        self.bucket_name = settings.minio_bucket if not self.use_s3 else settings.aws_s3_bucket
+        
+    def ensure_bucket_exists(self):
+        """Create bucket if not exists (called on app startup)"""
+        
+    async def upload_file(self, file_path, object_name, content_type) -> str:
+        """Upload file to MinIO/S3"""
+        
+    async def upload_file_obj(self, file_obj, object_name, content_type) -> str:
+        """Upload file object to MinIO/S3"""
+        
+    async def download_file_obj(self, object_name) -> bytes:
+        """Download file from MinIO/S3"""
+        
+    async def delete_file(self, object_name) -> bool:
+        """Delete file from MinIO/S3"""
+        
+    def get_presigned_url(self, object_name, expiration=3600) -> str:
+        """Generate presigned URL"""
+```
+
+### Commands hữu ích
+```bash
+# List files
+docker exec any2-minio mc ls myminio/ai-learning-storage/
+
+# Xem chi tiết file
+docker exec any2-minio mc stat myminio/ai-learning-storage/uploads/file.txt
+
+# Create bucket
+docker exec any2-minio mc mb myminio/ai-learning-storage --ignore-existing
+```
+
+### MinIO Console UI
+- **URL:** http://localhost:9001
+- **Credentials:** `minioadmin` / `minioadmin123`
+- **Features:** Browse buckets, upload/download, manage policies
+
+---
+
+## Integration Flow
+
+### Luồng Generate Slides
+
+```
+1. User upload file
+   └─▶ Backend lưu vào MinIO (uploads/{uuid}.txt)
+
+2. User click "Generate Slides"
+   └─▶ Backend push task vào Redis queue
+
+3. Celery Worker poll task
+   └─▶ Generate PPTX content
+   └─▶ Upload lên MinIO (generated/slides/{id}.pptx)
+   └─▶ Lưu result vào Redis
+
+4. Frontend poll status
+   └─▶ Return: SUCCESS + file_url
+
+5. User download slides
+   └─▶ Stream file từ MinIO
+```
+
+---
+
+## Cấu hình
+
+### Environment Variables (.env)
+```bash
+# === REDIS & CELERY ===
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
+
+# === MINIO (Development) ===
+USE_S3=false
+MINIO_ENDPOINT=http://minio:9000
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+MINIO_BUCKET=ai-learning-storage
+```
+
+### Dependencies
+```txt
+# backend/requirements.txt
+redis
+celery
+flower
+boto3
+```
+
+---
+
+## Monitoring
+
+### URLs
+| Service | URL | Container | Credentials |
+|---------|-----|-----------|-------------|
+| **Redis Insight** | http://localhost:8081 | `any2-redis-insight` | Email registration |
+| **Flower (Celery)** | http://localhost:5555 | `any2-flower` | None |
+| **MinIO Console** | http://localhost:9001 | `any2-minio` | minioadmin / minioadmin123 |
+| **Swagger UI** | http://localhost:8000/docs | `any2-backend` | None |
+
+### Check Health
+```bash
+# All containers
+docker compose ps
+
+# Redis
+docker exec any2-redis redis-cli ping  # PONG
+
+# MinIO
+curl http://localhost:9000/minio/health/live
+
+# Celery Worker logs
+docker logs any2-celery-worker --tail=50
+```
+
+---
+
+## Troubleshooting
+
+### Celery tasks stuck in PENDING
+```bash
+# Check worker running
+docker compose ps celery-worker
+
+# Restart worker
+docker compose restart celery-worker
+
+# Check logs
+docker logs any2-celery-worker --tail=100
+```
+
+### MinIO upload failed
+```bash
+# Check bucket exists
+docker exec any2-minio mc mb myminio/ai-learning-storage --ignore-existing
+
+# Check credentials
+docker exec any2-minio mc alias set myminio http://localhost:9000 minioadmin minioadmin123
+```
+
+### Redis connection error
+```bash
+# Check Redis
+docker exec any2-redis redis-cli ping
+
+# Restart Redis
+docker compose restart redis
+```
+
+---
+
+## Files đã thay đổi
+
+```
+docker-compose.yml
+backend/requirements.txt
+backend/app/core/config.py
+backend/app/tasks.py
+backend/app/services/storage.py
+backend/app/services/material_service.py
+backend/app/services/generation_service.py
+backend/app/api/routes/generated_contents.py
+backend/app/api/routes/files.py
+```
+
+---
+
+**🎉 Tất cả services hoạt động bình thường!**
+
+*Tài liệu cập nhật: 29/03/2026*
+    

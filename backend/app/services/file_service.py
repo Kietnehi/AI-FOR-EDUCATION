@@ -5,7 +5,9 @@ from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.repositories.file_asset_repository import FileAssetRepository
+from app.services.storage import storage_service
 from app.utils.time import utc_now
 
 _FILE_RESOLUTION_BASE_DIRS = (

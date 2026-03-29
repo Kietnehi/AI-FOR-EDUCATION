@@ -104,6 +104,9 @@ Dự án được chia thành 2 luồng xử lý chính:
 | Python 3.11+ | AI pipeline & business logic |
 | MongoDB Atlas | Cơ sở dữ liệu nghiệp vụ |
 | ChromaDB | Vector database (persistent local) |
+| **Redis** | **Message broker + Result backend cho Celery** |
+| **Celery** | **Distributed task queue cho background jobs** |
+| **MinIO** | **S3-compatible object storage** |
 | OpenAI API | Embedding (`text-embedding-3-small`) & generation |
 | OpenAI Whisper (local) | Speech-to-Text local model `base` |
 | Groq API | Speech-to-Text cloud (`whisper-large-v3`, `whisper-large-v3-turbo`) |
@@ -118,6 +121,10 @@ Dự án được chia thành 2 luồng xử lý chính:
 
 - `frontend/` — Giao diện AI Learning Studio (dashboard, upload, materials, slides, podcast, minigame, chatbot)
 - `backend/` — REST API, business logic, ingestion pipeline, RAG pipeline
+- **Redis** — Message broker cho Celery tasks
+- **Celery Worker** — Thực thi background tasks (generate slides, podcast, minigame)
+- **Celery Flower** — Monitoring UI cho Celery tasks
+- **MinIO** — Object storage lưu trữ files (uploads, generated content)
 - MongoDB — Lưu metadata tài liệu, chunks, nội dung tạo sinh, session chat, attempt game
 - ChromaDB — Lưu vector embeddings để truy vấn ngữ nghĩa
 - OpenAI — Dùng cho embedding và generation (nếu có API key)
@@ -172,6 +179,18 @@ AI-FOR-EDUCATION/
 │  │  ├─ repositories/          ← Lớp tương tác trực tiếp với Database
 │  │  ├─ schemas/               ← Data Transfer Objects (DTO) cho API request/response
 │  │  ├─ services/              ← Business logic xử lý yêu cầu nghiệp vụ
+│  │  │  ├─ storage.py          ← MinIO/S3 storage service
+│  │  │  ├─ material_service.py ← Material management
+│  │  │  ├─ generation_service.py← Content generation
+│  │  │  ├─ chat_service.py     ← Chatbot RAG service
+│  │  │  ├─ file_service.py     ← File handling service
+│  │  │  ├─ game_service.py     ← Minigame service
+│  │  │  ├─ notebooklm_service.py← NotebookLM integration
+│  │  │  ├─ web_search_service.py← Web search (Tavily/Google)
+│  │  │  ├─ speech_service.py   ← Speech-to-Text service
+│  │  │  ├─ tts_service.py      ← Text-to-Speech service
+│  │  │  └─ ...
+│  │  ├─ tasks.py               ← Celery background tasks
 │  │  ├─ utils/                 ← Các hàm tiện ích dùng chung
 │  │  └─ main.py                ← File chạy chính của FastAPI
 │  ├─ storage/                  ← Thư mục lưu trữ dữ liệu cục bộ
@@ -211,6 +230,14 @@ AI-FOR-EDUCATION/
 ├─ Document_PRD/                ← Tài liệu đặc tả yêu cầu và thiết kế dự án
 ├─ image/                       ← Ảnh minh họa cho README và hệ thống
 ├─ markdown_docs/               ← Các tài liệu hướng dẫn chi tiết (.md)
+│  ├─ REDIS_CELERY_MINIO.md     ← Redis, Celery, MinIO integration guide
+│  ├─ CI_SUMMARY_2026-03-28.md  ← CI/CD pipeline summary
+│  ├─ DOCKER_REVIEW_2026-03-27.md← Docker setup review
+│  ├─ LLM_API_FLOW.md           ← LLM API integration flow
+│  ├─ MINIGAME.md               ← Minigame documentation
+│  ├─ NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md
+│  ├─ TOM_TAT_CD_2026-03-28.md  ← CD pipeline summary
+│  └─ WEB_SEARCH_GUIDE_VI.md    ← Web search feature guide
 ├─ TESTING_CODE/                ← Code test mẫu và tài liệu API bên thứ 3
 ├─ docker-compose.yml           ← Cấu hình triển khai toàn bộ hệ thống bằng Docker
 ├─ README.md                    ← Hướng dẫn dự án chính
@@ -276,6 +303,12 @@ AI-FOR-EDUCATION/
 
 
 ## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose (Khuyên dùng)
+
+![Hệ thống Docker Containers](image/container_docker.png)
+
+*Giao diện Docker Desktop hiển thị đầy đủ các thành phần đang chạy: Frontend, Backend, Database (MongoDB, Redis), Storage (Minio), Redis Commander và các Celery Workers/Flower phục vụ tác vụ nền.*
+
+> 💡 **Ghi chú về Storage:** Hệ thống mặc định sử dụng **Minio** để lưu trữ file cục bộ (S3-compatible) trong môi trường Docker. Nếu bạn có cấu hình **AWS S3**, hệ thống có thể chuyển sang dùng S3; ngược lại, Minio sẽ đóng vai trò là kho lưu trữ thay thế hoàn hảo trên máy local.
 
 Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/macOS/Linux với tính năng **Hot-reload** hoàn chỉnh (sửa code cập nhật ngay lập tức mà không cần restart container).
 
@@ -708,6 +741,46 @@ Coverage report sau khi chạy:
 
 ---
 
+## 6.5 Redis, Celery & MinIO
+
+### 🔴 Redis - Message Broker & Result Backend
+- **Port:** `6379`
+- **Monitoring:** http://localhost:8081 (Redis Insight)
+- **Vai trò:** Message broker cho Celery tasks + lưu kết quả
+
+### 🍀 Celery - Distributed Task Queue
+- **Services:** Celery Worker (execute tasks) + Flower (monitoring)
+- **Port:** `5555` (Flower UI)
+- **Tasks:** Generate slides, podcast, minigame
+- **Monitoring:** http://localhost:5555
+
+### 📦 MinIO - Object Storage (S3-compatible)
+- **Ports:** `9000` (API), `9001` (Console)
+- **Console:** http://localhost:9001 (minioadmin/minioadmin123)
+- **Bucket:** `ai-learning-storage`
+- **Storage:** uploads/, generated/slides/, generated/podcasts/
+
+### Quick Commands
+```bash
+# Redis - Check task results
+docker exec any2-redis redis-cli -n 1 KEYS "celery-task-meta-*"
+
+# MinIO - List files
+docker exec any2-minio mc ls myminio/ai-learning-storage/
+
+# Celery Worker logs
+docker logs any2-celery-worker --tail=50
+```
+
+### Integration Flow
+```
+Upload → MinIO → MongoDB → Queue (Redis) → Celery Worker → Generate → MinIO → Result (Redis)
+```
+
+📚 **Chi tiết:** Xem `markdown_docs/REDIS_CELERY_MINIO_GUIDE.md`
+
+---
+
 ## 7. Troubleshooting
 
 ### Lỗi không có lệnh `python`
@@ -791,6 +864,12 @@ Lưu ý vận hành:
 - **Groq API:** [Groq Cloud (Cho Whisper STT nhanh nhất)](https://console.groq.com/keys)
 
 ### 📚 Tài liệu tham khảo
+- **Redis, Celery & Minio:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md)
+- **Docker:** [Trang chủ Docker](https://www.docker.com/)
+- **Redis:** [Redis Documentation](https://redis.io/)
+- **RedisInsight:** [RedisInsight GUI](https://github.com/redis/RedisInsight)
+- **MinIO:** [High Performance Object Storage](https://www.min.io/)
+- **Celery:** [Distributed Task Queue](https://docs.celeryq.dev/en/stable/)
 - **Gemini API:** [Gemini API Quickstart](https://ai.google.dev/gemini-api/docs/quickstart)
 - **Web Search:** [Hướng dẫn Web Search (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
 - **Docker Review:** [Đánh giá Docker & Hot-reload](markdown_docs/DOCKER_REVIEW_2026-03-27.md)

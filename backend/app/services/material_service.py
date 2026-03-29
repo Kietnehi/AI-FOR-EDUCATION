@@ -19,6 +19,7 @@ from app.repositories.generated_content_repository import GeneratedContentReposi
 from app.repositories.job_repository import JobRepository
 from app.repositories.material_repository import MaterialRepository
 from app.services.material_guardrail_service import MaterialGuardrailService
+from app.services.storage import storage_service
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
@@ -117,6 +118,19 @@ class MaterialService:
                 destination.unlink()
             raise
 
+        # Upload to MinIO/S3
+        try:
+            object_name = f"uploads/{file_name}"
+            file_url = await storage_service.upload_file(
+                file_path=str(destination),
+                object_name=object_name,
+                content_type=file.content_type or "application/octet-stream",
+            )
+            logger.info("Uploaded file to MinIO: %s", file_url)
+        except Exception as e:
+            logger.warning("Failed to upload to MinIO, using local storage: %s", e)
+            file_url = f"/api/files/{file_name}/download"
+
         now = utc_now()
         doc = {
             "user_id": user_id,
@@ -126,7 +140,7 @@ class MaterialService:
             "education_level": metadata.get("education_level"),
             "source_type": extension.replace(".", ""),
             "file_name": file.filename,
-            "file_url": f"/api/files/{file_name}/download",
+            "file_url": file_url,
             "raw_text": raw_text,
             "cleaned_text": TextCleaner.clean(raw_text),
             "tags": metadata.get("tags", []),
@@ -299,28 +313,55 @@ class MaterialService:
     async def delete_material(self, material_id: str) -> bool:
         material = await self.get_material(material_id)
 
-        # 1. Delete Source File
+        # 1. Delete Source File from MinIO/S3
         if material.get("file_url"):
             try:
-                file_name = material["file_url"].split("/")[-1]
-                file_path = Path(settings.upload_dir) / file_name
-                if file_path.exists():
-                    file_path.unlink()
+                file_url = material["file_url"]
+                # Check if it's a MinIO/S3 URL (starts with http or contains bucket name)
+                if file_url.startswith("http") or settings.minio_bucket in file_url:
+                    # Extract object name from URL
+                    # Format: http://minio:9000/bucket/uploads/filename or https://bucket.s3.region.amazonaws.com/uploads/filename
+                    if "/uploads/" in file_url:
+                        object_name = "uploads/" + file_url.split("/uploads/")[-1]
+                    else:
+                        object_name = file_url.split("/")[-1]
+                    await storage_service.delete_file(object_name)
+                    logger.info("Deleted file from MinIO: %s", object_name)
+                else:
+                    # Local file URL format: /api/files/{filename}/download
+                    file_name = file_url.split("/")[-2] if "/download" in file_url else file_url.split("/")[-1]
+                    file_path = Path(settings.upload_dir) / file_name
+                    if file_path.exists():
+                        file_path.unlink()
             except Exception as e:
                 logger.warning(
                     "Failed to delete source file for material %s: %s", material_id, e
                 )
 
-        # 2. Delete Generated Content Files
+        # 2. Delete Generated Content Files from MinIO/S3
         try:
             generated_items = await self.generated_repo.list_by_material_id(material_id)
             for item in generated_items:
                 if item.get("file_url"):
-                    # Extract filename from /api/files/{filename}/download
-                    file_name = item["file_url"].split("/")[3]
-                    file_path = Path(settings.generated_dir) / file_name
-                    if file_path.exists():
-                        file_path.unlink()
+                    file_url = item["file_url"]
+                    # Check if it's a MinIO/S3 URL
+                    if file_url.startswith("http") or settings.minio_bucket in file_url:
+                        # Extract object name from URL
+                        if "/generated/" in file_url:
+                            object_name = "generated/" + file_url.split("/generated/")[-1]
+                        elif "/podcasts/" in file_url:
+                            object_name = "generated/podcasts/" + file_url.split("/podcasts/")[-1].replace("/download", "")
+                        else:
+                            object_name = file_url.split("/")[-1].replace("/download", "")
+                        await storage_service.delete_file(object_name)
+                        logger.info("Deleted generated file from MinIO: %s", object_name)
+                    else:
+                        # Local file URL format: /api/files/{filename}/download
+                        file_name = file_url.split("/")[3] if len(file_url.split("/")) > 3 else file_url.split("/")[-1]
+                        file_name = file_name.replace("/download", "")
+                        file_path = Path(settings.generated_dir) / file_name
+                        if file_path.exists():
+                            file_path.unlink()
         except Exception as e:
             logger.warning(
                 "Failed to delete generated files for material %s: %s", material_id, e

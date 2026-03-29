@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.services.material_service import MaterialService
+from app.services.storage import storage_service
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
@@ -201,7 +202,20 @@ class GenerationService:
             doc_image_paths=doc_image_paths,
         )
 
-        # Step 6: Persist without changing schema
+        # Step 6: Upload to MinIO/S3
+        try:
+            object_name = f"generated/slides/{filename}"
+            file_url = await storage_service.upload_file(
+                file_path=output_path,
+                object_name=object_name,
+                content_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            )
+            logger.info("Uploaded slides to MinIO: %s", file_url)
+        except Exception as e:
+            logger.warning("Failed to upload slides to MinIO, using local storage: %s", e)
+            file_url = f"/api/files/{filename}/download"
+
+        # Step 7: Persist without changing schema
         llm = getattr(self.slide_generator, "llm", None)
         model_used = getattr(llm, "last_model_used", None) if llm else None
         fallback_applied = getattr(llm, "fallback_used", False) if llm else False
@@ -212,7 +226,7 @@ class GenerationService:
             "version": version,
             "outline": [item.get("title", "") for item in outline.get("slides", [])],
             "json_content": {"tone": tone, **outline},
-            "file_url": f"/api/files/{filename}/download",
+            "file_url": file_url,
             "generation_status": "generated",
             "model_used": model_used,
             "fallback_applied": fallback_applied,
@@ -250,11 +264,21 @@ class GenerationService:
                     segments=segments,
                     output_filename=audio_filename,
                 )
-                # Create URL for serving the audio file
-                audio_url = f"/api/files/podcasts/{audio_filename}.mp3/download"
+                # Upload to MinIO/S3
+                try:
+                    object_name = f"generated/podcasts/{audio_filename}.mp3"
+                    audio_url = await storage_service.upload_file(
+                        file_path=audio_file_path,
+                        object_name=object_name,
+                        content_type="audio/mpeg",
+                    )
+                    logger.info("Uploaded podcast audio to MinIO: %s", audio_url)
+                except Exception as e:
+                    logger.warning("Failed to upload podcast to MinIO, using local storage: %s", e)
+                    audio_url = f"/api/files/podcasts/{audio_filename}.mp3/download"
             except Exception as e:
                 # Log error but don't fail the entire generation
-                print(f"Warning: Failed to generate audio for podcast: {e}")
+                logger.warning("Failed to generate audio for podcast: %s", e)
 
         now = utc_now()
         doc = {
