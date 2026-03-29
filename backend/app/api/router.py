@@ -1,8 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.routes import chat, files, games, generated_contents, materials, converter, web_search
+from app.api.routes import chat, files, games, generated_contents, materials, converter, web_search, auth
 
 api_router = APIRouter()
+api_router.include_router(auth.router, tags=["auth"])
+
 api_router.include_router(materials.router, tags=["materials"])
 api_router.include_router(generated_contents.router, tags=["generated-contents"])
 api_router.include_router(chat.router, tags=["chat"])

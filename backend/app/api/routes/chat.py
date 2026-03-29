@@ -5,7 +5,8 @@ from tempfile import NamedTemporaryFile
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.api.dependencies import get_database
+from app.api.dependencies import get_database, get_current_user
+from app.schemas.auth import AuthUser
 from app.core.config import settings
 from app.schemas.chat import (
     ChatMessageRequest,
@@ -36,10 +37,11 @@ LOCAL_WHISPER_MODELS = {
 async def create_session(
     material_id: str,
     payload: CreateChatSessionRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> ChatSessionResponse:
     service = ChatService(db)
-    session = await service.create_session(material_id, payload.user_id, payload.session_title)
+    session = await service.create_session(material_id, user.id, payload.session_title)
     return ChatSessionResponse(**session)
 
 
@@ -70,11 +72,13 @@ async def send_message(
 @router.post("/chat/mascot/message", response_model=MascotChatResponse)
 async def send_mascot_message(
     payload: MascotChatRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MascotChatResponse:
     service = ChatService(db)
     response = await service.answer_mascot_no_rag(
         payload.message,
+        user.id,
         payload.session_id,
         payload.images,
         use_web_search=payload.use_web_search,

@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     chroma_persist_dir: str = "./storage/chroma"
     chroma_collection_name: str = "material_chunks"
 
+    google_client_id: str = ""
+    google_token_clock_skew_seconds: int = 120
+    jwt_secret_key: str = "your-secret-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_minutes: int = 43200  # 30 days
+    auth_cookie_name: str = "ai_learning_auth_token"
+    auth_cookie_secure: bool = False
+
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_guardrail_model: str = "gpt-4o-mini"

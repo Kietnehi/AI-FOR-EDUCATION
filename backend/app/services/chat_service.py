@@ -98,6 +98,7 @@ class ChatService:
     async def answer_mascot_no_rag(
         self,
         message: str,
+        user_id: str,
         session_id: str | None = None,
         images: list[str] | None = None,
         use_web_search: bool = False,
@@ -116,7 +117,7 @@ class ChatService:
             now = utc_now()
             mascot_session = await self.chat_repo.create_mascot_session(
                 {
-                    "user_id": "demo-user",
+                    "user_id": user_id,
                     "session_title": "Mascot chat",
                     "created_at": now,
                     "updated_at": now,

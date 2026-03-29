@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.api.dependencies import get_database
+from app.api.dependencies import get_database, get_current_user
+from app.schemas.auth import AuthUser
 from app.schemas.games import GameAttemptResponse, GameSubmitRequest
 from app.services.game_service import GameService
 
@@ -12,10 +13,11 @@ router = APIRouter()
 async def submit_game_attempt(
     generated_content_id: str,
     payload: GameSubmitRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GameAttemptResponse:
     service = GameService(db)
-    attempt = await service.submit_attempt(generated_content_id, payload.user_id, payload.answers)
+    attempt = await service.submit_attempt(generated_content_id, user.id, payload.answers)
     return GameAttemptResponse(**attempt)
 
 

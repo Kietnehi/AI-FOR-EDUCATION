@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -25,6 +25,7 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { listMaterials } from "@/lib/api";
 import { Material } from "@/types";
 import dynamic from "next/dynamic";
+import { useAuth } from "@/components/auth-provider";
 
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
@@ -74,13 +75,22 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showVisualizer, setShowVisualizer] = useState(false);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setMaterials([]);
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
     listMaterials()
       .then((res) => setMaterials(res.items))
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user, authLoading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,7 +226,15 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {!loading && !error && materials.length === 0 && (
+        {!loading && !error && !user && materials.length === 0 && (
+          <EmptyState
+            icon={<MapPin className="w-10 h-10" />}
+            title="Đăng nhập để xem học liệu"
+            description="Vui lòng đăng nhập bằng Google ở góc phải để xem danh sách học liệu của bạn."
+          />
+        )}
+
+        {!loading && !error && user && materials.length === 0 && (
           <EmptyState
             icon={<BookOpen className="w-10 h-10" />}
             title="Chưa có học liệu nào"
@@ -371,7 +389,7 @@ export default function DashboardPage() {
             {
               name: "phatle224",
               username: "phatle224",
-              role: "Developer",
+              role: "Data Engineer",
               gradient: "from-emerald-500 to-emerald-600",
             },
           ].map((contact) => (

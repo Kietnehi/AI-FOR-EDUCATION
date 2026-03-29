@@ -32,3 +32,6 @@ pillow
 tavily-python
 duckduckgo-search
 ddgs
+google-auth
+PyJWT
+requests
