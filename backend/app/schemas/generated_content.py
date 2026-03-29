@@ -75,6 +75,21 @@ class NotebookLMConfirmationResponse(BaseModel):
     estimated_duration_seconds: int = Field(default=600, description="Estimated time for generation in seconds")
 
 
+class GenerationTaskQueuedResponse(BaseModel):
+    task_id: str
+    status: str = "queued"
+    message: str
+
+
+class GenerationTaskStatusResponse(BaseModel):
+    task_id: str
+    status: str
+    celery_state: str
+    progress: int | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+
+
 class GeneratedContentResponse(BaseModel):
     model_config = ConfigDict(cache_strings=True)
     

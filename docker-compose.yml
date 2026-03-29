@@ -1,4 +1,38 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: any2-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  minio:
+    image: minio/minio:latest
+    container_name: any2-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   mongo:
     image: mongo:7
     container_name: any2-mongo
@@ -26,6 +60,9 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MONGO_DB_NAME: ${MONGO_DB_NAME:-ai_learning_platform}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
@@ -49,6 +86,15 @@ services:
       IMAGE_CACHE_DIR: /app/storage/images
       NOTEBOOKLM_DOCUMENTS_DIR: /app/storage/notebooklm/documents
       NOTEBOOKLM_USER_DATA_DIR: /app/storage/notebooklm/chrome-profile
+      USE_S3: ${USE_S3:-false}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-ai-learning-storage}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
       CHUNK_SIZE: ${CHUNK_SIZE:-2500}
       CHUNK_OVERLAP: ${CHUNK_OVERLAP:-500}
       RETRIEVAL_TOP_K: ${RETRIEVAL_TOP_K:-6}
@@ -63,6 +109,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
+      redis:
+        condition: service_healthy
       mongo:
         condition: service_healthy
         required: false
@@ -100,7 +148,89 @@ services:
         condition: service_healthy
     command: npm run dev -- -H 0.0.0.0 -p 3000
 
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: any2-celery-worker
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017}
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-ai_learning_platform}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_GUARDRAIL_MODEL: ${OPENAI_GUARDRAIL_MODEL:-gpt-4o-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS:-[]}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3-flash-preview}
+      MASCOT_CHAT_MODEL: ${MASCOT_CHAT_MODEL:-openai/gpt-4o-mini}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      OPENROUTER_SITE_URL: ${OPENROUTER_SITE_URL:-}
+      OPENROUTER_SITE_NAME: ${OPENROUTER_SITE_NAME:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      CHROMA_COLLECTION_NAME: ${CHROMA_COLLECTION_NAME:-material_chunks}
+      CHROMA_PERSIST_DIR: /app/storage/chroma
+      UPLOAD_DIR: /app/storage/uploads
+      GENERATED_DIR: /app/storage/generated
+      IMAGE_CACHE_DIR: /app/storage/images
+      NOTEBOOKLM_DOCUMENTS_DIR: /app/storage/notebooklm/documents
+      NOTEBOOKLM_USER_DATA_DIR: /app/storage/notebooklm/chrome-profile
+      USE_S3: ${USE_S3:-false}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-ai-learning-storage}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      CHUNK_SIZE: ${CHUNK_SIZE:-2500}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-500}
+      RETRIEVAL_TOP_K: ${RETRIEVAL_TOP_K:-6}
+      CHAT_MEMORY_TURNS: ${CHAT_MEMORY_TURNS:-8}
+      MASCOT_MEMORY_TURNS: ${MASCOT_MEMORY_TURNS:-10}
+      MATERIAL_GUARDRAIL_EXCERPT_CHARS: ${MATERIAL_GUARDRAIL_EXCERPT_CHARS:-12000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+    volumes:
+      - ./backend:/app
+      - backend_storage:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+        required: false
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-flower:
+    build: ./backend
+    container_name: any2-flower
+    command: celery -A app.tasks.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
+  redis_data:
+  minio_data:
   mongo_data:
   backend_storage:
   frontend_node_modules:
