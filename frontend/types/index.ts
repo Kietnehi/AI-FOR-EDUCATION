@@ -129,3 +129,7 @@ export type SttModel =
   | "local-small"
   | "whisper-large-v3"
   | "whisper-large-v3-turbo";
+
+export type DuckDuckGoSearchType = "text" | "news" | "images" | "videos" | "books";
+
+export type DuckDuckGoSearchItem = Record<string, any>;
