@@ -13,6 +13,13 @@
   DuckDuckGoSearchType,
 } from "@/types";
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
 type ApiFetchOptions = RequestInit & {
@@ -89,6 +96,7 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
   const requestPromise = (async () => {
     const response = await fetch(`${API_BASE}${path}`, {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(options?.headers || {}),
@@ -98,6 +106,19 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
 
     if (!response.ok) {
       const text = await response.text();
+
+      if (response.status === 401 && !path.startsWith("/auth/")) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("auth-required"));
+        }
+        throw new Error(
+          JSON.stringify({
+            code: "AUTH_REQUIRED",
+            detail: "Vui lòng đăng nhập trước khi thực hiện chức năng này.",
+          })
+        );
+      }
+
       throw new Error(text || `Request failed: ${response.status}`);
     }
 
@@ -119,6 +140,34 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
       inflightRequests.delete(cacheKey);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export async function loginWithGoogle(idToken: string): Promise<{ user: AuthUser; message: string }> {
+  return apiFetch<{ user: AuthUser; message: string }>("/auth/google/login", {
+    method: "POST",
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
+export async function registerWithGoogle(idToken: string): Promise<{ user: AuthUser; message: string }> {
+  return apiFetch<{ user: AuthUser; message: string }>("/auth/google/register", {
+    method: "POST",
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
+export async function logout(): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/auth/logout", {
+    method: "POST",
+  });
+}
+
+export async function getMe(): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/auth/me");
 }
 
 export async function listMaterials(): Promise<{ items: Material[]; total: number }> {
@@ -225,7 +274,7 @@ export async function cancelNotebookLMSession(sessionId: string): Promise<{ sess
 export async function createChatSession(materialId: string): Promise<ChatSession> {
   const session = await apiFetch<ChatSession>(`/chat/${materialId}/session`, {
     method: "POST",
-    body: JSON.stringify({ user_id: "demo-user" }),
+    body: JSON.stringify({}),
   });
   primeCache(`/chat/sessions/${session.id}`, { session, messages: [] });
   return session;
@@ -333,7 +382,7 @@ export async function submitGameAttempt(
 ): Promise<any> {
   return apiFetch<any>(`/games/${generatedContentId}/submit`, {
     method: "POST",
-    body: JSON.stringify({ user_id: "demo-user", answers }),
+    body: JSON.stringify({ answers }),
   });
 }
 

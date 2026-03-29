@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
-
-from app.api.dependencies import get_database
+from app.api.dependencies import get_database, get_current_user
+from app.schemas.auth import AuthUser
 from app.schemas.materials import (
     MaterialCreateRequest,
     MaterialGuardrailCheckRequest,
@@ -19,10 +19,13 @@ router = APIRouter()
 @router.post("/materials", response_model=MaterialResponse)
 async def create_material(
     payload: MaterialCreateRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialResponse:
     service = MaterialService(db)
-    material = await service.create_material(payload.model_dump())
+    payload_dump = payload.model_dump()
+    payload_dump["user_id"] = user.id
+    material = await service.create_material(payload_dump)
     return MaterialResponse(**material)
 
 
@@ -67,7 +70,7 @@ async def check_upload_guardrail(
 @router.post("/materials/upload", response_model=MaterialResponse)
 async def upload_material(
     file: UploadFile = File(...),
-    user_id: str = Form("demo-user"),
+    user: AuthUser = Depends(get_current_user),
     title: str | None = Form(None),
     description: str | None = Form(None),
     subject: str | None = Form(None),
@@ -77,7 +80,7 @@ async def upload_material(
 ) -> MaterialResponse:
     service = MaterialService(db)
     material = await service.upload_material(
-        user_id=user_id,
+        user_id=user.id,
         file=file,
         metadata={
             "title": title,

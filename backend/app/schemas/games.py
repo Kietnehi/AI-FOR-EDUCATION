@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 
 class GameSubmitRequest(BaseModel):
-    user_id: str = "demo-user"
     answers: list[dict[str, Any]]
 
 
