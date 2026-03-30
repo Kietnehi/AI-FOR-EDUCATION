@@ -5,8 +5,11 @@ import os
 import csv
 import asyncio
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import FileResponse, JSONResponse
+
+from app.api.dependencies import get_current_user
+from app.schemas.auth import AuthUser
 
 from app.services.converter import (
     convert_web_to_pdf,
@@ -28,7 +31,11 @@ async def cleanup_files(input_p=None, output_p=None):
 
 
 @router.post("/convert-url")
-async def convert_url(background_tasks: BackgroundTasks, url: str = Form(...)):
+async def convert_url(
+    background_tasks: BackgroundTasks,
+    url: str = Form(...),
+    user: AuthUser = Depends(get_current_user),
+):
     file_id = str(uuid.uuid4())
     output_path = OUTPUT_DIR / f"{file_id}.pdf"
     success = await convert_web_to_pdf(url, output_path)
@@ -42,7 +49,11 @@ async def convert_url(background_tasks: BackgroundTasks, url: str = Form(...)):
 
 
 @router.post("/convert-file")
-async def convert_upload(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def convert_upload(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(get_current_user),
+):
     file_id = str(uuid.uuid4())
     input_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
     output_path = OUTPUT_DIR / f"{file_id}.pdf"
@@ -64,7 +75,8 @@ async def convert_upload(background_tasks: BackgroundTasks, file: UploadFile = F
 @router.post("/extract-pdf")
 async def extract_pdf(
     background_tasks: BackgroundTasks, 
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(get_current_user),
 ):
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -92,7 +104,10 @@ async def extract_pdf(
     })
 
 @router.get("/extracted/{extract_id}/text")
-async def get_extracted_text(extract_id: str):
+async def get_extracted_text(
+    extract_id: str,
+    user: AuthUser = Depends(get_current_user),
+):
     output_base = EXTRACTED_DIR / extract_id
     text_file = output_base / "text" / "extracted_text.md"
     if not text_file.exists():
@@ -101,14 +116,22 @@ async def get_extracted_text(extract_id: str):
         return JSONResponse({"content": f.read()})
 
 @router.get("/extracted/{extract_id}/tables/{filename}")
-async def serve_table(extract_id: str, filename: str):
+async def serve_table(
+    extract_id: str,
+    filename: str,
+    user: AuthUser = Depends(get_current_user),
+):
     table_file = EXTRACTED_DIR / extract_id / "tables" / filename
     if not table_file.exists():
         raise HTTPException(status_code=404, detail="Table not found")
     return FileResponse(table_file)
 
 @router.get("/extracted/{extract_id}/tables/{filename}/data")
-async def get_table_data(extract_id: str, filename: str):
+async def get_table_data(
+    extract_id: str,
+    filename: str,
+    user: AuthUser = Depends(get_current_user),
+):
     """Return CSV table data as JSON for inline rendering."""
     csv_name = Path(filename).stem + ".csv"
     csv_file = EXTRACTED_DIR / extract_id / "tables" / csv_name
@@ -123,14 +146,22 @@ async def get_table_data(extract_id: str, filename: str):
     return JSONResponse({"headers": headers, "rows": rows})
 
 @router.get("/extracted/{extract_id}/images/{filename}")
-async def serve_image(extract_id: str, filename: str):
+async def serve_image(
+    extract_id: str,
+    filename: str,
+    user: AuthUser = Depends(get_current_user),
+):
     image_file = EXTRACTED_DIR / extract_id / "images" / filename
     if not image_file.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(image_file)
 
 @router.get("/extracted/{extract_id}/download")
-async def download_extracted(extract_id: str, background_tasks: BackgroundTasks):
+async def download_extracted(
+    extract_id: str,
+    background_tasks: BackgroundTasks,
+    user: AuthUser = Depends(get_current_user),
+):
     output_base = EXTRACTED_DIR / extract_id
     if not output_base.exists():
         raise HTTPException(status_code=404, detail="Extraction not found")

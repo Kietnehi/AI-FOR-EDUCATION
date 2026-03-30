@@ -22,7 +22,7 @@ class ChatService:
     async def create_session(
         self, material_id: str, user_id: str, session_title: str | None
     ) -> dict:
-        material = await self.material_service.get_material(material_id)
+        material = await self.material_service.get_material(material_id, user_id=user_id)
         title = session_title or f"Chat ve {material['title']}"
         now = utc_now()
         payload = {
@@ -34,17 +34,28 @@ class ChatService:
         }
         return await self.chat_repo.create_session(payload)
 
-    async def get_session_detail(self, session_id: str) -> dict:
-        session = await self.chat_repo.get_session(parse_object_id(session_id))
+    async def get_session_detail(self, session_id: str, user_id: str) -> dict:
+        session = await self.chat_repo.get_session_for_user(
+            parse_object_id(session_id), user_id
+        )
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         messages = await self.chat_repo.list_messages(session_id)
         return {"session": session, "messages": messages}
 
     async def add_user_message_and_answer(
-        self, session_id: str, message: str, images: list[str] | None = None
+        self,
+        session_id: str,
+        message: str,
+        images: list[str] | None = None,
+        user_id: str | None = None,
     ) -> dict:
-        session = await self.chat_repo.get_session(parse_object_id(session_id))
+        if user_id:
+            session = await self.chat_repo.get_session_for_user(
+                parse_object_id(session_id), user_id
+            )
+        else:
+            session = await self.chat_repo.get_session(parse_object_id(session_id))
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
@@ -98,6 +109,7 @@ class ChatService:
     async def answer_mascot_no_rag(
         self,
         message: str,
+        user_id: str,
         session_id: str | None = None,
         images: list[str] | None = None,
         use_web_search: bool = False,
@@ -106,8 +118,8 @@ class ChatService:
         mascot_session: dict | None = None
         if session_id:
             try:
-                mascot_session = await self.chat_repo.get_mascot_session(
-                    parse_object_id(session_id)
+                mascot_session = await self.chat_repo.get_mascot_session_for_user(
+                    parse_object_id(session_id), user_id
                 )
             except HTTPException:
                 mascot_session = None
@@ -116,7 +128,7 @@ class ChatService:
             now = utc_now()
             mascot_session = await self.chat_repo.create_mascot_session(
                 {
-                    "user_id": "demo-user",
+                    "user_id": user_id,
                     "session_title": "Mascot chat",
                     "created_at": now,
                     "updated_at": now,
@@ -259,6 +271,7 @@ class ChatService:
         session_id: str,
         query: str,
         use_google: bool = True,
+        user_id: str | None = None,
     ) -> dict:
         """
         Tìm kiếm web và trả về câu trả lời được định dạng với trích dẫn đầy đủ
@@ -271,7 +284,12 @@ class ChatService:
         Returns:
             dict với kết quả tìm kiếm web và câu trả lời
         """
-        session = await self.chat_repo.get_session(parse_object_id(session_id))
+        if user_id:
+            session = await self.chat_repo.get_session_for_user(
+                parse_object_id(session_id), user_id
+            )
+        else:
+            session = await self.chat_repo.get_session(parse_object_id(session_id))
         if not session:
             raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
 

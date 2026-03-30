@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   Settings,
 } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -38,6 +39,7 @@ const navItems = [
 
 export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWidth, isResizing, setIsResizing }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!isResizing) {
@@ -195,22 +197,21 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
           })}
         </div>
 
-        <div className="space-y-1.5">
-          {!collapsed && (
-            <h3 className="px-4 text-[11px] font-bold tracking-[0.15em] text-[var(--text-tertiary)] uppercase mb-3">
-              Settings
-            </h3>
-          )}
+      </nav>
+
+      <div className="p-4 border-t border-[var(--border-light)] bg-[var(--bg-secondary)]/50 shrink-0 space-y-2">
+        {user ? (
           <Link
             href="/settings"
             className="
               group relative flex items-center gap-3.5 px-3 py-2.5 rounded-xl
-              text-[14px] font-semibold no-underline transition-all duration-300 ease-out  
-              text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]
+              text-[14px] font-semibold no-underline transition-all duration-300 ease-out
+              text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]
+              border border-transparent hover:border-[var(--border-light)] hover:shadow-sm
             "
           >
             <div className="p-1.5 rounded-lg transition-colors text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:bg-[var(--bg-secondary)]">
-                <Settings className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+              <Settings className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
             </div>
             <span
               className="whitespace-nowrap transition-all duration-300 overflow-hidden"
@@ -219,10 +220,9 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
               Cài đặt
             </span>
           </Link>
-        </div>
-      </nav>
+        ) : null}
 
-      <div className="p-4 border-t border-[var(--border-light)] bg-[var(--bg-secondary)]/50 shrink-0">      
+        <div className="h-px w-full bg-gray-100 dark:bg-gray-700/50" />
         <button
           onClick={onToggle}
           className="

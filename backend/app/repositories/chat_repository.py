@@ -19,6 +19,11 @@ class ChatRepository:
     async def get_session(self, session_id: ObjectId) -> dict | None:
         return serialize_document(await self.session_collection.find_one({"_id": session_id}))
 
+    async def get_session_for_user(self, session_id: ObjectId, user_id: str) -> dict | None:
+        return serialize_document(
+            await self.session_collection.find_one({"_id": session_id, "user_id": user_id})
+        )
+
     async def update_session(self, session_id: ObjectId, update_fields: dict) -> dict | None:
         await self.session_collection.update_one({"_id": session_id}, {"$set": update_fields})
         return await self.get_session(session_id)
@@ -50,6 +55,11 @@ class ChatRepository:
 
     async def get_mascot_session(self, session_id: ObjectId) -> dict | None:
         return serialize_document(await self.mascot_session_collection.find_one({"_id": session_id}))
+
+    async def get_mascot_session_for_user(self, session_id: ObjectId, user_id: str) -> dict | None:
+        return serialize_document(
+            await self.mascot_session_collection.find_one({"_id": session_id, "user_id": user_id})
+        )
 
     async def update_mascot_session(self, session_id: ObjectId, update_fields: dict) -> dict | None:
         await self.mascot_session_collection.update_one({"_id": session_id}, {"$set": update_fields})
