@@ -12,6 +12,7 @@ from app.schemas.materials import (
     MaterialResponse,
 )
 from app.services.material_service import MaterialService
+from app.services.storage import storage_service
 
 router = APIRouter()
 
@@ -23,6 +24,8 @@ async def create_material(
 ) -> MaterialResponse:
     service = MaterialService(db)
     material = await service.create_material(payload.model_dump())
+    if not material.get("storage_type"):
+        material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
 
 
@@ -87,6 +90,8 @@ async def upload_material(
             "tags": [item.strip() for item in tags.split(",")] if tags else [],
         },
     )
+    if not material.get("storage_type"):
+        material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
 
 
@@ -98,6 +103,9 @@ async def list_materials(
 ) -> MaterialListResponse:
     service = MaterialService(db)
     items, total = await service.list_materials(skip=skip, limit=limit)
+    for item in items:
+        if not item.get("storage_type"):
+            item["storage_type"] = storage_service.detect_storage_type(item.get("file_url"))
     return MaterialListResponse(
         items=[MaterialResponse(**item) for item in items], total=total
     )
@@ -110,6 +118,8 @@ async def get_material(
 ) -> MaterialResponse:
     service = MaterialService(db)
     material = await service.get_material(material_id)
+    if not material.get("storage_type"):
+        material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
 
 

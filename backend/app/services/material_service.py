@@ -118,18 +118,23 @@ class MaterialService:
                 destination.unlink()
             raise
 
-        # Upload to MinIO/S3
-        try:
-            object_name = f"uploads/{file_name}"
-            file_url = await storage_service.upload_file(
-                file_path=str(destination),
-                object_name=object_name,
-                content_type=file.content_type or "application/octet-stream",
-            )
-            logger.info("Uploaded file to MinIO: %s", file_url)
-        except Exception as e:
-            logger.warning("Failed to upload to MinIO, using local storage: %s", e)
-            file_url = f"/api/files/{file_name}/download"
+        # Persist file URL according to storage mode
+        if storage_service.enabled:
+            try:
+                object_name = f"uploads/{file_name}"
+                file_url = await storage_service.upload_file(
+                    file_path=str(destination),
+                    object_name=object_name,
+                    content_type=file.content_type or "application/octet-stream",
+                )
+                logger.info("Uploaded file to object storage: %s", file_url)
+            except Exception as e:
+                logger.warning("Failed to upload file to object storage, using local storage: %s", e)
+                file_url = storage_service.build_local_file_url(file_name)
+        else:
+            file_url = storage_service.build_local_file_url(file_name)
+
+        storage_type = storage_service.detect_storage_type(file_url)
 
         now = utc_now()
         doc = {
@@ -141,6 +146,7 @@ class MaterialService:
             "source_type": extension.replace(".", ""),
             "file_name": file.filename,
             "file_url": file_url,
+            "storage_type": storage_type,
             "raw_text": raw_text,
             "cleaned_text": TextCleaner.clean(raw_text),
             "tags": metadata.get("tags", []),
@@ -317,25 +323,19 @@ class MaterialService:
         if material.get("file_url"):
             try:
                 file_url = material["file_url"]
-                
-                # Extract potential local file name
-                file_name_from_url = file_url.split("/")[-1].split("?")[0]
-                local_path = Path(settings.upload_dir) / file_name_from_url
-                
-                # A. Try deleting from local filesystem first (for local dev without MinIO)
-                if local_path.exists():
-                    local_path.unlink()
-                    logger.info("Deleted source file from local storage: %s", local_path)
-                
-                # B. Then try deleting from MinIO/S3 if it's a remote URL
-                if file_url.startswith("http") or settings.minio_bucket in file_url:
-                    if "/uploads/" in file_url:
-                        object_name = "uploads/" + file_url.split("/uploads/")[-1].split("?")[0]
-                    else:
-                        object_name = file_url.split("/")[-1].split("?")[0]
-                    
-                    await storage_service.delete_file(object_name)
-                    logger.info("Requested deletion from MinIO/S3: %s", object_name)
+
+                relative_path = storage_service.extract_local_relative_path(file_url)
+                if relative_path:
+                    local_path = Path(settings.upload_dir) / relative_path
+                    if local_path.exists():
+                        local_path.unlink()
+                        logger.info("Deleted source file from local storage: %s", local_path)
+
+                if storage_service.is_remote_file_url(file_url):
+                    object_name = storage_service.extract_object_name(file_url)
+                    if object_name:
+                        await storage_service.delete_file(object_name)
+                        logger.info("Requested deletion from MinIO/S3: %s", object_name)
             except Exception as e:
                 logger.warning(
                     "Soft failure deleting source file for material %s: %s", material_id, e
@@ -347,23 +347,17 @@ class MaterialService:
             for item in generated_items:
                 if item.get("file_url"):
                     file_url = item["file_url"]
-                    file_name = file_url.split("/")[-1].split("?")[0]
-                    
-                    # Try Local first
-                    local_gen_path = Path(settings.generated_dir) / file_name
-                    if local_gen_path.exists():
-                        local_gen_path.unlink()
-                    
-                    # Then try MinIO/S3
-                    if file_url.startswith("http") or settings.minio_bucket in file_url:
-                        if "/generated/" in file_url:
-                            object_name = "generated/" + file_url.split("/generated/")[-1].split("?")[0]
-                        elif "/podcasts/" in file_url:
-                            # Handle podcast subfolder
-                            object_name = "generated/podcasts/" + file_url.split("/podcasts/")[-1].split("?")[0]
-                        else:
-                            object_name = file_name
-                        await storage_service.delete_file(object_name)
+
+                    relative_path = storage_service.extract_local_relative_path(file_url)
+                    if relative_path:
+                        local_gen_path = Path(settings.generated_dir) / relative_path
+                        if local_gen_path.exists():
+                            local_gen_path.unlink()
+
+                    if storage_service.is_remote_file_url(file_url):
+                        object_name = storage_service.extract_object_name(file_url)
+                        if object_name:
+                            await storage_service.delete_file(object_name)
         except Exception as e:
             logger.warning(
                 "Soft failure deleting generated files for material %s: %s", material_id, e

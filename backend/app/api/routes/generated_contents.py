@@ -19,6 +19,7 @@ from app.schemas.generated_content import (
 from app.services.generation_service import GenerationService
 from app.services.material_service import MaterialService
 from app.services.notebooklm_service import NotebookLMService
+from app.services.storage import storage_service
 from app.tasks import (
     celery_app,
     generate_minigame_task,
@@ -42,6 +43,8 @@ async def generate_slides(
         max_slides=payload.max_slides,
         skip_refine=payload.skip_refine
     )
+    if not result.get("storage_type"):
+        result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
 
 
@@ -57,6 +60,8 @@ async def generate_podcast(
         style=payload.style,
         target_duration_minutes=payload.target_duration_minutes,
     )
+    if not result.get("storage_type"):
+        result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
 
 
@@ -68,6 +73,8 @@ async def generate_minigame(
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
     result = await service.generate_minigame(material_id, game_type=payload.game_type)
+    if not result.get("storage_type"):
+        result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
 
 
@@ -164,6 +171,8 @@ async def get_generated_content(
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
     result = await service.get_generated_content(content_id)
+    if not result.get("storage_type"):
+        result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
 
 

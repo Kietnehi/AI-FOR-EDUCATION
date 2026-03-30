@@ -13,6 +13,7 @@ from app.utils.time import utc_now
 _FILE_RESOLUTION_BASE_DIRS = (
     Path(settings.upload_dir),
     Path(settings.generated_dir),
+    Path(settings.image_cache_dir),
     Path(settings.generated_dir) / "notebooklm" / "videos",
     Path(settings.generated_dir) / "notebooklm" / "infographics",
 )

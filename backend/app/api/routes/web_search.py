@@ -13,6 +13,15 @@ router = APIRouter()
 
 SearchType = Literal["text", "news", "images", "videos", "books"]
 
+
+def _get_ddgs_class() -> type[DDGS]:
+    """Return the resolved DDGS implementation.
+
+    Both `ddgs` and `duckduckgo-search` expose a `DDGS` class. This helper keeps
+    the fallback import centralized and gives call sites a stable reference.
+    """
+    return DDGS
+
 async def _search_google_books(query: str, max_results: int) -> list[dict[str, Any]]:
     """Tìm kiếm sách từ Google Books API (Miễn phí)"""
     url = "https://www.googleapis.com/books/v1/volumes"
@@ -92,12 +101,14 @@ async def _search_google_books(query: str, max_results: int) -> list[dict[str, A
             return results
         except Exception as e:
             # Nếu Google Books lỗi, fallback về DuckDuckGo text search
-            with DDGS() as ddgs:
+            ddgs_class = _get_ddgs_class()
+            with ddgs_class() as ddgs:
                 return [{"title": r["title"], "link": r["href"], "body": r["body"]} for r in ddgs.text(f"{query} books", max_results=max_results)]
 
 def _run_ddgs_search(query: str, search_type: str, max_results: int) -> list[dict[str, Any]]:
     """Hàm chạy DuckDuckGo search cho các loại non-books"""
-    with DDGS() as ddgs:
+    ddgs_class = _get_ddgs_class()
+    with ddgs_class() as ddgs:
         if search_type == "news":
             return list(ddgs.news(query, max_results=max_results))
         if search_type == "images":

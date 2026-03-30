@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,6 +14,12 @@ interface DialogProps {
 }
 
 export function Dialog({ open, onClose, children, title, maxWidth = "md" }: DialogProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -31,7 +38,11 @@ export function Dialog({ open, onClose, children, title, maxWidth = "md" }: Dial
     xl: "max-w-xl",
   }[maxWidth];
 
-  return (
+  if (!mounted) {
+    return null;
+  }
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -78,5 +89,5 @@ export function Dialog({ open, onClose, children, title, maxWidth = "md" }: Dial
         </>
       )}
     </AnimatePresence>
-  );
+  , document.body);
 }

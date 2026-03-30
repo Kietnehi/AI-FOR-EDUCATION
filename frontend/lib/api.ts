@@ -339,7 +339,9 @@ export async function submitGameAttempt(
 
 export function apiDownloadUrl(fileUrl: string): string {
   if (!fileUrl) return "#";
+  if (/^https?:\/\//i.test(fileUrl)) {
+    return fileUrl;
+  }
   return `${process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"}${fileUrl}`;
 }
-
 

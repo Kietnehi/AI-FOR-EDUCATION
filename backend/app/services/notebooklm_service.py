@@ -8,10 +8,12 @@ import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 from app.core.config import settings
 from app.core.logging import logger
 from app.services import notebooklm_worker
+from app.services.storage import storage_service
 
 
 # In-memory storage for active browser sessions
@@ -50,14 +52,18 @@ class NotebookLMService:
             raise RuntimeError("Học liệu không có file gốc. Vui lòng upload file PDF/DOCX.")
 
         # Extract the stored filename from URL format: /api/files/{filename}/download
-        stored_filename = file_url.split("/")[-2] if "/" in file_url else None
+        stored_filename = self._extract_stored_filename(file_url)
         if not stored_filename:
             raise RuntimeError("Không thể xác định file gốc từ URL")
 
         # Get the source file path
         source_file = Path(settings.upload_dir) / stored_filename
         if not source_file.exists():
-            raise RuntimeError(f"File gốc không tồn tại: {stored_filename}")
+            object_name = storage_service.extract_object_name(file_url)
+            if storage_service.enabled and object_name:
+                await storage_service.download_file(object_name, str(source_file))
+            if not source_file.exists():
+                raise RuntimeError(f"File gốc không tồn tại: {stored_filename}")
 
         material_title = (material.get("title") or "Học liệu").strip()
         prompt = f"{material_title}"
@@ -75,6 +81,26 @@ class NotebookLMService:
         self._ensure_output_dirs()
         source_file = self._create_prompt_source(prompt)
         return await self._prepare_notebooklm_session(prompt=prompt, source_file=source_file, material_id=None)
+
+    @staticmethod
+    def _extract_stored_filename(file_url: str) -> str | None:
+        normalized = (file_url or "").strip()
+        if not normalized:
+            return None
+
+        parsed = urlparse(normalized)
+        path = parsed.path or normalized
+
+        if "/api/files/" in path and path.endswith("/download"):
+            remainder = path.split("/api/files/", 1)[1].rsplit("/download", 1)[0].strip("/")
+            return Path(remainder).name if remainder else None
+
+        if "/uploads/" in path:
+            remainder = path.split("/uploads/", 1)[1].strip("/")
+            return Path(remainder).name if remainder else None
+
+        filename = Path(path).name
+        return filename or None
 
     async def _prepare_notebooklm_session(self, prompt: str, source_file: Path, material_id: str | None) -> dict:
         """Open NotebookLM, create notebook, upload source, then wait for artifact confirmation."""
@@ -638,7 +664,7 @@ class NotebookLMService:
         if session_id not in _active_sessions:
             if not session_video_dir.exists() and not session_infographic_dir.exists():
                 raise RuntimeError(f"Session {session_id} không tồn tại hoặc đã hết hạn.")
-            return self._move_temp_files_to_permanent(session_id, session_video_dir, session_infographic_dir)
+            return await self._move_temp_files_to_permanent(session_id, session_video_dir, session_infographic_dir)
 
         session_data = _active_sessions[session_id]
         stage = session_data.get("stage")
@@ -713,7 +739,7 @@ class NotebookLMService:
                 # Remove from active sessions
                 _active_sessions.pop(session_id, None)
 
-        return self._move_temp_files_to_permanent(session_id, session_video_dir, session_infographic_dir)
+        return await self._move_temp_files_to_permanent(session_id, session_video_dir, session_infographic_dir)
 
     def _confirm_download_sync(self, session_id: str, session_video_dir: Path, session_infographic_dir: Path) -> dict:
         session_data = _active_sessions[session_id]
@@ -747,9 +773,9 @@ class NotebookLMService:
                     logger.warning("Failed to close sync browser for session %s: %s", session_id, exc)
                 _active_sessions.pop(session_id, None)
 
-        return self._move_temp_files_to_permanent(session_id, session_video_dir, session_infographic_dir)
+        return asyncio.run(self._move_temp_files_to_permanent(session_id, session_video_dir, session_infographic_dir))
 
-    def _move_temp_files_to_permanent(self, session_id: str, session_video_dir: Path, session_infographic_dir: Path) -> dict:
+    async def _move_temp_files_to_permanent(self, session_id: str, session_video_dir: Path, session_infographic_dir: Path) -> dict:
         """Move prepared temp files to permanent storage and return download URLs."""
 
         # Ensure permanent directories exist
@@ -771,9 +797,21 @@ class NotebookLMService:
                     suffix = item.suffix
                     destination = self.VIDEO_DIR / f"{stem}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}{suffix}"
                 shutil.move(str(item), str(destination))
+                file_url = storage_service.build_local_file_url(f"notebooklm/videos/{destination.name}")
+                if storage_service.enabled:
+                    try:
+                        file_url = await storage_service.upload_file(
+                            file_path=str(destination),
+                            object_name=f"generated/notebooklm/videos/{destination.name}",
+                            content_type="video/mp4",
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to upload NotebookLM video to object storage, using local file: %s", exc)
+                storage_type = storage_service.detect_storage_type(file_url)
                 videos.append({
                     "file_name": destination.name,
-                    "file_url": f"/api/files/notebooklm/videos/{destination.name}/download"
+                    "file_url": file_url,
+                    "storage_type": storage_type,
                 })
 
         # Move infographics to permanent storage
@@ -787,9 +825,21 @@ class NotebookLMService:
                     suffix = item.suffix
                     destination = self.INFOGRAPHIC_DIR / f"{stem}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}{suffix}"
                 shutil.move(str(item), str(destination))
+                file_url = storage_service.build_local_file_url(f"notebooklm/infographics/{destination.name}")
+                if storage_service.enabled:
+                    try:
+                        file_url = await storage_service.upload_file(
+                            file_path=str(destination),
+                            object_name=f"generated/notebooklm/infographics/{destination.name}",
+                            content_type="image/png",
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to upload NotebookLM infographic to object storage, using local file: %s", exc)
+                storage_type = storage_service.detect_storage_type(file_url)
                 infographics.append({
                     "file_name": destination.name,
-                    "file_url": f"/api/files/notebooklm/infographics/{destination.name}/download"
+                    "file_url": file_url,
+                    "storage_type": storage_type,
                 })
 
         # Clean up temp session directory

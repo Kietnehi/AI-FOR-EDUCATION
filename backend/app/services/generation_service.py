@@ -45,19 +45,86 @@ class GenerationService:
     def _get_material_text(self, material: dict) -> str:
         return material.get("cleaned_text") or material.get("raw_text") or ""
 
-    def _resolve_source_file(self, material: dict) -> str | None:
+    @staticmethod
+    def _build_extracted_image_url(image_path: str) -> str | None:
+        try:
+            relative_path = Path(image_path).resolve().relative_to(
+                Path(settings.image_cache_dir).resolve()
+            )
+        except ValueError:
+            return None
+        return storage_service.build_local_file_url(str(relative_path).replace("\\", "/"))
+
+    def _enrich_slide_images(self, outline: dict, doc_image_paths: list[str]) -> dict:
+        slides = outline.get("slides", [])
+        for slide in slides:
+            doc_image_index = slide.get("doc_image_index")
+            if doc_image_index is None:
+                image_source_id = slide.get("image_source_id")
+                if isinstance(image_source_id, str) and image_source_id.startswith("img_"):
+                    try:
+                        doc_image_index = int(image_source_id.replace("img_", ""))
+                    except ValueError:
+                        doc_image_index = None
+
+            if not isinstance(doc_image_index, int):
+                continue
+            if doc_image_index < 0 or doc_image_index >= len(doc_image_paths):
+                continue
+
+            image_url = self._build_extracted_image_url(doc_image_paths[doc_image_index])
+            if not image_url:
+                continue
+
+            slide["image_url"] = image_url
+            elements = slide.setdefault("elements", [])
+            updated = False
+            for element in elements:
+                if element.get("type") in ("image", "image_source", "doc_image"):
+                    element["image_url"] = image_url
+                    updated = True
+            if not updated:
+                elements.append(
+                    {
+                        "type": "image_source",
+                        "image_id": slide.get("image_source_id"),
+                        "image_context": "Ảnh từ tài liệu nguồn",
+                        "image_url": image_url,
+                    }
+                )
+        return outline
+
+    async def _resolve_source_file(self, material: dict) -> str | None:
         """Return the local file path of the uploaded source document."""
         file_url = material.get("file_url") or ""
         if not file_url:
             return None
-        # file_url looks like /api/files/{filename}/download
-        parts = file_url.strip("/").split("/")
-        # Expected: api / files / {filename} / download
-        if len(parts) >= 3:
-            filename = parts[2]  # the stored filename (uuid + ext)
+
+        relative_path = storage_service.extract_local_relative_path(file_url)
+        if relative_path:
+            candidate = Path(settings.upload_dir) / relative_path
+            if candidate.exists():
+                return str(candidate)
+
+        object_name = storage_service.extract_object_name(file_url)
+        if storage_service.enabled and object_name:
+            filename = Path(object_name).name
             candidate = Path(settings.upload_dir) / filename
             if candidate.exists():
                 return str(candidate)
+            try:
+                candidate.parent.mkdir(parents=True, exist_ok=True)
+                await storage_service.download_file(object_name, str(candidate))
+                logger.info(
+                    "Downloaded source file from object storage for slide generation: %s",
+                    object_name,
+                )
+                return str(candidate)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to download source file from object storage for slide generation: %s",
+                    exc,
+                )
         return None
 
     @staticmethod
@@ -90,7 +157,7 @@ class GenerationService:
         material = await self._prepare_material(material_id)
         text = self._get_material_text(material)
 
-        source_path = self._resolve_source_file(material)
+        source_path = await self._resolve_source_file(material)
         doc_image_paths: list[str] = []
         extracted_images = []
         
@@ -187,6 +254,8 @@ class GenerationService:
                 max_slides=max_slides
             )
 
+        outline = self._enrich_slide_images(outline, doc_image_paths)
+
         # Step 4: Skip external image fetching - only use document images
         image_map: dict[str, str | None] = {}
         logger.info("Using document images only - external image fetching disabled for cost optimization.")
@@ -202,18 +271,23 @@ class GenerationService:
             doc_image_paths=doc_image_paths,
         )
 
-        # Step 6: Upload to MinIO/S3
-        try:
-            object_name = f"generated/slides/{filename}"
-            file_url = await storage_service.upload_file(
-                file_path=output_path,
-                object_name=object_name,
-                content_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            )
-            logger.info("Uploaded slides to MinIO: %s", file_url)
-        except Exception as e:
-            logger.warning("Failed to upload slides to MinIO, using local storage: %s", e)
-            file_url = f"/api/files/{filename}/download"
+        # Step 6: Persist generated file according to storage mode
+        if storage_service.enabled:
+            try:
+                object_name = f"generated/slides/{filename}"
+                file_url = await storage_service.upload_file(
+                    file_path=output_path,
+                    object_name=object_name,
+                    content_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                )
+                logger.info("Uploaded slides to object storage: %s", file_url)
+            except Exception as e:
+                logger.warning("Failed to upload slides to object storage, using local storage: %s", e)
+                file_url = storage_service.build_local_file_url(filename)
+        else:
+            file_url = storage_service.build_local_file_url(filename)
+
+        storage_type = storage_service.detect_storage_type(file_url)
 
         # Step 7: Persist without changing schema
         llm = getattr(self.slide_generator, "llm", None)
@@ -227,6 +301,7 @@ class GenerationService:
             "outline": [item.get("title", "") for item in outline.get("slides", [])],
             "json_content": {"tone": tone, **outline},
             "file_url": file_url,
+            "storage_type": storage_type,
             "generation_status": "generated",
             "model_used": model_used,
             "fallback_applied": fallback_applied,
@@ -264,21 +339,26 @@ class GenerationService:
                     segments=segments,
                     output_filename=audio_filename,
                 )
-                # Upload to MinIO/S3
-                try:
-                    object_name = f"generated/podcasts/{audio_filename}.mp3"
-                    audio_url = await storage_service.upload_file(
-                        file_path=audio_file_path,
-                        object_name=object_name,
-                        content_type="audio/mpeg",
-                    )
-                    logger.info("Uploaded podcast audio to MinIO: %s", audio_url)
-                except Exception as e:
-                    logger.warning("Failed to upload podcast to MinIO, using local storage: %s", e)
-                    audio_url = f"/api/files/podcasts/{audio_filename}.mp3/download"
+                # Persist podcast file according to storage mode
+                if storage_service.enabled:
+                    try:
+                        object_name = f"generated/podcasts/{audio_filename}.mp3"
+                        audio_url = await storage_service.upload_file(
+                            file_path=audio_file_path,
+                            object_name=object_name,
+                            content_type="audio/mpeg",
+                        )
+                        logger.info("Uploaded podcast audio to object storage: %s", audio_url)
+                    except Exception as e:
+                        logger.warning("Failed to upload podcast audio to object storage, using local storage: %s", e)
+                        audio_url = storage_service.build_local_file_url(f"podcasts/{audio_filename}.mp3")
+                else:
+                    audio_url = storage_service.build_local_file_url(f"podcasts/{audio_filename}.mp3")
             except Exception as e:
                 # Log error but don't fail the entire generation
                 logger.warning("Failed to generate audio for podcast: %s", e)
+
+        storage_type = storage_service.detect_storage_type(audio_url) if audio_url else "none"
 
         now = utc_now()
         doc = {
@@ -288,6 +368,7 @@ class GenerationService:
             "outline": [segment.get("text", "")[:80] for segment in segments[:5]],
             "json_content": script,
             "file_url": audio_url,
+            "storage_type": storage_type,
             "generation_status": "generated",
             "model_used": model_used,
             "fallback_applied": fallback_applied,
@@ -337,6 +418,7 @@ class GenerationService:
             "outline": outline,
             "json_content": game_payload,
             "file_url": None,
+            "storage_type": "none",
             "generation_status": "generated",
             "model_used": model_used,
             "fallback_applied": fallback_applied,
