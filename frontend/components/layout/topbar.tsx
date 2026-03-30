@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Bell, User, Bot, LogOut } from "lucide-react";
+import { Search, Bell, User, Bot, LogOut, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { useTheme } from "@/components/theme-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, memo, useRef, useEffect } from "react";
 
@@ -16,6 +17,7 @@ interface TopbarProps {
 
 export const Topbar = memo(function Topbar({ sidebarCollapsed, sidebarWidth, isResizing, mascotEnabled, onToggleMascot }: TopbarProps) {
   const { user, logout, loading } = useAuth();
+  const { theme, toggle } = useTheme();
   const [searchFocused, setSearchFocused] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -82,6 +84,21 @@ export const Topbar = memo(function Topbar({ sidebarCollapsed, sidebarWidth, isR
           title={mascotEnabled ? "Tắt mascot" : "Bật mascot"}
         >
           <Bot className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={toggle}
+          className="
+            w-10 h-10 rounded-xl flex items-center justify-center
+            bg-transparent border border-[var(--border-light)]
+            text-[var(--text-secondary)] hover:text-[var(--text-primary)]
+            hover:bg-[var(--bg-secondary)] hover:border-brand-300
+            transition-all duration-200 cursor-pointer
+          "
+          aria-label={theme === "dark" ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
+          title={theme === "dark" ? "Chế độ sáng" : "Chế độ tối"}
+        >
+          {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
         {/* Notifications */}
