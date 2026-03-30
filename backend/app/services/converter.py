@@ -30,6 +30,7 @@ EXTRACTED_DIR = Path("storage/extracted")
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+EXTRACTED_DIR.mkdir(parents=True, exist_ok=True)
 def _sync_web_to_pdf(url: str, output_path: Path) -> bool:
     """Synchronous playwright execution - safe to run in a thread on Windows."""
     import time
@@ -119,6 +120,38 @@ def windows_office_to_pdf(input_path: str, output_path: str, ext: str):
     return False
 
 
+def linux_office_to_pdf(input_path: str, output_path: str):
+    """Convert Office files to PDF using LibreOffice on Linux."""
+    import subprocess
+    try:
+        # LibreOffice wants an output directory, not a full path
+        output_dir = Path(output_path).parent
+        cmd = [
+            "libreoffice",
+            "--headless",
+            "--convert-to", "pdf",
+            "--outdir", str(output_dir),
+            input_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        
+        # LibreOffice creates a file with the same name but .pdf extension in the outdir
+        # We need to rename it to our target output_path if it's different
+        input_stem = Path(input_path).stem
+        created_pdf = output_dir / f"{input_stem}.pdf"
+        
+        if created_pdf.exists():
+            if str(created_pdf) != output_path:
+                shutil.move(str(created_pdf), output_path)
+            return True
+        else:
+            print(f"LibreOffice error: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"Linux Office Error: {e}")
+        return False
+
+
 async def convert_file_to_pdf(input_path: str, output_path: str):
     input_p = Path(input_path)
     output_p = Path(output_path)
@@ -135,8 +168,8 @@ async def convert_file_to_pdf(input_path: str, output_path: str):
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, windows_office_to_pdf, str(input_p), str(output_p), ext)
         else:
-            # We skip Docker / Libreoffice since user said "no docker" and it's py32 + Office which implies Windows.
-            return False
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, linux_office_to_pdf, str(input_p), str(output_p))
     except Exception as e:
         print(f"System Error: {e}")
         return False

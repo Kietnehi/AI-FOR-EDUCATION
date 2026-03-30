@@ -73,13 +73,43 @@ export function AudioPlayer({
     }
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !audio.duration) return;
 
-    const newTime = parseFloat(e.target.value);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = percentage * audio.duration;
+    
     audio.currentTime = newTime;
     setCurrentTime(newTime);
+  };
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleWaveformMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    audio.pause();
+    setIsDragging(true);
+    handleWaveformClick(e);
+  };
+
+  const handleWaveformMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    handleWaveformClick(e);
+  };
+
+  const handleWaveformMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      setIsDragging(false);
+      const audio = audioRef.current;
+      if (audio) {
+        audio.play();
+      }
+    }
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,7 +168,6 @@ export function AudioPlayer({
         const randomVariation = Math.sin(i * 0.7) * 10;
         return {
           id: i,
-          barProgress: (i / 100) * 100,
           height: baseHeight + randomVariation,
           delay: `${i * 0.02}s`,
         };
@@ -181,17 +210,25 @@ export function AudioPlayer({
 
         {/* Waveform Progress Visualization */}
         <div className="space-y-2">
-          <div className="relative h-24 rounded-2xl bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-tertiary)] to-[var(--bg-secondary)] overflow-hidden border border-[var(--border-light)]">
+          <div
+            className="relative h-24 rounded-2xl bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-tertiary)] to-[var(--bg-secondary)] overflow-hidden border border-[var(--border-light)] cursor-pointer"
+            onClick={handleWaveformClick}
+            onMouseDown={handleWaveformMouseDown}
+            onMouseMove={handleWaveformMouseMove}
+            onMouseUp={handleWaveformMouseUp}
+            onMouseLeave={() => setIsDragging(false)}
+          >
             {/* Progress Overlay */}
             <div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-brand-500/20 via-accent-500/20 to-brand-500/20 backdrop-blur-[1px] transition-all duration-100 border-r-2 border-brand-400"
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-brand-500/20 via-accent-500/20 to-brand-500/20 backdrop-blur-[1px] transition-all duration-100 border-r-2 border-brand-400 pointer-events-none"
               style={{ width: `${progress}%` }}
             />
 
             {/* Wave Bars */}
-            <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-3">
+            <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-3 pointer-events-none">
               {waveformBars.map((bar) => {
-                const isPassed = bar.barProgress <= progress;
+                const barPosition = (bar.id / waveformBars.length) * 100;
+                const isPassed = barPosition <= progress;
 
                 return (
                   <div
@@ -213,17 +250,6 @@ export function AudioPlayer({
                 );
               })}
             </div>
-
-            {/* Seek Input Overlay */}
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              value={currentTime}
-              onChange={handleSeek}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-              aria-label="Seek audio"
-            />
           </div>
         </div>
 
