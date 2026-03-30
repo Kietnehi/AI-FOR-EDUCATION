@@ -399,6 +399,83 @@ backend/requirements.txt
 backend/app/core/config.py
 backend/app/tasks.py
 backend/app/services/storage.py
+
+---
+
+## Cập nhật 2026-03-30: Storage 3 mode
+
+Tài liệu gốc mô tả storage theo hướng MinIO/S3 là mặc định. Trạng thái code hiện tại đã khác:
+
+### Ma trận cấu hình mới
+
+| USE_OBJECT_STORAGE | USE_S3 | Kết quả |
+|---|---|---|
+| `false` | `false` hoặc `true` | Dùng local filesystem |
+| `true` | `false` | Dùng MinIO |
+| `true` | `true` | Dùng AWS S3 |
+
+### Ý nghĩa
+
+- `USE_S3` chỉ có hiệu lực khi `USE_OBJECT_STORAGE=true`
+- Khi `USE_OBJECT_STORAGE=false`, backend không khởi tạo object storage client và không tạo bucket lúc startup
+- Các flow upload/generate sẽ đi thẳng local storage, không còn warning giả kiểu “upload object storage failed vì object storage disabled”
+
+### Phạm vi đã hỗ trợ
+
+- Upload học liệu gốc
+- Generate slides
+- Generate podcast audio
+- NotebookLM video
+- NotebookLM infographic
+- Resolve file nguồn cho NotebookLM và slide generation từ `local`, `MinIO`, `S3`
+- Xóa file local/object storage theo helper chung
+
+### Metadata storage mới
+
+Từ bản cập nhật 2026-03-30:
+
+- `learning_materials.storage_type`
+- `generated_contents.storage_type`
+
+Giá trị hiện dùng:
+
+- `local`
+- `minio`
+- `s3`
+- `none`
+
+Mục tiêu là để người dùng biết file đã được lưu theo mode nào tại thời điểm tạo. Dữ liệu cũ chưa có `storage_type` vẫn được fallback suy ra từ `file_url`.
+
+### Cấu hình mẫu
+
+Local:
+
+```env
+USE_OBJECT_STORAGE=false
+USE_S3=false
+```
+
+MinIO:
+
+```env
+USE_OBJECT_STORAGE=true
+USE_S3=false
+MINIO_ENDPOINT=http://localhost:9000
+MINIO_BUCKET=ai-learning-storage
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+```
+
+AWS S3:
+
+```env
+USE_OBJECT_STORAGE=true
+USE_S3=true
+AWS_S3_BUCKET=your-bucket
+AWS_REGION=ap-southeast-1
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+```
 backend/app/services/material_service.py
 backend/app/services/generation_service.py
 backend/app/api/routes/generated_contents.py

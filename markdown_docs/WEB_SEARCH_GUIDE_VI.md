@@ -42,7 +42,7 @@ Sau khi rà soát code hiện tại, có thể kết luận như sau:
 3. Cả hai luồng web search đều có bước refinement bằng model riêng là `WEB_SEARCH_REFINEMENT_MODEL`.
 4. Nếu Google Search lỗi và Tavily khả dụng, hệ thống sẽ fallback sang Tavily.
 5. Nếu bước refinement lỗi, hệ thống sẽ fallback về output gốc của provider để tránh gián đoạn trải nghiệm.
-6. Một số mô tả trong tài liệu cũ không còn đúng với code hiện tại, đặc biệt là phần nói rằng Google tự chèn citation inline vào `answer`.
+6. Một số mô tả trong tài liệu cũ không còn đúng với code hiện tại, đặc biệt là phần nói rằng Google API tự chèn citation inline vào `answer`. Hiện tại, backend tự thực hiện việc này thông qua hàm `_add_inline_citations` để đảm bảo tính chính xác và nhất quán.
 
 ## Cấu hình `.env`
 
@@ -136,14 +136,14 @@ Sau đó hệ thống map thành:
 
 ### Hành vi thực tế hiện tại
 
-- `answer` của tầng search hiện đang chính là `response.text`.
-- `raw_text` cũng chính là `response.text`.
+- `answer` của tầng search là kết quả đã được chèn trích dẫn nội tuyến dạng `[n](url "title")` thông qua hàm `_add_inline_citations`.
+- `raw_text` chính là `response.text` gốc chưa chèn trích dẫn.
 - `search_provider` được gán là `google_search`.
 - `search_queries` được lấy từ `grounding_metadata.web_search_queries` nếu có.
 
 ### Điểm cần lưu ý
 
-1. Code hiện tại không có đoạn nào chèn trực tiếp citation dạng `[n](url)` vào text trả lời.
+1. Hệ thống đã có logic chèn trực tiếp citation dạng `[n](url "title")` vào văn bản trả lời dựa trên `grounding_supports` và `grounding_chunks`.
 2. Trường `snippet` của nguồn Google hiện đang để rỗng vì SDK không phải lúc nào cũng trả trường này.
 3. Hàm `search_and_answer()` đang mặc định dùng model `gemini-2.5-flash`.
 4. `settings.gemini_model` hiện chưa được dùng trực tiếp cho nhánh web search này.
