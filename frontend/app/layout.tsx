@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
+import { AuthProvider } from "@/components/auth-provider";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 
 const inter = Inter({
@@ -30,7 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"} />
       </head>
       <body className="antialiased font-sans">
-        <AppShell>{children}</AppShell>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );

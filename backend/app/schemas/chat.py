@@ -6,7 +6,6 @@ from app.schemas.common import Citation
 
 
 class CreateChatSessionRequest(BaseModel):
-    user_id: str = Field(default="demo-user")
     session_title: str | None = None
 
 

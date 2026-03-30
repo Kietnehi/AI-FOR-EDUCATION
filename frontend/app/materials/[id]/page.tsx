@@ -18,6 +18,9 @@ import {
   Clock,
   Download,
   X,
+  Pencil,
+  Trash2,
+  Check,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +40,7 @@ import {
   apiDownloadUrl,
   apiPreviewUrl,
   processMaterial,
+  updateMaterial,
   confirmNotebookLMDownload,
   cancelNotebookLMSession,
 } from "@/lib/api";
@@ -65,6 +69,13 @@ function getStorageLabel(storageType?: string): string {
       return "Không rõ";
   }
 }
+const EDUCATION_LEVEL_OPTIONS = [
+  "Tiểu học",
+  "THCS",
+  "THPT",
+  "Đại học/Cao đẳng",
+  "Khác",
+] as const;
 
 export default function MaterialDetailPage() {
   const params = useParams<{ id: string }>();
@@ -83,6 +94,16 @@ export default function MaterialDetailPage() {
   const [notebookSaved, setNotebookSaved] = useState<NotebookLMSavedResult | null>(null);
   const [notebookConfirmation, setNotebookConfirmation] = useState<NotebookLMConfirmationResult | null>(null);
   const [selectedInfographic, setSelectedInfographic] = useState<{ file_name: string; file_url: string } | null>(null);
+  const [isEditingMaterial, setIsEditingMaterial] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [isCustomEducationLevel, setIsCustomEducationLevel] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    subject: "",
+    education_level: "",
+    tags: "",
+  });
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
     message: "",
     type: "success",
@@ -116,6 +137,22 @@ export default function MaterialDetailPage() {
       cancelled = true;
     };
   }, [materialId]);
+
+  useEffect(() => {
+    if (!material) return;
+    const level = material.education_level || "";
+    const isPresetLevel = EDUCATION_LEVEL_OPTIONS.some(
+      (option) => option !== "Khác" && option === level
+    );
+    setIsCustomEducationLevel(Boolean(level) && !isPresetLevel);
+    setEditForm({
+      title: material.title,
+      description: material.description || "",
+      subject: material.subject || "",
+      education_level: material.education_level || "",
+      tags: material.tags.join(", "),
+    });
+  }, [material]);
 
   useEffect(() => {
     if (!selectedInfographic) return;
@@ -173,6 +210,10 @@ export default function MaterialDetailPage() {
     }
   }
   async function handleGenerateSlides(maxSlides: number, skipRefine: boolean) {
+    if (!ensureMaterialProcessed("tạo slides")) {
+      return;
+    }
+
     setBusyAction("slides");
     setSlideProgress(0);
 
@@ -205,6 +246,10 @@ export default function MaterialDetailPage() {
   }
 
   async function handleGenerateNotebookMedia(confirm: boolean = false) {
+    if (!confirm && !ensureMaterialProcessed("tạo video + infographic")) {
+      return;
+    }
+
     setBusyAction("notebooklm");
     try {
       if (!confirm) {
@@ -405,6 +450,9 @@ export default function MaterialDetailPage() {
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 <Badge status={material.processing_status} />
+                <span className="text-xs px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-medium">
+                  Trạng thái: {material.processing_status === "processed" ? "Đã xử lý" : "Chưa xử lý"}
+                </span>
                 {material.subject && (
                   <span className="text-xs px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-medium">
                     {material.subject}
@@ -425,14 +473,33 @@ export default function MaterialDetailPage() {
               </div>
             </div>
           </div>
-          <Button
-            variant="secondary"
-            icon={<Settings className="w-4 h-4 animate-spin" style={{ animationDuration: busyAction === "process" ? "1s" : "0s", animationPlayState: busyAction === "process" ? "running" : "paused" }} />}
-            onClick={handleProcess}
-            loading={busyAction === "process"}
-          >
-            {busyAction === "process" ? "Đang xử lý..." : "Xử lý tài liệu"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              icon={<Settings className="w-4 h-4 animate-spin" style={{ animationDuration: busyAction === "process" ? "1s" : "0s", animationPlayState: busyAction === "process" ? "running" : "paused" }} />}
+              onClick={handleProcess}
+              loading={busyAction === "process"}
+            >
+              {busyAction === "process" ? "Đang xử lý..." : "Xử lý tài liệu"}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Pencil className="w-4 h-4" />}
+              onClick={() => setIsEditingMaterial(true)}
+              disabled={busyAction.length > 0}
+            >
+              Sửa
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Trash2 className="w-4 h-4" />}
+              onClick={handleDeleteMaterial}
+              loading={busyAction === "delete"}
+              disabled={busyAction.length > 0 && busyAction !== "delete"}
+            >
+              Xóa
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -748,6 +815,120 @@ export default function MaterialDetailPage() {
         loading={busyAction === "slides"}
         progress={slideProgress}
       />
+
+      {isEditingMaterial ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Chỉnh sửa học liệu</h3>
+              <button
+                type="button"
+                onClick={() => !savingEdit && setIsEditingMaterial(false)}
+                className="rounded-lg border border-[var(--border-light)] p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                disabled={savingEdit}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Tiêu đề *</span>
+                <input
+                  value={editForm.title}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Môn học</span>
+                <input
+                  value={editForm.subject}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, subject: e.target.value }))}
+                  className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Cấp học</span>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {EDUCATION_LEVEL_OPTIONS.map((option) => {
+                      const isSelected =
+                        option === "Khác"
+                          ? isCustomEducationLevel
+                          : !isCustomEducationLevel && editForm.education_level === option;
+
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => {
+                            if (option === "Khác") {
+                              setIsCustomEducationLevel(true);
+                              setEditForm((prev) => ({ ...prev, education_level: "" }));
+                              return;
+                            }
+                            setIsCustomEducationLevel(false);
+                            setEditForm((prev) => ({ ...prev, education_level: option }));
+                          }}
+                          className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                            isSelected
+                              ? "border-brand-300 bg-brand-50 text-brand-700"
+                              : "border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-brand-300 hover:text-[var(--text-primary)]"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isCustomEducationLevel ? (
+                    <input
+                      value={editForm.education_level}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, education_level: e.target.value }))}
+                      placeholder="Nhập cấp học khác"
+                      className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)]"
+                    />
+                  ) : null}
+                </div>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Từ khóa</span>
+                <input
+                  value={editForm.tags}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, tags: e.target.value }))}
+                  placeholder="Ngăn cách bằng dấu phẩy"
+                  className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)]"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Mô tả</span>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  className="w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)]"
+                />
+              </label>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setIsEditingMaterial(false)}
+                disabled={savingEdit}
+                icon={<X className="w-4 h-4" />}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleSaveMaterialEdits} loading={savingEdit} icon={<Check className="w-4 h-4" />}>
+                Lưu thay đổi
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
     </motion.div>
   );
 }

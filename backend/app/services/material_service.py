@@ -178,17 +178,52 @@ class MaterialService:
             "message": decision.reason,
         }
 
-    async def get_material(self, material_id: str) -> dict:
-        material = await self.material_repo.get_by_id(parse_object_id(material_id))
+    async def get_material(self, material_id: str, user_id: str | None = None) -> dict:
+        material_object_id = parse_object_id(material_id)
+        if user_id:
+            material = await self.material_repo.get_by_id_for_user(material_object_id, user_id)
+        else:
+            material = await self.material_repo.get_by_id(material_object_id)
         if not material:
             raise HTTPException(status_code=404, detail="Material not found")
         return material
 
-    async def list_materials(self, skip: int, limit: int) -> tuple[list[dict], int]:
-        return await self.material_repo.list(skip=skip, limit=limit)
+    async def list_materials(self, user_id: str, skip: int, limit: int) -> tuple[list[dict], int]:
+        return await self.material_repo.list_for_user(user_id=user_id, skip=skip, limit=limit)
+
+    async def update_material(
+        self,
+        material_id: str,
+        user_id: str,
+        update_fields: dict,
+    ) -> dict:
+        if not update_fields:
+            return await self.get_material(material_id, user_id=user_id)
+
+        material = await self.get_material(material_id, user_id=user_id)
+
+        allowed_fields = {"title", "description", "subject", "education_level", "tags"}
+        sanitized_updates = {
+            key: value for key, value in update_fields.items() if key in allowed_fields
+        }
+
+        if not sanitized_updates:
+            return material
+
+        sanitized_updates["updated_at"] = utc_now()
+        updated = await self.material_repo.update(
+            parse_object_id(material_id),
+            sanitized_updates,
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Material not found")
+        return updated
 
     async def process_material(
-        self, material_id: str, force_reprocess: bool = False
+        self,
+        material_id: str,
+        force_reprocess: bool = False,
+        user_id: str | None = None,
     ) -> None:
         material_object_id = parse_object_id(material_id)
         job_id = uuid.uuid4().hex
@@ -203,7 +238,7 @@ class MaterialService:
         )
 
         try:
-            material = await self.get_material(material_id)
+            material = await self.get_material(material_id, user_id=user_id)
             await self._ensure_guardrail_approved(material_id, material)
             if material["processing_status"] == "processed" and not force_reprocess:
                 await self.job_repo.update_status(
@@ -276,10 +311,17 @@ class MaterialService:
             raise
 
     async def enqueue_process(
-        self, material_id: str, force_reprocess: bool = False
+        self,
+        material_id: str,
+        force_reprocess: bool = False,
+        user_id: str | None = None,
     ) -> None:
         asyncio.create_task(
-            self.process_material(material_id, force_reprocess=force_reprocess)
+            self.process_material(
+                material_id,
+                force_reprocess=force_reprocess,
+                user_id=user_id,
+            )
         )
 
     async def _ensure_guardrail_approved(
@@ -306,8 +348,8 @@ class MaterialService:
             },
         )
 
-    async def delete_material(self, material_id: str) -> bool:
-        material = await self.get_material(material_id)
+    async def delete_material(self, material_id: str, user_id: str | None = None) -> bool:
+        material = await self.get_material(material_id, user_id=user_id)
 
         # 1. Delete Source File from MinIO/S3 or Local
         if material.get("file_url"):

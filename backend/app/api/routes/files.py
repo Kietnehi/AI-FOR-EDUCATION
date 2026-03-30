@@ -5,8 +5,16 @@ from fastapi import APIRouter
 from fastapi.responses import FileResponse
 import mimetypes
 from urllib.parse import unquote
+import re
 
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from bson import ObjectId
+
+from app.api.dependencies import get_current_user, get_database
 from app.core.config import settings
+from app.schemas.auth import AuthUser
 from app.services.file_service import FileService
 from app.services.storage import storage_service
 from app.core.logging import logger
@@ -41,7 +49,11 @@ async def _resolve_remote_file(file_path: str) -> tuple[Path, str]:
 
 
 @router.get("/files/{file_path:path}/download")
-async def download_file(file_path: str):
+async def download_file(
+    file_path: str,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
     """
     Download a file from either local storage or MinIO/S3.
     
@@ -122,10 +134,64 @@ async def preview_file(file_path: str):
 
 
 @router.get("/files/notebooklm/temp/{session_id}/{file_type}/{file_name}/preview")
-async def preview_temp_file(session_id: str, file_type: str, file_name: str) -> FileResponse:
+async def preview_temp_file(
+    session_id: str,
+    file_type: str,
+    file_name: str,
+    user: AuthUser = Depends(get_current_user),
+) -> FileResponse:
     """
     Preview temp file from NotebookLM generation session.
     file_type should be either 'videos' or 'infographics'
     """
     file_path = FileService.resolve_temp_file_path(session_id, file_type, file_name)
     return FileResponse(path=file_path, filename=file_path.name)
+
+
+async def _ensure_file_access(db: AsyncIOMotorDatabase, user_id: str, file_path: str) -> None:
+    normalized = file_path.replace("\\", "/")
+    filename = normalized.split("/")[-1]
+    escaped_file_path = re.escape(normalized)
+    escaped_filename = re.escape(filename)
+
+    material_match = await db.learning_materials.find_one(
+        {
+            "user_id": user_id,
+            "$or": [
+                {"file_name": filename},
+                {"file_url": {"$regex": escaped_file_path}},
+                {"file_url": {"$regex": escaped_filename}},
+            ],
+        },
+        projection={"_id": 1},
+    )
+    if material_match:
+        return
+
+    generated_match = await db.generated_contents.find_one(
+        {
+            "$or": [
+                {"file_url": {"$regex": escaped_file_path}},
+                {"file_url": {"$regex": escaped_filename}},
+            ],
+        },
+        projection={"_id": 1, "user_id": 1, "material_id": 1},
+    )
+    if generated_match:
+        if generated_match.get("user_id") == user_id:
+            return
+
+        # Backward compatibility: older generated docs might not have user_id.
+        legacy_material_id = generated_match.get("material_id")
+        if legacy_material_id:
+            material_id_query: str | ObjectId = legacy_material_id
+            if ObjectId.is_valid(str(legacy_material_id)):
+                material_id_query = ObjectId(str(legacy_material_id))
+            material_owner = await db.learning_materials.find_one(
+                {"_id": material_id_query, "user_id": user_id},
+                projection={"_id": 1},
+            )
+            if material_owner:
+                return
+
+    raise HTTPException(status_code=404, detail="File not found")

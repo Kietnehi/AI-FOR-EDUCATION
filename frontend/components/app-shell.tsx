@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { ThemeProvider } from "@/components/theme-provider";
+import { useAuth } from "@/components/auth-provider";
 
 // Load 3D component correctly
 const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").then(mod => mod.FloatingMascot), {
@@ -12,11 +15,14 @@ const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").t
 });
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const { user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [mascotEnabled, setMascotEnabled] = useState(true);
   const [shouldRenderMascot, setShouldRenderMascot] = useState(false);
+  const [authNoticeVisible, setAuthNoticeVisible] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("mascot-enabled");
@@ -53,11 +59,37 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [mascotEnabled]);
 
+  useEffect(() => {
+    const onAuthRequired = () => {
+      if (!user) {
+        setAuthNoticeVisible(true);
+      }
+    };
+    window.addEventListener("auth-required", onAuthRequired);
+    return () => window.removeEventListener("auth-required", onAuthRequired);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      setAuthNoticeVisible(false);
+    }
+  }, [user]);
+
   const handleToggleMascot = () => {
     const next = !mascotEnabled;
     setMascotEnabled(next);
     localStorage.setItem("mascot-enabled", String(next));
   };
+
+  if (pathname.startsWith("/auth")) {
+    return (
+      <ThemeProvider>
+        <div className="min-h-screen bg-[var(--bg-primary)]">
+          {children}
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider>
@@ -101,6 +133,36 @@ export function AppShell({ children }: { children: ReactNode }) {
             {children}
           </div>
         </main>
+
+        {authNoticeVisible ? (
+          <div className="fixed right-4 bottom-4 z-40 max-w-sm rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-xl">
+            <p className="text-sm font-semibold text-amber-900">Cần đăng nhập để tiếp tục</p>
+            <p className="mt-1 text-sm text-amber-800">
+              Bạn có thể xem trước tính năng, nhưng cần đăng nhập hoặc đăng ký trước khi thực hiện thao tác dữ liệu.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <Link
+                href={`/auth/login?next=${encodeURIComponent(pathname || "/")}`}
+                className="rounded-xl bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-600"
+              >
+                Đăng nhập
+              </Link>
+              <Link
+                href="/auth/register"
+                className="rounded-xl border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100"
+              >
+                Đăng ký
+              </Link>
+              <button
+                onClick={() => setAuthNoticeVisible(false)}
+                className="rounded-xl border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100"
+                type="button"
+              >
+                Để sau
+              </button>
+            </div>
+          </div>
+        ) : null}
         
         {/* Floating AI Mascot */}
         {mascotEnabled && shouldRenderMascot && <FloatingMascot />}

@@ -64,6 +64,9 @@ services:
       - local-db
 
   backend:
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -78,6 +81,12 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-43200}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-ai_learning_auth_token}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OPENAI_GUARDRAIL_MODEL: ${OPENAI_GUARDRAIL_MODEL:-gpt-4o-mini}
@@ -145,6 +154,7 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api}
       NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST:-http://localhost:8000}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
       NEXT_TELEMETRY_DISABLED: "1"
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "500"
@@ -164,6 +174,9 @@ services:
     command: npm run dev -- -H 0.0.0.0 -p 3000
 
   celery-worker:
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -178,6 +191,12 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-43200}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-ai_learning_auth_token}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OPENAI_GUARDRAIL_MODEL: ${OPENAI_GUARDRAIL_MODEL:-gpt-4o-mini}

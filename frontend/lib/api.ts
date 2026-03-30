@@ -13,6 +13,13 @@
   DuckDuckGoSearchType,
 } from "@/types";
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
 type ApiFetchOptions = RequestInit & {
@@ -64,6 +71,10 @@ function invalidateCache(...prefixes: string[]): void {
   }
 }
 
+export function clearApiCache(): void {
+  invalidateCache();
+}
+
 function primeCache(path: string, data: unknown, ttlMs: number = DEFAULT_GET_CACHE_TTL_MS): void {
   writeCache(getCacheKey(path), data, ttlMs);
 }
@@ -89,6 +100,7 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
   const requestPromise = (async () => {
     const response = await fetch(`${API_BASE}${path}`, {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(options?.headers || {}),
@@ -98,6 +110,20 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
 
     if (!response.ok) {
       const text = await response.text();
+
+      if (response.status === 401 && !path.startsWith("/auth/")) {
+        invalidateCache();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("auth-required"));
+        }
+        throw new Error(
+          JSON.stringify({
+            code: "AUTH_REQUIRED",
+            detail: "Vui lòng đăng nhập trước khi thực hiện chức năng này.",
+          })
+        );
+      }
+
       throw new Error(text || `Request failed: ${response.status}`);
     }
 
@@ -121,6 +147,36 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
   }
 }
 
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export async function loginWithGoogle(idToken: string): Promise<{ user: AuthUser; message: string }> {
+  return apiFetch<{ user: AuthUser; message: string }>("/auth/google/login", {
+    method: "POST",
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
+export async function registerWithGoogle(idToken: string): Promise<{ user: AuthUser; message: string }> {
+  return apiFetch<{ user: AuthUser; message: string }>("/auth/google/register", {
+    method: "POST",
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
+export async function logout(): Promise<{ message: string }> {
+  const result = await apiFetch<{ message: string }>("/auth/logout", {
+    method: "POST",
+  });
+  invalidateCache();
+  return result;
+}
+
+export async function getMe(): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/auth/me");
+}
+
 export async function listMaterials(): Promise<{ items: Material[]; total: number }> {
   return apiFetch<{ items: Material[]; total: number }>("/materials");
 }
@@ -133,6 +189,24 @@ export async function deleteMaterial(id: string): Promise<void> {
 
 export async function getMaterial(id: string): Promise<Material> {
   return apiFetch<Material>(`/materials/${id}`);
+}
+
+export async function updateMaterial(
+  id: string,
+  payload: {
+    title?: string;
+    description?: string;
+    subject?: string;
+    education_level?: string;
+    tags?: string[];
+  }
+): Promise<Material> {
+  const result = await apiFetch<Material>(`/materials/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  invalidateCache("/materials", `/materials/${id}`);
+  return result;
 }
 
 export async function processMaterial(id: string): Promise<{ message: string }> {
@@ -225,7 +299,7 @@ export async function cancelNotebookLMSession(sessionId: string): Promise<{ sess
 export async function createChatSession(materialId: string): Promise<ChatSession> {
   const session = await apiFetch<ChatSession>(`/chat/${materialId}/session`, {
     method: "POST",
-    body: JSON.stringify({ user_id: "demo-user" }),
+    body: JSON.stringify({}),
   });
   primeCache(`/chat/sessions/${session.id}`, { session, messages: [] });
   return session;
@@ -298,8 +372,14 @@ export async function transcribeChatAudio(
   const response = await fetch(`${API_BASE}/chat/transcribe`, {
     method: "POST",
     body: formData,
+    credentials: "include",
     cache: "no-store",
   });
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("auth-required"));
+    throw new Error("Vui lòng đăng nhập trước khi thực hiện chức năng này.");
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -312,12 +392,18 @@ export async function transcribeChatAudio(
 export async function synthesizeChatSpeech(text: string, lang: string = "vi"): Promise<Blob> {
   const response = await fetch(`${API_BASE}/chat/tts`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ text, lang }),
     cache: "no-store",
   });
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("auth-required"));
+    throw new Error("Vui lòng đăng nhập trước khi thực hiện chức năng này.");
+  }
 
   if (!response.ok) {
     const detail = await response.text();
@@ -333,7 +419,7 @@ export async function submitGameAttempt(
 ): Promise<any> {
   return apiFetch<any>(`/games/${generatedContentId}/submit`, {
     method: "POST",
-    body: JSON.stringify({ user_id: "demo-user", answers }),
+    body: JSON.stringify({ answers }),
   });
 }
 
