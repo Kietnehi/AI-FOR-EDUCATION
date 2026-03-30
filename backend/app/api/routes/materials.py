@@ -107,7 +107,7 @@ async def list_materials(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialListResponse:
     service = MaterialService(db)
-    items, total = await service.list_materials(skip=skip, limit=limit)
+    items, total = await service.list_materials(user_id=user.id, skip=skip, limit=limit)
     for item in items:
         if not item.get("storage_type"):
             item["storage_type"] = storage_service.detect_storage_type(item.get("file_url"))
@@ -123,7 +123,7 @@ async def get_material(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialResponse:
     service = MaterialService(db)
-    material = await service.get_material(material_id)
+    material = await service.get_material(material_id, user_id=user.id)
     if not material.get("storage_type"):
         material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
