@@ -377,8 +377,13 @@ export function PdfConverter() {
                     onClick={handleUploadAreaClick}
                     className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-medium)] rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer relative"
                   >
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer"
-                      disabled={!user}
+                    <input type="file" className={`absolute inset-0 opacity-0 cursor-pointer ${!user ? "pointer-events-none" : ""}`}
+                      onClick={(e) => {
+                        if (!ensureAuthenticated()) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }
+                      }}
                       onChange={(e) => {
                         if (!ensureAuthenticated()) {
                           e.currentTarget.value = "";
@@ -436,8 +441,13 @@ export function PdfConverter() {
                       onClick={handleUploadAreaClick}
                       className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-medium)] rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer relative"
                     >
-                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer"
-                        disabled={!user}
+                      <input type="file" className={`absolute inset-0 opacity-0 cursor-pointer ${!user ? "pointer-events-none" : ""}`}
+                          onClick={(e) => {
+                            if (!ensureAuthenticated()) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }
+                          }}
                         onChange={(e) => {
                           if (!ensureAuthenticated()) {
                             e.currentTarget.value = "";
