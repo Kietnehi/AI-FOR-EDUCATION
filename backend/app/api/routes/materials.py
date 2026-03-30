@@ -10,6 +10,7 @@ from app.schemas.materials import (
     MaterialProcessRequest,
     MaterialProcessResponse,
     MaterialResponse,
+    MaterialUpdateRequest,
 )
 from app.services.material_service import MaterialService
 
@@ -34,6 +35,7 @@ async def create_material(
 )
 async def check_material_guardrail(
     payload: MaterialGuardrailCheckRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialGuardrailCheckResponse:
     service = MaterialService(db)
@@ -46,6 +48,7 @@ async def check_material_guardrail(
 )
 async def check_upload_guardrail(
     file: UploadFile = File(...),
+    user: AuthUser = Depends(get_current_user),
     title: str | None = Form(None),
     description: str | None = Form(None),
     subject: str | None = Form(None),
@@ -97,10 +100,11 @@ async def upload_material(
 async def list_materials(
     skip: int = 0,
     limit: int = 20,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialListResponse:
     service = MaterialService(db)
-    items, total = await service.list_materials(skip=skip, limit=limit)
+    items, total = await service.list_materials(user_id=user.id, skip=skip, limit=limit)
     return MaterialListResponse(
         items=[MaterialResponse(**item) for item in items], total=total
     )
@@ -109,10 +113,27 @@ async def list_materials(
 @router.get("/materials/{material_id}", response_model=MaterialResponse)
 async def get_material(
     material_id: str,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialResponse:
     service = MaterialService(db)
-    material = await service.get_material(material_id)
+    material = await service.get_material(material_id, user_id=user.id)
+    return MaterialResponse(**material)
+
+
+@router.patch("/materials/{material_id}", response_model=MaterialResponse)
+async def update_material(
+    material_id: str,
+    payload: MaterialUpdateRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> MaterialResponse:
+    service = MaterialService(db)
+    material = await service.update_material(
+        material_id,
+        user_id=user.id,
+        update_fields=payload.model_dump(exclude_unset=True),
+    )
     return MaterialResponse(**material)
 
 
@@ -120,10 +141,15 @@ async def get_material(
 async def process_material(
     material_id: str,
     payload: MaterialProcessRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialProcessResponse:
     service = MaterialService(db)
-    await service.enqueue_process(material_id, force_reprocess=payload.force_reprocess)
+    await service.enqueue_process(
+        material_id,
+        force_reprocess=payload.force_reprocess,
+        user_id=user.id,
+    )
     return MaterialProcessResponse(
         material_id=material_id,
         processing_status="queued",
@@ -134,10 +160,11 @@ async def process_material(
 @router.delete("/materials/{material_id}")
 async def delete_material(
     material_id: str,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> dict:
     service = MaterialService(db)
-    deleted = await service.delete_material(material_id)
+    deleted = await service.delete_material(material_id, user_id=user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Material not found")
     return {"message": "Material deleted successfully"}

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
   AuthUser,
+  clearApiCache,
   getMe,
   loginWithGoogle as apiLoginWithGoogle,
   logout as apiLogout,
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userData = await getMe();
       setUser(userData);
     } catch (err) {
+      clearApiCache();
       setUser(null);
     } finally {
       setLoading(false);
@@ -72,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       await apiLogout();
+      clearApiCache();
       setUser(null);
       router.push("/");
     } catch (err) {

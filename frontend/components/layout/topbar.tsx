@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Moon, Sun, Bell, User, Bot, LogOut } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { Search, Bell, User, Bot, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, memo, useRef, useEffect } from "react";
@@ -16,7 +15,6 @@ interface TopbarProps {
 }
 
 export const Topbar = memo(function Topbar({ sidebarCollapsed, sidebarWidth, isResizing, mascotEnabled, onToggleMascot }: TopbarProps) {
-  const { theme, toggle } = useTheme();
   const { user, logout, loading } = useAuth();
   const [searchFocused, setSearchFocused] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -86,28 +84,6 @@ export const Topbar = memo(function Topbar({ sidebarCollapsed, sidebarWidth, isR
           <Bot className="w-4 h-4" />
         </button>
 
-        {/* Theme toggle */}
-        <button
-          onClick={toggle}
-          className="
-            w-10 h-10 rounded-xl flex items-center justify-center
-            bg-transparent border border-[var(--border-light)]
-            text-[var(--text-secondary)] hover:text-[var(--text-primary)]
-            hover:bg-[var(--bg-secondary)] hover:border-brand-300
-            transition-all duration-200 cursor-pointer
-          "
-          aria-label="Chuyển chế độ sáng/tối"
-        >
-          <motion.div
-            key={theme}
-            initial={{ rotate: -45, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            transition={{ duration: 0.2 }}
-          >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </motion.div>
-        </button>
-
         {/* Notifications */}
         <button
           className="
@@ -151,7 +127,7 @@ export const Topbar = memo(function Topbar({ sidebarCollapsed, sidebarWidth, isR
               href="/auth/login"
               className="
                 px-4 h-10 rounded-xl flex items-center justify-center gap-2
-                bg-white border border-[var(--border-light)] hover:bg-gray-50
+                bg-[var(--bg-elevated)] border border-[var(--border-default)] hover:bg-[var(--bg-secondary)]
                 text-[var(--text-primary)] text-sm font-semibold cursor-pointer
                 transition-all duration-200
               "
@@ -162,7 +138,7 @@ export const Topbar = memo(function Topbar({ sidebarCollapsed, sidebarWidth, isR
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.16C1.43 8.55 1 10.22 1 12s.43 3.45 1.16 4.93l3.68-2.84z" fill="#FBBC05"/>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.16 7.07l3.68 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
-              Đăng nhập
+              Đăng nhập/Đăng ký
             </Link>
           )}
 

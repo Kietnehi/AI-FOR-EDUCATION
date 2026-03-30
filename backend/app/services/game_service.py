@@ -13,7 +13,10 @@ class GameService:
         self.generation_service = GenerationService(db)
 
     async def submit_attempt(self, generated_content_id: str, user_id: str, answers: list[dict]) -> dict:
-        generated = await self.generation_service.get_generated_content(generated_content_id)
+        generated = await self.generation_service.get_generated_content(
+            generated_content_id,
+            user_id=user_id,
+        )
         if generated.get("content_type") != "minigame":
             raise HTTPException(status_code=400, detail="generated_content_id must be a minigame")
 
@@ -53,8 +56,12 @@ class GameService:
         }
         return await self.repo.create_attempt(payload)
 
-    async def get_attempt(self, attempt_id: str) -> dict:
-        attempt = await self.repo.get_attempt(parse_object_id(attempt_id))
+    async def get_attempt(self, attempt_id: str, user_id: str | None = None) -> dict:
+        attempt_object_id = parse_object_id(attempt_id)
+        if user_id:
+            attempt = await self.repo.get_attempt_for_user(attempt_object_id, user_id)
+        else:
+            attempt = await self.repo.get_attempt(attempt_object_id)
         if not attempt:
             raise HTTPException(status_code=404, detail="Attempt not found")
         return attempt

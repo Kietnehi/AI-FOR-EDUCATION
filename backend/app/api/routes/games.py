@@ -24,8 +24,9 @@ async def submit_game_attempt(
 @router.get("/games/attempts/{attempt_id}", response_model=GameAttemptResponse)
 async def get_attempt(
     attempt_id: str,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GameAttemptResponse:
     service = GameService(db)
-    attempt = await service.get_attempt(attempt_id)
+    attempt = await service.get_attempt(attempt_id, user_id=user.id)
     return GameAttemptResponse(**attempt)

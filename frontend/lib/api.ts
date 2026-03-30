@@ -71,6 +71,10 @@ function invalidateCache(...prefixes: string[]): void {
   }
 }
 
+export function clearApiCache(): void {
+  invalidateCache();
+}
+
 function primeCache(path: string, data: unknown, ttlMs: number = DEFAULT_GET_CACHE_TTL_MS): void {
   writeCache(getCacheKey(path), data, ttlMs);
 }
@@ -108,6 +112,7 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
       const text = await response.text();
 
       if (response.status === 401 && !path.startsWith("/auth/")) {
+        invalidateCache();
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("auth-required"));
         }
@@ -161,9 +166,11 @@ export async function registerWithGoogle(idToken: string): Promise<{ user: AuthU
 }
 
 export async function logout(): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>("/auth/logout", {
+  const result = await apiFetch<{ message: string }>("/auth/logout", {
     method: "POST",
   });
+  invalidateCache();
+  return result;
 }
 
 export async function getMe(): Promise<AuthUser> {
@@ -182,6 +189,24 @@ export async function deleteMaterial(id: string): Promise<void> {
 
 export async function getMaterial(id: string): Promise<Material> {
   return apiFetch<Material>(`/materials/${id}`);
+}
+
+export async function updateMaterial(
+  id: string,
+  payload: {
+    title?: string;
+    description?: string;
+    subject?: string;
+    education_level?: string;
+    tags?: string[];
+  }
+): Promise<Material> {
+  const result = await apiFetch<Material>(`/materials/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  invalidateCache("/materials", `/materials/${id}`);
+  return result;
 }
 
 export async function processMaterial(id: string): Promise<{ message: string }> {
@@ -347,8 +372,14 @@ export async function transcribeChatAudio(
   const response = await fetch(`${API_BASE}/chat/transcribe`, {
     method: "POST",
     body: formData,
+    credentials: "include",
     cache: "no-store",
   });
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("auth-required"));
+    throw new Error("Vui lòng đăng nhập trước khi thực hiện chức năng này.");
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -361,12 +392,18 @@ export async function transcribeChatAudio(
 export async function synthesizeChatSpeech(text: string, lang: string = "vi"): Promise<Blob> {
   const response = await fetch(`${API_BASE}/chat/tts`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ text, lang }),
     cache: "no-store",
   });
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("auth-required"));
+    throw new Error("Vui lòng đăng nhập trước khi thực hiện chức năng này.");
+  }
 
   if (!response.ok) {
     const detail = await response.text();

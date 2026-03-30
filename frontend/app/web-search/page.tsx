@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { Toast } from "@/components/ui/toast";
 import { searchDuckDuckGo } from "@/lib/api";
 import { DuckDuckGoSearchItem, DuckDuckGoSearchType } from "@/types";
 
@@ -39,6 +40,23 @@ export default function WebSearchPage() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string>("");
+
+  const parseErrorMessage = (err: unknown): { code?: string; detail?: string } => {
+    if (!(err instanceof Error)) {
+      return { detail: "Không thể tìm kiếm. Vui lòng thử lại." };
+    }
+
+    try {
+      const parsed = JSON.parse(err.message);
+      return {
+        code: parsed?.code,
+        detail: parsed?.detail,
+      };
+    } catch {
+      return { detail: err.message || "Không thể tìm kiếm. Vui lòng thử lại." };
+    }
+  };
 
   const handleSearch = async (event?: React.FormEvent) => {
     if (event) event.preventDefault();
@@ -51,9 +69,19 @@ export default function WebSearchPage() {
     try {
       const data = await searchDuckDuckGo(query, searchType, maxResults);
       setResults(data);
+      setNotice("");
     } catch (err) {
       setResults([]);
-      setError(err instanceof Error ? err.message : "Không thể tìm kiếm. Vui lòng thử lại.");
+      const parsedError = parseErrorMessage(err);
+      if (parsedError.code === "AUTH_REQUIRED") {
+        setError(null);
+        setNotice(
+          "Vui lòng đăng nhập hoặc đăng ký trước khi sử dụng chức năng tìm kiếm."
+        );
+      } else {
+        setNotice("");
+        setError(parsedError.detail || "Không thể tìm kiếm. Vui lòng thử lại.");
+      }
     } finally {
       setLoading(false);
     }
@@ -341,6 +369,8 @@ export default function WebSearchPage() {
           <p className="text-sm text-rose-700">{error}</p>
         </Card>
       )}
+
+      <Toast message={notice} type="info" onClose={() => setNotice("")} />
 
       {loading && (
         <div className="grid gap-4">

@@ -35,9 +35,9 @@ class GenerationService:
     async def _next_version(self, material_id: str, content_type: str) -> int:
         return await self.generated_repo.get_next_version(material_id, content_type)
 
-    async def _prepare_material(self, material_id: str) -> dict:
+    async def _prepare_material(self, material_id: str, user_id: str | None = None) -> dict:
         """Return the full material document (must be processed)."""
-        material = await self.material_service.get_material(material_id)
+        material = await self.material_service.get_material(material_id, user_id=user_id)
         if material.get("processing_status") != "processed":
             raise HTTPException(status_code=400, detail="Material must be processed before generation")
         return material
@@ -86,8 +86,15 @@ class GenerationService:
             )
         return metadata
 
-    async def generate_slides(self, material_id: str, tone: str, max_slides: int, skip_refine: bool = False) -> dict:
-        material = await self._prepare_material(material_id)
+    async def generate_slides(
+        self,
+        material_id: str,
+        tone: str,
+        max_slides: int,
+        skip_refine: bool = False,
+        user_id: str | None = None,
+    ) -> dict:
+        material = await self._prepare_material(material_id, user_id=user_id)
         text = self._get_material_text(material)
 
         source_path = self._resolve_source_file(material)
@@ -221,6 +228,7 @@ class GenerationService:
         fallback_applied = getattr(llm, "fallback_used", False) if llm else False
         now = utc_now()
         doc = {
+            "user_id": material.get("user_id"),
             "material_id": material_id,
             "content_type": "slides",
             "version": version,
@@ -235,8 +243,14 @@ class GenerationService:
         }
         return await self.generated_repo.create(doc)
 
-    async def generate_podcast(self, material_id: str, style: str, target_duration_minutes: int) -> dict:
-        material = await self._prepare_material(material_id)
+    async def generate_podcast(
+        self,
+        material_id: str,
+        style: str,
+        target_duration_minutes: int,
+        user_id: str | None = None,
+    ) -> dict:
+        material = await self._prepare_material(material_id, user_id=user_id)
         text = self._get_material_text(material)
         script, version = await asyncio.gather(
             asyncio.to_thread(
@@ -282,6 +296,7 @@ class GenerationService:
 
         now = utc_now()
         doc = {
+            "user_id": material.get("user_id"),
             "material_id": material_id,
             "content_type": "podcast",
             "version": version,
@@ -296,8 +311,13 @@ class GenerationService:
         }
         return await self.generated_repo.create(doc)
 
-    async def generate_minigame(self, material_id: str, game_type: str = "quiz_mixed") -> dict:
-        material = await self._prepare_material(material_id)
+    async def generate_minigame(
+        self,
+        material_id: str,
+        game_type: str = "quiz_mixed",
+        user_id: str | None = None,
+    ) -> dict:
+        material = await self._prepare_material(material_id, user_id=user_id)
         text = self._get_material_text(material)
         valid_game_types = {"quiz_mixed", "flashcard", "shooting_quiz"}
         selected_game_type = game_type if game_type in valid_game_types else "quiz_mixed"
@@ -330,6 +350,7 @@ class GenerationService:
 
         now = utc_now()
         doc = {
+            "user_id": material.get("user_id"),
             "material_id": material_id,
             "content_type": "minigame",
             "game_type": selected_game_type,
@@ -345,8 +366,21 @@ class GenerationService:
         }
         return await self.generated_repo.create(doc)
 
-    async def get_generated_content(self, content_id: str) -> dict:
-        result = await self.generated_repo.get_by_id(parse_object_id(content_id))
+    async def get_generated_content(
+        self, content_id: str, user_id: str | None = None
+    ) -> dict:
+        content_object_id = parse_object_id(content_id)
+        if user_id:
+            result = await self.generated_repo.get_by_id_for_user(content_object_id, user_id)
+            if not result:
+                legacy_result = await self.generated_repo.get_by_id(content_object_id)
+                if legacy_result:
+                    material_id = legacy_result.get("material_id")
+                    if material_id:
+                        await self.material_service.get_material(material_id, user_id=user_id)
+                        result = legacy_result
+        else:
+            result = await self.generated_repo.get_by_id(content_object_id)
         if not result:
             raise HTTPException(status_code=404, detail="Generated content not found")
         return result

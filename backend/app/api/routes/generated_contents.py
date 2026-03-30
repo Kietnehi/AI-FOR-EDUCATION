@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from celery.result import AsyncResult
 
-from app.api.dependencies import get_database
+from app.api.dependencies import get_current_user, get_database
+from app.schemas.auth import AuthUser
 from app.schemas.generated_content import (
     GenerateMinigameRequest,
     GenerateNotebookLMMediaRequest,
@@ -33,6 +34,7 @@ router = APIRouter()
 async def generate_slides(
     material_id: str,
     payload: GenerateSlidesRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
@@ -40,7 +42,8 @@ async def generate_slides(
         material_id,
         tone=payload.tone,
         max_slides=payload.max_slides,
-        skip_refine=payload.skip_refine
+        skip_refine=payload.skip_refine,
+        user_id=user.id,
     )
     return GeneratedContentResponse(**result)
 
@@ -49,6 +52,7 @@ async def generate_slides(
 async def generate_podcast(
     material_id: str,
     payload: GeneratePodcastRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
@@ -56,6 +60,7 @@ async def generate_podcast(
         material_id,
         style=payload.style,
         target_duration_minutes=payload.target_duration_minutes,
+        user_id=user.id,
     )
     return GeneratedContentResponse(**result)
 
@@ -64,10 +69,15 @@ async def generate_podcast(
 async def generate_minigame(
     material_id: str,
     payload: GenerateMinigameRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
-    result = await service.generate_minigame(material_id, game_type=payload.game_type)
+    result = await service.generate_minigame(
+        material_id,
+        game_type=payload.game_type,
+        user_id=user.id,
+    )
     return GeneratedContentResponse(**result)
 
 
@@ -75,7 +85,11 @@ async def generate_minigame(
 async def queue_generate_slides(
     material_id: str,
     payload: GenerateSlidesRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    material_service = MaterialService(db)
+    await material_service.get_material(material_id, user_id=user.id)
     task = generate_slides_task.delay(
         material_id,
         payload.tone,
@@ -92,7 +106,11 @@ async def queue_generate_slides(
 async def queue_generate_podcast(
     material_id: str,
     payload: GeneratePodcastRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    material_service = MaterialService(db)
+    await material_service.get_material(material_id, user_id=user.id)
     task = generate_podcast_task.delay(
         material_id,
         payload.style,
@@ -108,7 +126,11 @@ async def queue_generate_podcast(
 async def queue_generate_minigame(
     material_id: str,
     payload: GenerateMinigameRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    material_service = MaterialService(db)
+    await material_service.get_material(material_id, user_id=user.id)
     task = generate_minigame_task.delay(material_id, payload.game_type)
     return GenerationTaskQueuedResponse(
         task_id=task.id,
@@ -117,7 +139,10 @@ async def queue_generate_minigame(
 
 
 @router.get("/tasks/{task_id}/status", response_model=GenerationTaskStatusResponse)
-async def get_generation_task_status(task_id: str) -> GenerationTaskStatusResponse:
+async def get_generation_task_status(
+    task_id: str,
+    user: AuthUser = Depends(get_current_user),
+) -> GenerationTaskStatusResponse:
     task = AsyncResult(task_id, app=celery_app)
     info = task.info if isinstance(task.info, dict) else {}
 
@@ -160,16 +185,18 @@ async def get_generation_task_status(task_id: str) -> GenerationTaskStatusRespon
 @router.get("/generated-contents/{content_id}", response_model=GeneratedContentResponse)
 async def get_generated_content(
     content_id: str,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
-    result = await service.get_generated_content(content_id)
+    result = await service.get_generated_content(content_id, user_id=user.id)
     return GeneratedContentResponse(**result)
 
 
 @router.post("/notebooklm/generate-media")
 async def generate_notebooklm_media(
     payload: GenerateNotebookLMMediaRequest,
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Two-step endpoint for NotebookLM media generation from custom prompt:
@@ -206,6 +233,7 @@ async def generate_notebooklm_media(
 async def generate_notebooklm_media_from_material(
     material_id: str,
     payload: GenerateNotebookLMMediaRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
@@ -220,7 +248,7 @@ async def generate_notebooklm_media_from_material(
     3) Confirm download after render complete
     """
     material_service = MaterialService(db)
-    material = await material_service.get_material(material_id)
+    material = await material_service.get_material(material_id, user_id=user.id)
 
     material_title = (material.get("title") or "Học liệu").strip()
     prompt = f"{material_title}"
@@ -250,6 +278,7 @@ async def generate_notebooklm_media_from_material(
 @router.post("/notebooklm/sessions/{session_id}/confirm-artifacts", response_model=GenerateNotebookLMMediaResponse)
 async def confirm_notebooklm_artifacts(
     session_id: str,
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Confirm upload has completed and trigger NotebookLM to create video + infographic.
@@ -265,6 +294,7 @@ async def confirm_notebooklm_artifacts(
 @router.post("/notebooklm/sessions/{session_id}/confirm", response_model=ConfirmNotebookLMDownloadResponse)
 async def confirm_notebooklm_download(
     session_id: str,
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Confirm and move files from temp storage to permanent storage.
@@ -281,6 +311,7 @@ async def confirm_notebooklm_download(
 @router.delete("/notebooklm/sessions/{session_id}")
 async def cancel_notebooklm_session(
     session_id: str,
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Cancel and delete temp session files.

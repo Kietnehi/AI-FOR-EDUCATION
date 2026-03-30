@@ -1,14 +1,30 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Settings, User, Bell, Shield, Palette, Database } from "lucide-react";
+import { Settings, User, Bell, Shield, Palette, Database, Moon, Sun } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useTheme } from "@/components/theme-provider";
 
 export default function SettingsPage() {
+  const { theme, toggle } = useTheme();
   const sections = [
     { title: "Tài khoản", icon: User, desc: "Quản lý thông tin cá nhân và bảo mật" },
     { title: "Thông báo", icon: Bell, desc: "Cấu hình nhận thông báo hệ thống" },
-    { title: "Giao diện", icon: Palette, desc: "Tùy chỉnh màu sắc và chế độ tối/sáng" },
+    {
+      title: "Giao diện",
+      icon: Palette,
+      desc: "Tùy chỉnh màu sắc và chế độ tối/sáng",
+      action: (
+        <button
+          type="button"
+          onClick={toggle}
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-elevated)]"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
+        </button>
+      ),
+    },
     { title: "Dữ liệu", icon: Database, desc: "Quản lý dữ liệu và bộ nhớ tạm" },
     { title: "Bảo mật", icon: Shield, desc: "Bảo vệ tài khoản và quyền riêng tư" },
   ];
@@ -16,7 +32,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl mx-auto py-8">
       <div className="flex items-center gap-4 mb-8">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+        <div className="w-12 h-12 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-600">
           <Settings className="w-6 h-6" />
         </div>
         <div>
@@ -36,24 +52,28 @@ export default function SettingsPage() {
               transition={{ delay: index * 0.05 }}
             >
               <Card hover className="flex items-center gap-6 p-6 cursor-pointer group">
-                <div className="w-12 h-12 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-tertiary)] group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-tertiary)] group-hover:text-brand-600 group-hover:bg-brand-50 transition-colors">
                   <Icon className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-[var(--text-primary)]">{section.title}</h3>
                   <p className="text-sm text-[var(--text-secondary)]">{section.desc}</p>
                 </div>
-                <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                  Thiết lập
-                </div>
+                {section.action ? (
+                  <div onClick={(event) => event.stopPropagation()}>{section.action}</div>
+                ) : (
+                  <div className="text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+                    Thiết lập
+                  </div>
+                )}
               </Card>
             </motion.div>
           );
         })}
       </div>
       
-      <div className="mt-12 p-6 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-center">
-        <p className="text-sm text-indigo-600 font-medium">Phiên bản: 0.1.0 Beta</p>
+      <div className="mt-12 p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-default)] text-center">
+        <p className="text-sm text-[var(--text-secondary)] font-medium">Phiên bản: 0.1.0 Beta</p>
       </div>
     </div>
   );

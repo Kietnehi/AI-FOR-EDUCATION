@@ -2,7 +2,10 @@ import asyncio
 import httpx
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.api.dependencies import get_current_user
+from app.schemas.auth import AuthUser
 
 try:
     from ddgs import DDGS
@@ -111,6 +114,7 @@ async def search_duckduckgo(
     q: str = Query(..., min_length=1, description="Từ khóa tìm kiếm"),
     type: SearchType = Query("text", description="Loại tìm kiếm"),
     max_results: int = Query(10, ge=1, le=50, description="Số kết quả tối đa"),
+    user: AuthUser = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     try:
         if type == "books":
