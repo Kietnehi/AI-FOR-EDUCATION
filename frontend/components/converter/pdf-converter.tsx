@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { Tabs } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Toast } from "@/components/ui/toast";
+import { useAuth } from "@/components/auth-provider";
 import {
   Upload, Link as LinkIcon, FileText, Loader2, Link2,
   FileImage, Download, TableProperties, ChevronDown, ChevronUp, Eye, Code, X
@@ -14,6 +16,19 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
+
+async function fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const response = await fetch(input, {
+    ...init,
+    credentials: "include",
+  });
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("auth-required"));
+  }
+
+  return response;
+}
 
 interface ExtractionSummary {
   pdf_filename: string;
@@ -39,7 +54,7 @@ function TableViewer({ extractId, filename, index }: { extractId: string; filena
     if (data) { setOpen(!open); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/converter/extracted/${extractId}/tables/${filename}/data`);
+      const res = await fetchWithAuth(`${API_BASE}/converter/extracted/${extractId}/tables/${filename}/data`);
       if (res.ok) setData(await res.json());
     } finally {
       setLoading(false);
@@ -219,6 +234,7 @@ function CopyButton({ text }: { text: string }) {
 
 // ── main component ───────────────────────────────────────────────────
 export function PdfConverter() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("file-to-pdf");
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState("");
@@ -229,6 +245,36 @@ export function PdfConverter() {
   const [summary, setSummary] = useState<ExtractionSummary | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
   const [textView, setTextView] = useState<"rendered" | "raw">("rendered");
+  const [notice, setNotice] = useState("");
+
+  const notifyAuthRequired = () => {
+    window.dispatchEvent(new CustomEvent("auth-required"));
+    setNotice("Vui lòng đăng nhập trước khi thực hiện thao tác này.");
+  };
+
+  const ensureAuthenticated = () => {
+    if (user) {
+      return true;
+    }
+    notifyAuthRequired();
+    return false;
+  };
+
+  const handleUploadAreaMouseDown = (event: React.MouseEvent<HTMLElement>) => {
+    if (user) {
+      return;
+    }
+    event.preventDefault();
+    notifyAuthRequired();
+  };
+
+  const handleUploadAreaClick = (event: React.MouseEvent<HTMLElement>) => {
+    if (user) {
+      return;
+    }
+    event.preventDefault();
+    notifyAuthRequired();
+  };
 
   const handleDownload = async (blob: Blob, filename: string) => {
     const u = window.URL.createObjectURL(blob);
@@ -241,10 +287,15 @@ export function PdfConverter() {
 
   const handleFileConvert = async (e: React.FormEvent) => {
     e.preventDefault(); if (!file) return;
+    if (!ensureAuthenticated()) return;
     setLoading(true); setError(null);
     try {
       const fd = new FormData(); fd.append("file", file);
-      const res = await fetch(`${API_BASE}/converter/convert-file`, { method: "POST", body: fd });
+      const res = await fetchWithAuth(`${API_BASE}/converter/convert-file`, { method: "POST", body: fd });
+      if (res.status === 401) {
+        notifyAuthRequired();
+        return;
+      }
       if (!res.ok) throw new Error(await res.text() || "Lỗi chuyển đổi");
       const cd = res.headers.get("Content-Disposition");
       let name = "converted.pdf";
@@ -256,10 +307,15 @@ export function PdfConverter() {
 
   const handleUrlConvert = async (e: React.FormEvent) => {
     e.preventDefault(); if (!url) return;
+    if (!ensureAuthenticated()) return;
     setLoading(true); setError(null);
     try {
       const fd = new FormData(); fd.append("url", url);
-      const res = await fetch(`${API_BASE}/converter/convert-url`, { method: "POST", body: fd });
+      const res = await fetchWithAuth(`${API_BASE}/converter/convert-url`, { method: "POST", body: fd });
+      if (res.status === 401) {
+        notifyAuthRequired();
+        return;
+      }
       if (!res.ok) throw new Error(await res.text() || "Lỗi chuyển đổi");
       const cd = res.headers.get("Content-Disposition");
       let name = "webpage.pdf";
@@ -271,18 +327,27 @@ export function PdfConverter() {
 
   const handleExtractPdf = async (e: React.FormEvent) => {
     e.preventDefault(); if (!pdfFile) return;
+    if (!ensureAuthenticated()) return;
     setLoading(true); setError(null);
     setExtractId(null); setSummary(null); setExtractedText("");
 
     try {
       const fd = new FormData(); fd.append("file", pdfFile);
-      const res = await fetch(`${API_BASE}/converter/extract-pdf`, { method: "POST", body: fd });
+      const res = await fetchWithAuth(`${API_BASE}/converter/extract-pdf`, { method: "POST", body: fd });
+      if (res.status === 401) {
+        notifyAuthRequired();
+        return;
+      }
       if (!res.ok) throw new Error(await res.text() || "Lỗi trích xuất");
       const data = await res.json();
       setExtractId(data.extract_id);
       setSummary(data.summary);
 
-      const tr = await fetch(`${API_BASE}/converter/extracted/${data.extract_id}/text`);
+      const tr = await fetchWithAuth(`${API_BASE}/converter/extracted/${data.extract_id}/text`);
+      if (tr.status === 401) {
+        notifyAuthRequired();
+        return;
+      }
       if (tr.ok) setExtractedText((await tr.json()).content ?? "");
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
@@ -290,6 +355,7 @@ export function PdfConverter() {
 
   return (
     <div className="w-full space-y-6">
+      <Toast message={notice} type="info" onClose={() => setNotice("")} />
       <Tabs
         tabs={[
           { id: "file-to-pdf", label: "Office/Ảnh → PDF", icon: <FileImage className="w-4 h-4" /> },
@@ -306,9 +372,20 @@ export function PdfConverter() {
             {active === "file-to-pdf" && (
               <Card className="p-8 border-[var(--border-light)] bg-[var(--glass-bg)] backdrop-blur-3xl shadow-lg">
                 <form onSubmit={handleFileConvert} className="space-y-6">
-                  <label className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-medium)] rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer relative">
+                  <label
+                    onMouseDown={handleUploadAreaMouseDown}
+                    onClick={handleUploadAreaClick}
+                    className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-medium)] rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer relative"
+                  >
                     <input type="file" className="absolute inset-0 opacity-0 cursor-pointer"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      disabled={!user}
+                      onChange={(e) => {
+                        if (!ensureAuthenticated()) {
+                          e.currentTarget.value = "";
+                          return;
+                        }
+                        setFile(e.target.files?.[0] || null);
+                      }}
                       accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.bmp" />
                     <div className="p-4 bg-[var(--bg-elevated)] rounded-full shadow-sm mb-4">
                       <Upload className="w-8 h-8 text-brand-500" />
@@ -354,9 +431,20 @@ export function PdfConverter() {
               <div className="space-y-6">
                 <Card className="p-8 border-[var(--border-light)] bg-[var(--glass-bg)] backdrop-blur-3xl shadow-lg">
                   <form onSubmit={handleExtractPdf} className="space-y-6">
-                    <label className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-medium)] rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer relative">
+                    <label
+                      onMouseDown={handleUploadAreaMouseDown}
+                      onClick={handleUploadAreaClick}
+                      className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[var(--border-medium)] rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer relative"
+                    >
                       <input type="file" className="absolute inset-0 opacity-0 cursor-pointer"
-                        onChange={(e) => setPdfFile(e.target.files?.[0] || null)} accept=".pdf" />
+                        disabled={!user}
+                        onChange={(e) => {
+                          if (!ensureAuthenticated()) {
+                            e.currentTarget.value = "";
+                            return;
+                          }
+                          setPdfFile(e.target.files?.[0] || null);
+                        }} accept=".pdf" />
                       <div className="p-4 bg-[var(--bg-elevated)] rounded-full shadow-sm mb-4">
                         <FileText className="w-8 h-8 text-accent-500" />
                       </div>

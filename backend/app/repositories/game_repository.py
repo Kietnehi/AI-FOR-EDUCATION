@@ -16,5 +16,10 @@ class GameRepository:
     async def get_attempt(self, attempt_id: ObjectId) -> dict | None:
         return serialize_document(await self.collection.find_one({"_id": attempt_id}))
 
+    async def get_attempt_for_user(self, attempt_id: ObjectId, user_id: str) -> dict | None:
+        return serialize_document(
+            await self.collection.find_one({"_id": attempt_id, "user_id": user_id})
+        )
+
     async def delete_by_material_id(self, material_id: str) -> None:
         await self.collection.delete_many({"material_id": material_id})

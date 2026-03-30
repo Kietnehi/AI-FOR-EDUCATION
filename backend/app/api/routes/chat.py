@@ -48,10 +48,11 @@ async def create_session(
 @router.get("/chat/sessions/{session_id}", response_model=ChatSessionDetailResponse)
 async def get_session(
     session_id: str,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> ChatSessionDetailResponse:
     service = ChatService(db)
-    detail = await service.get_session_detail(session_id)
+    detail = await service.get_session_detail(session_id, user_id=user.id)
     return ChatSessionDetailResponse(
         session=ChatSessionResponse(**detail["session"]),
         messages=[ChatMessageResponse(**item) for item in detail["messages"]],
@@ -62,10 +63,16 @@ async def get_session(
 async def send_message(
     session_id: str,
     payload: ChatMessageRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> ChatMessageResponse:
     service = ChatService(db)
-    assistant_message = await service.add_user_message_and_answer(session_id, payload.message, payload.images)
+    assistant_message = await service.add_user_message_and_answer(
+        session_id,
+        payload.message,
+        payload.images,
+        user_id=user.id,
+    )
     return ChatMessageResponse(**assistant_message)
 
 
@@ -92,6 +99,7 @@ async def transcribe_audio(
     file: UploadFile = File(...),
     stt_model: str = Form(default="local-base"),
     language: str | None = Form(default=None),
+    user: AuthUser = Depends(get_current_user),
 ) -> TranscriptionResponse:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing audio file")
@@ -142,7 +150,10 @@ async def transcribe_audio(
 
 
 @router.post("/chat/tts")
-async def text_to_speech(payload: TextToSpeechRequest) -> Response:
+async def text_to_speech(
+    payload: TextToSpeechRequest,
+    user: AuthUser = Depends(get_current_user),
+) -> Response:
     service = TextToSpeechService()
     try:
         audio_bytes = await asyncio.to_thread(service.synthesize, payload.text, payload.lang)
@@ -162,6 +173,7 @@ async def text_to_speech(payload: TextToSpeechRequest) -> Response:
 async def web_search(
     session_id: str,
     payload: WebSearchRequest,
+    user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> WebSearchResponse:
     """
@@ -173,7 +185,12 @@ async def web_search(
     - **use_google**: Nếu True, thử Tìm kiếm Google trước (yêu cầu hỗ trợ mô hình Gemini)
     """
     service = ChatService(db)
-    result = await service.web_search_answer(session_id, payload.query, payload.use_google)
+    result = await service.web_search_answer(
+        session_id,
+        payload.query,
+        payload.use_google,
+        user_id=user.id,
+    )
 
     # Trích xuất kết quả tìm kiếm từ siêu dữ liệu tin nhắn
     search_results = result.get("search_results", {})

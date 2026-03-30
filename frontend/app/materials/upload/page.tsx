@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Toast } from "@/components/ui/toast";
+import { useAuth } from "@/components/auth-provider";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
@@ -27,6 +28,14 @@ type GuardrailResult = {
   category: string;
   message: string;
 };
+
+const EDUCATION_LEVEL_OPTIONS = [
+  "Tiểu học",
+  "THCS",
+  "THPT",
+  "Đại học/Cao đẳng",
+  "Khác",
+] as const;
 
 async function extractApiError(response: Response) {
   const raw = await response.text();
@@ -45,6 +54,7 @@ async function extractApiError(response: Response) {
 
 export default function UploadMaterialPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<UploadMode>("file");
@@ -52,6 +62,7 @@ export default function UploadMaterialPage() {
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
+  const [isCustomEducationLevel, setIsCustomEducationLevel] = useState(false);
   const [tags, setTags] = useState("");
   const [rawText, setRawText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -77,13 +88,17 @@ export default function UploadMaterialPage() {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (!user) {
+      window.dispatchEvent(new CustomEvent("auth-required"));
+      return;
+    }
     setDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
       setFile(droppedFile);
       setMode("file");
     }
-  }, []);
+  }, [user]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -92,7 +107,31 @@ export default function UploadMaterialPage() {
 
   const handleDragLeave = useCallback(() => setDragOver(false), []);
 
+  function requireAuth(): boolean {
+    if (user) {
+      return true;
+    }
+    window.dispatchEvent(new CustomEvent("auth-required"));
+    setToast({
+      message: "Vui lòng đăng nhập hoặc đăng ký trước khi tải và tạo học liệu.",
+      type: "info",
+    });
+    return false;
+  }
+
+  async function assertAuthResponse(response: Response): Promise<void> {
+    if (response.status !== 401) {
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("auth-required"));
+    throw new Error("Vui lòng đăng nhập trước khi thực hiện chức năng này.");
+  }
+
   async function handleGuardrailCheck() {
+    if (!requireAuth()) {
+      return;
+    }
+
     if (!canCheck) {
       setToast({
         message:
@@ -121,10 +160,12 @@ export default function UploadMaterialPage() {
         response = await fetch(`${API_BASE}/materials/guardrail-check-upload`, {
           method: "POST",
           body: form,
+          credentials: "include",
         });
       } else {
         response = await fetch(`${API_BASE}/materials/guardrail-check`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title,
@@ -141,6 +182,7 @@ export default function UploadMaterialPage() {
         });
       }
 
+      await assertAuthResponse(response);
       if (!response.ok) throw new Error(await extractApiError(response));
 
       const data: GuardrailResult = await response.json();
@@ -161,6 +203,10 @@ export default function UploadMaterialPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+
+    if (!requireAuth()) {
+      return;
+    }
 
     if (!canCreate) {
       setToast({
@@ -186,10 +232,12 @@ export default function UploadMaterialPage() {
         response = await fetch(`${API_BASE}/materials/upload`, {
           method: "POST",
           body: form,
+          credentials: "include",
         });
       } else {
         response = await fetch(`${API_BASE}/materials`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title,
@@ -206,6 +254,7 @@ export default function UploadMaterialPage() {
         });
       }
 
+      await assertAuthResponse(response);
       if (!response.ok) throw new Error(await extractApiError(response));
 
       const data = await response.json();
@@ -275,7 +324,12 @@ export default function UploadMaterialPage() {
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  if (!requireAuth()) {
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
                 className={`
                   relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 transition-all duration-300
                   ${dragOver
@@ -289,7 +343,13 @@ export default function UploadMaterialPage() {
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.docx,.txt,.md"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    if (!requireAuth()) {
+                      e.currentTarget.value = "";
+                      return;
+                    }
+                    setFile(e.target.files?.[0] || null);
+                  }}
                   className="hidden"
                 />
                 {file ? (
@@ -384,12 +444,48 @@ export default function UploadMaterialPage() {
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Cấp học</span>
-              <input
-                value={educationLevel}
-                onChange={(e) => setEducationLevel(e.target.value)}
-                placeholder="Ví dụ: THPT, Đại học"
-                className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {EDUCATION_LEVEL_OPTIONS.map((option) => {
+                    const isSelected =
+                      option === "Khác"
+                        ? isCustomEducationLevel
+                        : !isCustomEducationLevel && educationLevel === option;
+
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => {
+                          if (option === "Khác") {
+                            setIsCustomEducationLevel(true);
+                            setEducationLevel("");
+                            return;
+                          }
+                          setIsCustomEducationLevel(false);
+                          setEducationLevel(option);
+                        }}
+                        className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                          isSelected
+                            ? "border-brand-300 bg-brand-50 text-brand-700"
+                            : "border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-brand-300 hover:text-[var(--text-primary)]"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {isCustomEducationLevel ? (
+                  <input
+                    value={educationLevel}
+                    onChange={(e) => setEducationLevel(e.target.value)}
+                    placeholder="Nhập cấp học khác"
+                    className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  />
+                ) : null}
+              </div>
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Từ khóa</span>
