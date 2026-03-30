@@ -160,3 +160,21 @@ async def delete_material(
     if not deleted:
         raise HTTPException(status_code=404, detail="Material not found")
     return {"message": "Material deleted successfully"}
+
+
+@router.patch("/materials/{material_id}", response_model=MaterialResponse)
+async def update_material(
+    material_id: str,
+    payload: MaterialUpdateRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> MaterialResponse:
+    service = MaterialService(db)
+    material = await service.update_material(
+        material_id=material_id,
+        user_id=user.id,
+        update_fields=payload.model_dump(exclude_none=True),
+    )
+    if not material.get("storage_type"):
+        material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
+    return MaterialResponse(**material)

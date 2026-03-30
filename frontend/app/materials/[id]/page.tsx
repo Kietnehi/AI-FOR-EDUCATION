@@ -32,6 +32,7 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { SlideGenerationDialog } from "@/components/ui/slide-generation-dialog";
 import {
   confirmNotebookLMArtifactGeneration,
+  deleteMaterial,
   generateMinigame,
   generateNotebookLMMediaFromMaterial,
   generatePodcast,
@@ -184,6 +185,16 @@ export default function MaterialDetailPage() {
   }
 
   async function handleGenerate(type: "slides" | "podcast" | "minigame") {
+    const actionLabelMap: Record<"slides" | "podcast" | "minigame", string> = {
+      slides: "tạo slides",
+      podcast: "tạo podcast",
+      minigame: "tạo minigame",
+    };
+
+    if (!ensureMaterialProcessed(actionLabelMap[type])) {
+      return;
+    }
+
     // For slides, show dialog first
     if (type === "slides") {
       setShowSlideDialog(true);
@@ -358,6 +369,71 @@ export default function MaterialDetailPage() {
       setNotebookArtifactPending(null);
       setIsArtifactGenerating(false);
       setToast({ message: "Đã hủy session và đóng browser", type: "info" });
+    } catch (error) {
+      setToast({ message: String(error), type: "error" });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function handleOpenChatbot() {
+    if (!ensureMaterialProcessed("mở chatbot")) {
+      return;
+    }
+    router.push(`/materials/${materialId}/chat`);
+  }
+
+  function ensureMaterialProcessed(actionLabel: string): boolean {
+    if (material?.processing_status === "processed") {
+      return true;
+    }
+
+    setToast({
+      message: `Vui lòng xử lý học liệu trước khi ${actionLabel}.`,
+      type: "info",
+    });
+    return false;
+  }
+
+  async function handleSaveMaterialEdits() {
+    const title = editForm.title.trim();
+    if (!title) {
+      setToast({ message: "Tiêu đề không được để trống.", type: "error" });
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const updated = await updateMaterial(materialId, {
+        title,
+        description: editForm.description.trim() || undefined,
+        subject: editForm.subject.trim() || undefined,
+        education_level: editForm.education_level.trim() || undefined,
+        tags: editForm.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      });
+
+      setMaterial(updated);
+      setIsEditingMaterial(false);
+      setToast({ message: "Đã cập nhật học liệu thành công.", type: "success" });
+    } catch (error) {
+      setToast({ message: String(error), type: "error" });
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteMaterial() {
+    const confirmed = window.confirm("Bạn có chắc muốn xóa học liệu này không?");
+    if (!confirmed) return;
+
+    setBusyAction("delete");
+    try {
+      await deleteMaterial(materialId);
+      setToast({ message: "Đã xóa học liệu thành công.", type: "success" });
+      router.push("/materials");
     } catch (error) {
       setToast({ message: String(error), type: "error" });
     } finally {
@@ -769,11 +845,9 @@ export default function MaterialDetailPage() {
               </p>
             </div>
           </div>
-          <Link href={`/materials/${materialId}/chat`}>
-            <Button icon={<MessageSquareText className="w-4 h-4" />}>
-              Mở Chatbot
-            </Button>
-          </Link>
+          <Button icon={<MessageSquareText className="w-4 h-4" />} onClick={handleOpenChatbot}>
+            Mở Chatbot
+          </Button>
         </div>
       </Card>
 
