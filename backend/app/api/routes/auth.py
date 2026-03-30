@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.api.dependencies import get_current_user, get_database
@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthResponse, AuthUser, GoogleAuthRequest, LogoutResponse
 from app.services.auth_service import AuthService
+from app.services.turnstile_service import TurnstileVerificationError, verify_turnstile_token
 
 router = APIRouter()
 
@@ -15,6 +16,12 @@ async def google_login(
     response: Response,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> AuthResponse:
+    # Verify CAPTCHA first
+    try:
+        await verify_turnstile_token(payload.captcha_token)
+    except TurnstileVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
     user_repo = UserRepository(db)
     auth_service = AuthService(user_repo)
     
@@ -39,6 +46,12 @@ async def google_register(
     response: Response,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> AuthResponse:
+    # Verify CAPTCHA first
+    try:
+        await verify_turnstile_token(payload.captcha_token)
+    except TurnstileVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
     user_repo = UserRepository(db)
     auth_service = AuthService(user_repo)
 

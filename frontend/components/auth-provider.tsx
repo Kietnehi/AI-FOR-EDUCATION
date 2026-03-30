@@ -15,8 +15,9 @@ import { useRouter } from "next/navigation";
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (idToken: string) => Promise<void>;
-  register: (idToken: string) => Promise<void>;
+  googleAuthEnabled: boolean;
+  login: (idToken: string, captchaToken: string) => Promise<void>;
+  register: (idToken: string, captchaToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -27,6 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  const googleAuthEnabled = googleClientId.length > 0;
 
   const refreshUser = async () => {
     try {
@@ -44,10 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser();
   }, []);
 
-  const login = async (idToken: string) => {
+  const login = async (idToken: string, captchaToken: string) => {
     setLoading(true);
     try {
-      const response = await apiLoginWithGoogle(idToken);
+      const response = await apiLoginWithGoogle(idToken, captchaToken);
       setUser(response.user);
     } catch (err) {
       console.error("Login failed:", err);
@@ -57,10 +60,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (idToken: string) => {
+  const register = async (idToken: string, captchaToken: string) => {
     setLoading(true);
     try {
-      const response = await apiRegisterWithGoogle(idToken);
+      const response = await apiRegisterWithGoogle(idToken, captchaToken);
       setUser(response.user);
     } catch (err) {
       console.error("Register failed:", err);
@@ -84,19 +87,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  const content = (
+    <AuthContext.Provider value={{ user, loading, googleAuthEnabled, login, register, logout, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
 
-  if (!GOOGLE_CLIENT_ID) {
-    console.warn("NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured");
+  if (!googleAuthEnabled) {
+    return content;
   }
 
-  return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
-        {children}
-      </AuthContext.Provider>
-    </GoogleOAuthProvider>
-  );
+  return <GoogleOAuthProvider clientId={googleClientId}>{content}</GoogleOAuthProvider>;
 }
 
 export function useAuth() {

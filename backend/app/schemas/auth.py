@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 class GoogleAuthRequest(BaseModel):
     id_token: str
+    captcha_token: str
 
 class AuthUser(BaseModel):
     id: str

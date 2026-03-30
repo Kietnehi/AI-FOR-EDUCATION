@@ -1,4 +1,4 @@
-﻿import {
+import {
   ChatMessage,
   ChatSession,
   GeneratedContent,
@@ -151,17 +151,23 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
 // Auth
 // ---------------------------------------------------------------------------
 
-export async function loginWithGoogle(idToken: string): Promise<{ user: AuthUser; message: string }> {
+export async function loginWithGoogle(
+  idToken: string,
+  captchaToken: string
+): Promise<{ user: AuthUser; message: string }> {
   return apiFetch<{ user: AuthUser; message: string }>("/auth/google/login", {
     method: "POST",
-    body: JSON.stringify({ id_token: idToken }),
+    body: JSON.stringify({ id_token: idToken, captcha_token: captchaToken }),
   });
 }
 
-export async function registerWithGoogle(idToken: string): Promise<{ user: AuthUser; message: string }> {
+export async function registerWithGoogle(
+  idToken: string,
+  captchaToken: string
+): Promise<{ user: AuthUser; message: string }> {
   return apiFetch<{ user: AuthUser; message: string }>("/auth/google/register", {
     method: "POST",
-    body: JSON.stringify({ id_token: idToken }),
+    body: JSON.stringify({ id_token: idToken, captcha_token: captchaToken }),
   });
 }
 
