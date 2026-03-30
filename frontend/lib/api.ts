@@ -337,11 +337,39 @@ export async function submitGameAttempt(
   });
 }
 
-export function apiDownloadUrl(fileUrl: string): string {
-  if (!fileUrl) return "#";
-  if (/^https?:\/\//i.test(fileUrl)) {
-    return fileUrl;
-  }
-  return `${process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"}${fileUrl}`;
+type FileUrlMode = "download" | "preview";
+
+function getApiHost(): string {
+  return process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000";
 }
 
+export function apiFileUrl(fileUrl: string, mode: FileUrlMode = "download"): string {
+  if (!fileUrl) return "#";
+
+  const apiHost = getApiHost();
+
+  if (fileUrl.startsWith("/api/files/")) {
+    if (mode === "preview") {
+      return `${apiHost}${fileUrl.replace(/\/download$/, "/preview")}`;
+    }
+    return `${apiHost}${fileUrl}`;
+  }
+
+  if (/^https?:\/\//i.test(fileUrl)) {
+    return `${apiHost}/api/files/${encodeURIComponent(fileUrl)}/${mode}`;
+  }
+
+  if (fileUrl.startsWith("/")) {
+    return `${apiHost}${fileUrl}`;
+  }
+
+  return `${apiHost}/api/files/${encodeURIComponent(fileUrl)}/${mode}`;
+}
+
+export function apiDownloadUrl(fileUrl: string): string {
+  return apiFileUrl(fileUrl, "download");
+}
+
+export function apiPreviewUrl(fileUrl: string): string {
+  return apiFileUrl(fileUrl, "preview");
+}

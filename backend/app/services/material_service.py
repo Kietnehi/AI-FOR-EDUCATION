@@ -118,23 +118,13 @@ class MaterialService:
                 destination.unlink()
             raise
 
-        # Persist file URL according to storage mode
-        if storage_service.enabled:
-            try:
-                object_name = f"uploads/{file_name}"
-                file_url = await storage_service.upload_file(
-                    file_path=str(destination),
-                    object_name=object_name,
-                    content_type=file.content_type or "application/octet-stream",
-                )
-                logger.info("Uploaded file to object storage: %s", file_url)
-            except Exception as e:
-                logger.warning("Failed to upload file to object storage, using local storage: %s", e)
-                file_url = storage_service.build_local_file_url(file_name)
-        else:
-            file_url = storage_service.build_local_file_url(file_name)
-
-        storage_type = storage_service.detect_storage_type(file_url)
+        file_url, storage_type = await storage_service.persist_file(
+            file_path=str(destination),
+            local_relative_path=file_name,
+            object_name=f"uploads/{file_name}",
+            content_type=file.content_type or "application/octet-stream",
+            preferred_storage_type=storage_service.default_storage_type(),
+        )
 
         now = utc_now()
         doc = {
