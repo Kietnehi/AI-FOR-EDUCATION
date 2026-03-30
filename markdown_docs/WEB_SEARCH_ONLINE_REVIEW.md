@@ -72,7 +72,7 @@
 
 - Dữ liệu trả về giữa các loại tìm kiếm chưa có schema thống nhất.
 - Frontend đang phụ thuộc nhiều vào `Record<string, any>`, nên khó kiểm soát chất lượng dữ liệu và dễ phát sinh lỗi giao diện.
-- Chuỗi tiếng Việt trong file UI hiện có dấu hiệu sai encoding ở nhiều vị trí.
+- Chuỗi tiếng Việt trong file UI và backend hiện đã được chuẩn hóa và hiển thị chính xác.
 - Các danh sách kết quả đang dùng `index` làm `key`, có thể gây render không ổn định khi dữ liệu thay đổi.
 - Chưa có cơ chế hủy request cũ hoặc chống race condition khi người dùng đổi tab/liên tục thao tác nhanh.
 - Chưa có phân trang hoặc tải thêm kết quả.
@@ -81,22 +81,7 @@
 
 ## Review kỹ thuật
 
-### 1. Rủi ro cao: lỗi encoding tiếng Việt trong UI
-
-Nhiều chuỗi tiếng Việt trong `frontend/app/web-search/page.tsx` và `backend/app/api/routes/web_search.py` đang hiển thị theo dạng lỗi mã hóa như `TÃ¬m kiáº¿m`, `Nguá»“n tin`, `KhÃ´ng cÃ³ tiÃªu Ä‘á»`.
-
-Tác động:
-
-- Làm giao diện thiếu chuyên nghiệp.
-- Gây khó hiểu cho người dùng cuối.
-- Khi xuất tài liệu hoặc dùng lại chuỗi mô tả, nội dung có thể tiếp tục sai.
-
-Khuyến nghị:
-
-- Chuẩn hóa toàn bộ file về UTF-8.
-- Rà soát tất cả chuỗi literal tiếng Việt trong frontend và backend của tính năng này.
-
-### 2. Rủi ro trung bình: typing quá lỏng cho dữ liệu kết quả
+### 1. Rủi ro trung bình: typing quá lỏng cho dữ liệu kết quả
 
 Trong `frontend/types/index.ts`, kiểu dữ liệu đang là:
 
@@ -117,7 +102,7 @@ Khuyến nghị:
 - Tạo union type riêng cho `text`, `news`, `images`, `videos`, `books`.
 - Chuẩn hóa payload backend theo schema thống nhất hơn.
 
-### 3. Rủi ro trung bình: dùng `index` làm `key` khi render list
+### 2. Rủi ro trung bình: dùng `index` làm `key` khi render list
 
 Các block render kết quả đang dùng `key={index}`.
 
@@ -198,7 +183,6 @@ GET /api/web-search/duckduckgo?q=<keyword>&type=<text|news|images|videos|books>&
 
 ### Ưu tiên cao
 
-- Sửa toàn bộ lỗi tiếng Việt/encoding
 - Chuẩn hóa type dữ liệu cho từng loại search
 - Thêm cơ chế chống race condition
 - Chuẩn hóa shape fallback của `books`
@@ -217,4 +201,4 @@ GET /api/web-search/duckduckgo?q=<keyword>&type=<text|news|images|videos|books>&
 
 ## Kết luận
 
-Chức năng `Search Website Online` hiện đã hoạt động được ở mức sử dụng thực tế, có đủ luồng nhập từ khóa, đổi loại tìm kiếm, hiển thị nhiều dạng kết quả và kết nối backend rõ ràng. Tuy nhiên, chất lượng hoàn thiện vẫn chưa cao vì còn lỗi tiếng Việt, typing lỏng, thiếu test và có nguy cơ sai trạng thái khi người dùng thao tác nhanh. Nếu xử lý 3 nhóm vấn đề chính là `encoding`, `schema dữ liệu`, và `ổn định request`, đây sẽ là một chức năng khá tốt và đủ nền tảng để mở rộng tiếp.
+Chức năng `Search Website Online` hiện đã hoạt động được ở mức sử dụng thực tế, có đủ luồng nhập từ khóa, đổi loại tìm kiếm, hiển thị nhiều dạng kết quả và kết nối backend rõ ràng. Tuy nhiên, chất lượng hoàn thiện vẫn còn không gian để nâng cấp tiếp, đặc biệt là typing dữ liệu, test và cơ chế ổn định request khi người dùng thao tác nhanh. Nếu xử lý 2 nhóm vấn đề chính là `schema dữ liệu` và `ổn định request`, đây sẽ là một chức năng khá tốt và đủ nền tảng để mở rộng tiếp.
