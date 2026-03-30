@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Sparkles, Info } from "lucide-react";
+
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -46,9 +47,8 @@ export function SlideGenerationDialog({
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Max Slides Input */}
         <div>
-          <label htmlFor="maxSlides" className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
+          <label htmlFor="maxSlides" className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">
             Số lượng slide
           </label>
           <div className="flex items-center gap-4">
@@ -58,22 +58,17 @@ export function SlideGenerationDialog({
               min="3"
               max="50"
               value={maxSlides}
-              onChange={(e) => setMaxSlides(parseInt(e.target.value))}
+              onChange={(e) => setMaxSlides(parseInt(e.target.value, 10))}
               disabled={loading}
-              className="flex-1 h-2 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer accent-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-[var(--bg-tertiary)] accent-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <div className="flex items-center justify-center w-16 h-10 rounded-lg bg-brand-50 dark:bg-brand-950/30 border border-brand-200 dark:border-brand-800/50">
-              <span className="text-lg font-bold text-brand-600 dark:text-brand-400">
-                {maxSlides}
-              </span>
+            <div className="flex h-10 w-16 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] shadow-sm">
+              <span className="text-lg font-bold text-brand-600 dark:text-brand-400">{maxSlides}</span>
             </div>
           </div>
-          <p className="text-xs text-[var(--text-tertiary)] mt-2">
-            Từ 3 đến 50 slides (khuyến nghị: 10-20)
-          </p>
+          <p className="mt-2 text-xs text-[var(--text-tertiary)]">Từ 3 đến 50 slides, khuyến nghị 10-20.</p>
         </div>
 
-        {/* Skip Refine Checkbox */}
         <div className="flex items-start gap-3">
           <input
             type="checkbox"
@@ -81,52 +76,51 @@ export function SlideGenerationDialog({
             checked={skipRefine}
             onChange={(e) => setSkipRefine(e.target.checked)}
             disabled={loading}
-            className="mt-0.5 w-4 h-4 rounded border-[var(--border-default)] bg-[var(--bg-primary)] accent-brand-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-0.5 h-4 w-4 cursor-pointer rounded border-[var(--border-default)] bg-[var(--bg-primary)] accent-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
           />
           <div>
-            <label htmlFor="skipRefine" className="text-sm font-medium text-[var(--text-primary)] cursor-pointer">
-              Tối ưu thời gian (skip refine)
+            <label htmlFor="skipRefine" className="cursor-pointer text-sm font-medium text-[var(--text-primary)]">
+              Tối ưu thời gian
             </label>
-            <p className="text-xs text-[var(--text-tertiary)] mt-1">
-              Giảm 50% thời gian xử lý, có thể ảnh hưởng chất lượng một chút
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+              Giảm thời gian xử lý, có thể ảnh hưởng nhẹ đến chất lượng refine.
             </p>
           </div>
         </div>
 
-        {/* Progress Bar when loading */}
         {loading && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[var(--text-secondary)] font-medium">Đang tạo slides...</span>
-              <span className="text-brand-600 dark:text-brand-400 font-semibold">{Math.round(progress)}%</span>
+              <span className="font-medium text-[var(--text-secondary)]">Đang tạo slides...</span>
+              <span className="font-semibold text-brand-600">{Math.round(progress)}%</span>
             </div>
-            <div className="w-full h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
               <div
                 className="h-full bg-gradient-to-r from-brand-500 to-accent-500 transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-xs text-[var(--text-tertiary)] text-center">
-              Vui lòng đợi, quá trình này có thể mất {estimatedTime}
+            <p className="text-center text-xs text-[var(--text-tertiary)]">
+              Vui lòng đợi, quá trình này có thể mất {estimatedTime}.
             </p>
           </div>
         )}
 
-        {/* Info Box */}
         {!loading && (
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
-            <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-900/20">
+            <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500" />
             <div className="text-sm">
-              <p className="text-blue-900 dark:text-blue-100 font-medium mb-1">Ước tính:</p>
-              <ul className="space-y-1 text-blue-700 dark:text-blue-300 text-xs">
-                <li>⏱ Thời gian: <span className="font-semibold">{estimatedTime}</span> {skipRefine && <span className="text-emerald-600 dark:text-emerald-400">(giảm 50%)</span>}</li>
-                <li>📄 Kết quả: File PPTX có thể tải về</li>
+              <p className="mb-1 font-medium text-blue-900 dark:text-blue-100">Ước tính:</p>
+              <ul className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+                <li>
+                  Thời gian: <span className="font-semibold">{estimatedTime}</span>
+                </li>
+                <li>Kết quả: file PPTX có thể tải về</li>
               </ul>
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-3 pt-2">
           <Button
             type="button"
@@ -140,7 +134,7 @@ export function SlideGenerationDialog({
           <Button
             type="submit"
             loading={loading}
-            icon={!loading ? <Sparkles className="w-4 h-4" /> : undefined}
+            icon={!loading ? <Sparkles className="h-4 w-4" /> : undefined}
             className="flex-1"
           >
             {loading ? "Đang tạo..." : "Bắt đầu tạo"}

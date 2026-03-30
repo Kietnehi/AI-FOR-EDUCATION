@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     notebooklm_generate_wait_seconds: int = 120
     notebooklm_headless: bool = False
 
+    use_object_storage: bool = False
     use_s3: bool = False
     minio_endpoint: str = "http://localhost:9000"
     minio_root_user: str = "minioadmin"

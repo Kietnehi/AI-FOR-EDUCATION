@@ -50,6 +50,21 @@ import {
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN");
 
+function getStorageLabel(storageType?: string): string {
+  switch ((storageType || "").toLowerCase()) {
+    case "local":
+      return "Local";
+    case "minio":
+      return "MinIO";
+    case "s3":
+      return "S3";
+    case "none":
+      return "Không có file";
+    default:
+      return "Không rõ";
+  }
+}
+
 export default function MaterialDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -130,7 +145,7 @@ export default function MaterialDetailPage() {
     }
   }
 
-    async function handleGenerate(type: "slides" | "podcast" | "minigame") {
+  async function handleGenerate(type: "slides" | "podcast" | "minigame") {
     // For slides, show dialog first
     if (type === "slides") {
       setShowSlideDialog(true);
@@ -140,19 +155,16 @@ export default function MaterialDetailPage() {
     // For other types, generate directly
     setBusyAction(type);
     try {
-      let generated;
-      if (type === "podcast") generated = await generatePodcast(materialId);
-      else {
+      if (type === "podcast") {
+        const generated = await generatePodcast(materialId);
+        router.push(`/materials/${materialId}/podcast?contentId=${generated.id}`);
+        return;
+      } else {
         // Minigame: navigate to minigame page without contentId
         // User will select game type there
         router.push(`/materials/${materialId}/minigame`);
-        setBusyAction("");
         return;
       }
-
-      // Minigame: navigate to minigame page without contentId.
-      // User will select game type there.
-      router.push(`/materials/${materialId}/minigame`);
     } catch (error) {
       setToast({ message: String(error), type: "error" });
     } finally {
@@ -402,6 +414,9 @@ export default function MaterialDetailPage() {
                     {material.education_level}
                   </span>
                 )}
+                <span className="text-xs px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-medium">
+                  Lưu trữ: {getStorageLabel(material.storage_type)}
+                </span>
                 <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
                   <Clock className="w-3 h-3" />
                   {DATE_FORMATTER.format(new Date(material.updated_at))}
@@ -735,4 +750,3 @@ export default function MaterialDetailPage() {
     </motion.div>
   );
 }
-

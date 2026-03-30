@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, StreamingResponse
+import mimetypes
 
 from app.core.config import settings
 from app.services.file_service import FileService
@@ -21,15 +22,9 @@ async def download_file(file_path: str):
     if file_path.startswith("http") or file_path.startswith(settings.minio_bucket):
         # It's a MinIO/S3 URL - download from storage service
         try:
-            # Extract object name from URL
-            if "/uploads/" in file_path:
-                object_name = "uploads/" + file_path.split("/uploads/")[-1].replace("/download", "")
-            elif "/generated/" in file_path:
-                object_name = "generated/" + file_path.split("/generated/")[-1].replace("/download", "")
-            elif "/podcasts/" in file_path:
-                object_name = "generated/podcasts/" + file_path.split("/podcasts/")[-1].replace("/download", "")
-            else:
-                object_name = file_path.split("/")[-1].replace("/download", "")
+            object_name = storage_service.extract_object_name(file_path)
+            if not object_name:
+                raise RuntimeError(f"Cannot resolve object name from path: {file_path}")
             
             # Download file from MinIO/S3
             file_bytes = await storage_service.download_file_obj(object_name)
@@ -60,6 +55,29 @@ async def download_file(file_path: str):
         path=file_path_resolved,
         filename=file_path_resolved.name,
         headers={"Cache-Control": "public, max-age=3600"} # Cache for 1 hour
+    )
+
+
+@router.get("/files/{file_path:path}/preview")
+async def preview_file(file_path: str):
+    media_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+
+    if file_path.startswith("http") or file_path.startswith(settings.minio_bucket):
+        object_name = storage_service.extract_object_name(file_path)
+        if not object_name:
+            raise RuntimeError(f"Cannot resolve object name from path: {file_path}")
+        file_bytes = await storage_service.download_file_obj(object_name)
+        return StreamingResponse(
+            iter([file_bytes]),
+            media_type=media_type,
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+    file_path_resolved = FileService.resolve_file_path(file_path)
+    return FileResponse(
+        path=file_path_resolved,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=3600"},
     )
 
 

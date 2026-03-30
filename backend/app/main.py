@@ -31,11 +31,14 @@ async def lifespan(_: FastAPI):
     
     # Initialize MinIO bucket
     from app.services.storage import storage_service
-    try:
-        storage_service.ensure_bucket_exists()
-        logger.info("MinIO bucket '%s' initialized successfully", storage_service.bucket_name)
-    except Exception as e:
-        logger.warning("Failed to initialize MinIO bucket: %s", e)
+    if storage_service.enabled:
+        try:
+            storage_service.ensure_bucket_exists()
+            logger.info("MinIO bucket '%s' initialized successfully", storage_service.bucket_name)
+        except Exception as e:
+            logger.warning("Failed to initialize MinIO bucket: %s", e)
+    else:
+        logger.info("Object storage disabled; using local filesystem storage")
     
     logger.info("Application startup complete")
     try:

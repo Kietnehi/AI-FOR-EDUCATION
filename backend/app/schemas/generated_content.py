@@ -37,6 +37,7 @@ class GenerateNotebookLMMediaRequest(BaseModel):
 class NotebookLMMediaFile(BaseModel):
     file_name: str
     file_url: str
+    storage_type: str | None = None
 
 
 class GenerateNotebookLMMediaResponse(BaseModel):
@@ -101,6 +102,7 @@ class GeneratedContentResponse(BaseModel):
     outline: list[str] = Field(default_factory=list)
     json_content: dict[str, Any] = Field(default_factory=dict)
     file_url: str | None = None
+    storage_type: str | None = None
     generation_status: GenerationStatus
     model_used: str | None = None
     fallback_applied: bool = False

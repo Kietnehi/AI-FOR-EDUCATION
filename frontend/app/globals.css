@@ -51,6 +51,7 @@
 :root {
     --bg-primary: #fafbfe;
     --bg-secondary: #f3f6fc;
+    --bg-tertiary: #eef2ff;
     --bg-elevated: #ffffff;
     --text-primary: #0f172a;
     --text-secondary: #475569;
@@ -78,7 +79,8 @@
 .dark {
     --bg-primary: #0b1120;
     --bg-secondary: #111827;
-    --bg-elevated: #1e293b;
+    --bg-tertiary: #1e293b;
+    --bg-elevated: #1f2937;
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
     --text-tertiary: #64748b;
@@ -278,6 +280,60 @@ main {
     transform: translateZ(0);
 }
 
+
+/* ---------- Custom Range Slider ---------- */
+
+input[type="range"] {
+    height: 6px;
+    width: 100%;
+    cursor: pointer;
+    appearance: none;
+    border-radius: 9999px;
+    background: var(--bg-tertiary);
+    transition: all 0.2s;
+}
+
+/* Chrome, Safari, Edge, Opera */
+input[type="range"]::-webkit-slider-thumb {
+    height: 18px;
+    width: 18px;
+    appearance: none;
+    border-radius: 50%;
+    border: 2px solid #6366f1; /* brand-500 */
+    background: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s;
+}
+
+.dark input[type="range"]::-webkit-slider-thumb {
+    background: #6366f1; /* brand-500 */
+    border-color: var(--bg-elevated);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+    transform: scale(1.1);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(0.95);
+}
+
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    appearance: none;
+    border-radius: 50%;
+    border: 2px solid #6366f1; /* brand-500 */
+    background: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s;
+}
+
+.dark input[type="range"]::-moz-range-thumb {
+    background: #6366f1; /* brand-500 */
+    border-color: var(--bg-elevated);
+}
 
 /* Optimization for off-screen heavy sections */
 

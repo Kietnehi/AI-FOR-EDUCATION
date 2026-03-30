@@ -49,6 +49,7 @@ class MaterialResponse(BaseModel):
     source_type: SourceType
     file_name: str | None = None
     file_url: str | None = None
+    storage_type: str | None = None
     tags: list[str] = Field(default_factory=list)
     processing_status: ProcessingStatus
     guardrail_status: str | None = None

@@ -13,42 +13,44 @@ from app.ai.generation.llm_client import LLMClient
 from app.core.logging import logger
 
 CHUNK_SYSTEM_PROMPT = """Bạn là chuyên gia trích xuất và tổ chức nội dung học thuật.
-Nhiệm vụ: TRICH XUAT va TO CHUC LAI thong tin tu CHUNK DUOC CUNG CAP thanh slide.
+Nhiệm vụ: TRÍCH XUẤT và TỔ CHỨC LẠI thông tin từ CHUNK ĐƯỢC CUNG CẤP thành slide.
 
-QUY TAC BAT BUOC:
-1) CHI TRICH XUAT - KHONG DUOC TAO MOI hoac THEM kien thuc ngoai chunk.
-2) Moi bullet phai la CAU TRUC XUAT TRUC TIEP tu chunk (facts, definitions, steps, examples CO SAN).
-3) Moi bullet phai dai 10-20 tu, BAO TOM day du y nghia cua doan text goc.
-4) NEU chunk co danh sach (list), dinh nghia, or buoc thuc hien → GIAI THICH RO RANG trong bullet.
-5) Moi slide phai co 3-5 bullets CHI TIET.
-6) Neu chunk ngan hoac it thong tin, van phai TRICH XUAT het thong tin co duoc.
+QUY TẮC BẮT BUỘC:
+1) SỬ DỤNG TIẾNG VIỆT CÓ DẤU HOÀN CHỈNH: Tất cả tiêu đề và nội dung bullets phải sử dụng tiếng Việt có dấu chuẩn, đúng ngữ pháp.
+2) CHỈ TRÍCH XUẤT - KHÔNG ĐƯỢC TẠO MỚI hoặc THÊM kiến thức ngoài chunk.
+3) Mỗi bullet phải là CÂU TRÍCH XUẤT TRỰC TIẾP từ chunk (facts, definitions, steps, examples CÓ SẴN).
+4) Mỗi bullet phải dài 10-20 từ, BAO TRÙM đầy đủ ý nghĩa của đoạn text gốc.
+5) NẾU chunk có danh sách (list), định nghĩa, hoặc bước thực hiện → GIẢI THÍCH RÕ RÀNG trong bullet.
+6) Mỗi slide phải có 3-5 bullets CHI TIẾT.
+7) Nếu chunk ngắn hoặc ít thông tin, vẫn phải TRÍCH XUẤT hết thông tin có được.
 
-VI DU CACH TRICH XUAT:
+VÍ DỤ CÁCH TRÍCH XUẤT:
 - Chunk: "Machine learning uses data to build models. It does not require explicit programming."
-  → Bullet: "Machine Learning la ky thuat su dung du lieu de xay dung mo hinh du doan, khong can lap trinh logic ro rang"
+  → Bullet: "Machine Learning là kỹ thuật sử dụng dữ liệu để xây dựng mô hình dự đoán, không cần lập trình logic rõ ràng"
 
 - Chunk: "K-means divides data into K clusters. Each cluster has a centroid."
-  → Bullet: "Thuat toan K-means chia du lieu thanh K nhom (clusters), moi nhom co mot diem trung tam (centroid)"
+  → Bullet: "Thuật toán K-means chia dữ liệu thành K nhóm (clusters), mỗi nhóm có một điểm trung tâm (centroid)"
 
-CAM:
-- Them y kien ca nhan
-- Tong quat hoa qua muc ("Machine Learning rat quan trong")
-- Bullets qua ngan khong ro nghia
+CẤM:
+- Viết tiếng Việt không dấu.
+- Thêm ý kiến cá nhân.
+- Tổng quát hóa quá mức ("Machine Learning rất quan trọng").
+- Bullets quá ngắn không rõ nghĩa.
 
-CHI TRA VE JSON HOP LE, KHONG markdown, KHONG giai thich.
+CHỈ TRẢ VỀ JSON HỢP LỆ, KHÔNG markdown, KHÔNG giải thích.
 """
 
-CHUNK_PROMPT_TEMPLATE = """Ten chunk: {chunk_title}
+CHUNK_PROMPT_TEMPLATE = """Tên chunk: {chunk_title}
 Tone: {tone}
-So slide toi da cho chunk nay: {slide_budget}
+Số slide tối đa cho chunk này: {slide_budget}
 
-NOI DUNG CHUNK:
+NỘI DUNG CHUNK:
 {chunk_content}
 
-METADATA ANH TU TAI LIEU (neu co):
+METADATA ẢNH TỪ TÀI LIỆU (nếu có):
 {available_images_json}
 
-YEU CAU OUTPUT CHINH XAC THEO FORMAT SAU:
+YÊU CẦU OUTPUT CHÍNH XÁC THEO FORMAT SAU (BẮT BUỘC TIẾNG VIỆT CÓ DẤU):
 {{
   "title": "...",
   "slides": [
@@ -60,27 +62,29 @@ YEU CAU OUTPUT CHINH XAC THEO FORMAT SAU:
   ]
 }}
 
-RANG BUOC:
-- So bullets moi slide: 3-5
-- Bullet phai TRICH XUAT TRUC TIEP tu chunk (10-20 tu/bullet, day du y nghia)
-- image_source_id: CHI dung image_id tu METADATA ANH ben tren, KHONG tao moi
-  + Neu co anh phu hop → dung image_id do (vi du: "img_0", "img_1")
-  + Neu khong co anh phu hop → DE TRONG ("image_source_id": null)
-- KHONG duoc them hoac bien doan noi dung chunk
+RÀNG BUỘC:
+- SỬ DỤNG TIẾNG VIỆT CÓ DẤU CHO TẤT CẢ NỘI DUNG.
+- Số bullets mỗi slide: 3-5
+- Bullet phải TRÍCH XUẤT TRỰC TIẾP từ chunk (10-20 từ/bullet, đầy đủ ý nghĩa)
+- image_source_id: CHỈ dùng image_id từ METADATA ẢNH bên trên, KHÔNG tạo mới
+  + Nếu có ảnh phù hợp → dùng image_id đó (ví dụ: "img_0", "img_1")
+  + Nếu không có ảnh phù hợp → ĐỂ TRỐNG ("image_source_id": null)
+- KHÔNG được thêm hoặc bịa đoán nội dung chunk
 """
 
-REFINE_SYSTEM_PROMPT = """Ban la reviewer toi uu bo slide hoc tap.
-Nhiem vu: CHI sap xep lai va loai bo trung lap - GIU NGUYEN TOI DA noi dung goc.
+REFINE_SYSTEM_PROMPT = """Bạn là reviewer tối ưu bộ slide học tập.
+Nhiệm vụ: CHỈ sắp xếp lại và loại bỏ trùng lặp - GIỮ NGUYÊN TỐI ĐA nội dung gốc.
 
-QUY TAC:
-1) Remove slides trung lap (tieu de va bullets giong >70%).
-2) Sap xep trinh tu logic (tong quat → chi tiet, co ban → nang cao).
-3) GIU NGUYEN 100% bullets da tot - CHI loai bo neu trung lap hoan toan.
-4) Dam bao moi slide co 3-5 bullets.
-5) NEU phai cat bot de <= gioi han: uu tien GIU slides co nhieu thong tin cu the nhat.
-6) KHONG DUOC sua doi, rut gon, hoac viet lai bullets da co - chi sap xep va chon loc.
+QUY TẮC:
+1) BẮT BUỘC TIẾNG VIỆT CÓ DẤU: Đảm bảo toàn bộ nội dung output là tiếng Việt có dấu chuẩn.
+2) Loại bỏ slides trùng lặp (tiêu đề và bullets giống >70%).
+3) Sắp xếp trình tự logic (tổng quát → chi tiết, cơ bản → nâng cao).
+4) GIỮ NGUYÊN 100% bullets đã tốt - CHỈ loại bỏ nếu trùng lặp hoàn toàn.
+5) Đảm bảo mỗi slide có 3-5 bullets.
+6) NẾU phải cắt bớt để <= giới hạn: ưu tiên GIỮ slides có nhiều thông tin cụ thể nhất.
+7) KHÔNG ĐƯỢC sửa đổi, rút gọn, hoặc viết lại bullets đã có - chỉ sắp xếp và chọn lọc.
 
-CHI TRA VE JSON HOP LE (khong markdown):
+CHỈ TRẢ VỀ JSON HỢP LỆ (không markdown):
 {
   "title": "...",
   "slides": [
@@ -225,6 +229,8 @@ class SlideGenerator:
             r"^(vi du|ví dụ)\s*(minh hoa|minh họa)?\s*$",
             r"^(khai niem|khái niệm)\s*(co ban|cơ bản)?\s*$",
             r"^(dinh nghia|định nghĩa)\s*(ro rang|rõ ràng)?\s*$",
+            r"^(ket luan|kết luận)\s*$",
+            r"^(tom tat|tóm tắt)\s*$",
         ]
 
         import re as regex
