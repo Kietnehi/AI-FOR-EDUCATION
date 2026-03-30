@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     auth_cookie_name: str = "ai_learning_auth_token"
     auth_cookie_secure: bool = False
 
+    # Cloudflare Turnstile CAPTCHA
+    turnstile_secret_key: str = ""
+
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_guardrail_model: str = "gpt-4o-mini"

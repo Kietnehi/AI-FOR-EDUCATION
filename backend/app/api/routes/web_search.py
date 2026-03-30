@@ -25,6 +25,69 @@ def _get_ddgs_class() -> type[DDGS]:
     """
     return DDGS
 
+
+def _search_wikimedia_images(query: str, max_results: int) -> list[dict[str, Any]]:
+    """Fallback image search using Wikimedia Commons when DuckDuckGo is unavailable."""
+    params = {
+        "action": "query",
+        "generator": "search",
+        "gsrsearch": query,
+        "gsrnamespace": "6",
+        "gsrlimit": str(max_results),
+        "prop": "imageinfo|info",
+        "iiprop": "url",
+        "iiurlwidth": "640",
+        "inprop": "url",
+        "format": "json",
+    }
+
+    with httpx.Client(timeout=10.0) as client:
+        response = client.get("https://commons.wikimedia.org/w/api.php", params=params)
+        response.raise_for_status()
+        pages = response.json().get("query", {}).get("pages", {})
+
+    results: list[dict[str, Any]] = []
+    for page in pages.values():
+        image_info = (page.get("imageinfo") or [{}])[0]
+        image_url = image_info.get("url")
+        thumbnail_url = image_info.get("thumburl") or image_url
+        page_url = page.get("fullurl") or image_url
+        title = (page.get("title") or "").removeprefix("File:")
+
+        if not image_url:
+            continue
+
+        results.append(
+            {
+                "title": title or "Wikimedia Commons image",
+                "image": image_url,
+                "thumbnail": thumbnail_url,
+                "url": page_url,
+                "source": "Wikimedia Commons",
+            }
+        )
+
+    return results
+
+
+def _looks_like_network_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return any(
+        marker in message
+        for marker in (
+            "connect",
+            "socket",
+            "timed out",
+            "timeout",
+            "forbidden by its access permissions",
+            "temporary failure",
+            "name resolution",
+            "dns",
+            "network",
+            "unreachable",
+        )
+    )
+
 async def _search_google_books(query: str, max_results: int) -> list[dict[str, Any]]:
     """Tìm kiếm sách từ Google Books API (Miễn phí)"""
     url = "https://www.googleapis.com/books/v1/volumes"
@@ -111,14 +174,19 @@ async def _search_google_books(query: str, max_results: int) -> list[dict[str, A
 def _run_ddgs_search(query: str, search_type: str, max_results: int) -> list[dict[str, Any]]:
     """Hàm chạy DuckDuckGo search cho các loại non-books"""
     ddgs_class = _get_ddgs_class()
-    with ddgs_class() as ddgs:
-        if search_type == "news":
-            return list(ddgs.news(query, max_results=max_results))
+    try:
+        with ddgs_class() as ddgs:
+            if search_type == "news":
+                return list(ddgs.news(query, max_results=max_results))
+            if search_type == "images":
+                return list(ddgs.images(query, max_results=max_results))
+            if search_type == "videos":
+                return list(ddgs.videos(query, max_results=max_results))
+            return list(ddgs.text(query, max_results=max_results))
+    except Exception:
         if search_type == "images":
-            return list(ddgs.images(query, max_results=max_results))
-        if search_type == "videos":
-            return list(ddgs.videos(query, max_results=max_results))
-        return list(ddgs.text(query, max_results=max_results))
+            return _search_wikimedia_images(query, max_results)
+        raise
 
 @router.get("/duckduckgo")
 async def search_duckduckgo(
@@ -133,5 +201,11 @@ async def search_duckduckgo(
 
         # Các loại khác chạy qua thread pool để không block event loop
         return await asyncio.to_thread(_run_ddgs_search, q, type, max_results)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"Dich vu tim kiem tra ve loi HTTP: {exc}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail=f"Khong the ket noi dich vu tim kiem: {exc}") from exc
     except Exception as exc:
+        if _looks_like_network_error(exc):
+            raise HTTPException(status_code=503, detail=f"Khong the ket noi dich vu tim kiem: {exc}") from exc
         raise HTTPException(status_code=500, detail=f"Lỗi tìm kiếm: {exc}") from exc

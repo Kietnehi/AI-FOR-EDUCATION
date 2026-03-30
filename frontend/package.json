@@ -15,7 +15,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@react-oauth/google": "^0.12.2",
+        "@react-oauth/google": "^0.13.4",
         "@react-three/drei": "^9.96.1",
         "@react-three/fiber": "^8.15.12",
         "@tailwindcss/postcss": "^4.2.2",
