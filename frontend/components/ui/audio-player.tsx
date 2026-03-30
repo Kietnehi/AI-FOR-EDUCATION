@@ -7,13 +7,19 @@ import { Button } from "./button";
 
 interface AudioPlayerProps {
   audioUrl: string;
+  downloadUrl?: string;
   title?: string;
   className?: string;
 }
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-export function AudioPlayer({ audioUrl, title = "Podcast Audio", className = "" }: AudioPlayerProps) {
+export function AudioPlayer({
+  audioUrl,
+  downloadUrl,
+  title = "Podcast Audio",
+  className = "",
+}: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const timeUpdateRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -117,7 +123,7 @@ export function AudioPlayer({ audioUrl, title = "Podcast Audio", className = "" 
 
   const downloadAudio = () => {
     const link = document.createElement("a");
-    link.href = audioUrl;
+    link.href = downloadUrl || audioUrl;
     link.download = `${title}.mp3`;
     document.body.appendChild(link);
     link.click();

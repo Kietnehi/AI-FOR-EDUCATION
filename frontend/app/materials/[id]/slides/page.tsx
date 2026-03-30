@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { apiDownloadUrl, getGeneratedContent } from "@/lib/api";
+import { apiDownloadUrl, apiPreviewUrl, getGeneratedContent } from "@/lib/api";
 import { GeneratedContent } from "@/types";
 
 interface SlideElement {
@@ -185,7 +185,7 @@ export default function SlidesPage() {
       >
         {imageUrl ? (
           <img
-            src={apiDownloadUrl(imageUrl).replace("/download", "/preview")}
+            src={apiPreviewUrl(imageUrl)}
             alt={context || sourceId || "Ảnh minh họa slide"}
             className="h-56 w-full object-contain bg-white/80"
           />

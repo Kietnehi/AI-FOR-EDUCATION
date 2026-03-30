@@ -12,7 +12,7 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/ui/audio-player";
-import { apiDownloadUrl, getGeneratedContent } from "@/lib/api";
+import { apiDownloadUrl, apiPreviewUrl, getGeneratedContent } from "@/lib/api";
 import { GeneratedContent } from "@/types";
 
 export default function PodcastPage() {
@@ -125,7 +125,8 @@ export default function PodcastPage() {
           {content.file_url && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
               <AudioPlayer
-                audioUrl={apiDownloadUrl(content.file_url)}
+                audioUrl={apiPreviewUrl(content.file_url)}
+                downloadUrl={apiDownloadUrl(content.file_url)}
                 title={content.json_content?.title || "Podcast Audio"}
                 className="shadow-lg border-0 ring-1 ring-[var(--border-light)]"
               />

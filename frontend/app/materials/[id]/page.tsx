@@ -35,6 +35,7 @@ import {
   generateSlides,
   getMaterial,
   apiDownloadUrl,
+  apiPreviewUrl,
   processMaterial,
   confirmNotebookLMDownload,
   cancelNotebookLMSession,
@@ -583,7 +584,7 @@ export default function MaterialDetailPage() {
               )}
               {notebookSaved.videos.map((item) => (
                 <div key={item.file_name} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)]">
-                  <video controls preload="metadata" className="w-full rounded-lg mb-2" src={apiDownloadUrl(item.file_url)} />
+                  <video controls preload="metadata" className="w-full rounded-lg mb-2" src={apiPreviewUrl(item.file_url)} />
                   <div className="flex flex-col gap-2 mt-3">
                     <span className="text-xs font-medium text-[var(--text-tertiary)] truncate px-1" title={item.file_name}>
                       {item.file_name}
@@ -616,7 +617,7 @@ export default function MaterialDetailPage() {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={apiDownloadUrl(item.file_url)}
+                      src={apiPreviewUrl(item.file_url)}
                       alt={item.file_name}
                       loading="lazy"
                       decoding="async"
@@ -672,7 +673,7 @@ export default function MaterialDetailPage() {
               <div className="max-h-[78vh] overflow-auto rounded-2xl bg-[var(--bg-secondary)] p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={apiDownloadUrl(selectedInfographic.file_url)}
+                  src={apiPreviewUrl(selectedInfographic.file_url)}
                   alt={selectedInfographic.file_name}
                   loading="lazy"
                   decoding="async"
