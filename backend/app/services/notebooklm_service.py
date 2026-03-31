@@ -45,6 +45,10 @@ class NotebookLMService:
         """Delete temp session files."""
         return await self._cancel_session_async(session_id)
 
+    def get_session_data(self, session_id: str) -> dict | None:
+        """Get data for an active session."""
+        return _active_sessions.get(session_id)
+
     async def _generate_media_from_material_async(self, material: dict, guidance: str | None = None) -> dict:
         # Get the original source file from material
         file_url = material.get("file_url")

@@ -12,6 +12,7 @@ from app.services.material_service import MaterialService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
+
 class ChatService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.chat_repo = ChatRepository(db)
@@ -22,8 +23,10 @@ class ChatService:
     async def create_session(
         self, material_id: str, user_id: str, session_title: str | None
     ) -> dict:
-        material = await self.material_service.get_material(material_id, user_id=user_id)
-        title = session_title or f"Chat ve {material['title']}"
+        material = await self.material_service.get_material(
+            material_id, user_id=user_id
+        )
+        title = session_title or f"Chat về {material['title']}"
         now = utc_now()
         payload = {
             "user_id": user_id,
@@ -34,6 +37,12 @@ class ChatService:
         }
         return await self.chat_repo.create_session(payload)
 
+    def _build_session_title(self, message: str, fallback: str) -> str:
+        normalized = " ".join(str(message).strip().split())
+        if not normalized:
+            return fallback
+        return normalized[:57] + "..." if len(normalized) > 60 else normalized
+
     async def get_session_detail(self, session_id: str, user_id: str) -> dict:
         session = await self.chat_repo.get_session_for_user(
             parse_object_id(session_id), user_id
@@ -42,6 +51,39 @@ class ChatService:
             raise HTTPException(status_code=404, detail="Session not found")
         messages = await self.chat_repo.list_messages(session_id)
         return {"session": session, "messages": messages}
+
+    async def list_sessions(self, material_id: str, user_id: str) -> list[dict]:
+        return await self.chat_repo.list_sessions_for_user(user_id, material_id)
+
+    async def delete_session(self, session_id: str, user_id: str) -> bool:
+        return await self.chat_repo.delete_session_for_user(
+            parse_object_id(session_id), user_id
+        )
+
+    async def delete_sessions_by_material(self, material_id: str, user_id: str) -> int:
+        return await self.chat_repo.delete_sessions_for_user_by_material(
+            user_id, material_id
+        )
+
+    async def get_mascot_session_detail(self, session_id: str, user_id: str) -> dict:
+        session = await self.chat_repo.get_mascot_session_for_user(
+            parse_object_id(session_id), user_id
+        )
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        messages = await self.chat_repo.list_mascot_messages(session_id)
+        return {"session": session, "messages": messages}
+
+    async def list_mascot_sessions(self, user_id: str) -> list[dict]:
+        return await self.chat_repo.list_mascot_sessions_for_user(user_id)
+
+    async def delete_mascot_session(self, session_id: str, user_id: str) -> bool:
+        return await self.chat_repo.delete_mascot_session_for_user(
+            parse_object_id(session_id), user_id
+        )
+
+    async def delete_all_mascot_sessions(self, user_id: str) -> int:
+        return await self.chat_repo.delete_all_mascot_sessions_for_user(user_id)
 
     async def add_user_message_and_answer(
         self,
@@ -60,11 +102,23 @@ class ChatService:
             raise HTTPException(status_code=404, detail="Session not found")
 
         now = utc_now()
+        existing_messages = await self.chat_repo.list_messages(session_id, limit=1)
+        if not existing_messages:
+            default_title = session.get("session_title") or "Đoạn chat mới"
+            await self.chat_repo.update_session(
+                parse_object_id(session_id),
+                {
+                    "session_title": self._build_session_title(message, default_title),
+                    "updated_at": now,
+                },
+            )
+
         await self.chat_repo.create_message(
             {
                 "session_id": session_id,
                 "role": "user",
                 "message": message,
+                "images": images or [],
                 "citations": [],
                 "created_at": now,
             }
@@ -129,7 +183,9 @@ class ChatService:
             mascot_session = await self.chat_repo.create_mascot_session(
                 {
                     "user_id": user_id,
-                    "session_title": "Mascot chat",
+                    "session_title": self._build_session_title(
+                        message, "Cuộc trò chuyện mới"
+                    ),
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -141,6 +197,7 @@ class ChatService:
                 "session_id": mascot_session_id,
                 "role": "user",
                 "message": message,
+                "images": images or [],
                 "created_at": utc_now(),
             }
         )
@@ -157,7 +214,9 @@ class ChatService:
                     message,
                     search_result,
                 )
-                final_answer = refined_answer or str(search_result.get("answer", "")).strip()
+                final_answer = (
+                    refined_answer or str(search_result.get("answer", "")).strip()
+                )
                 search_provider = search_result.get("search_provider")
 
                 web_search_metadata = {
@@ -190,6 +249,7 @@ class ChatService:
                         "role": "assistant",
                         "message": final_answer,
                         "created_at": utc_now(),
+                        "is_web_search": True,
                         **web_search_metadata,
                     }
                 )
@@ -301,6 +361,7 @@ class ChatService:
                 "session_id": session_id,
                 "role": "user",
                 "message": query,
+                "images": [],
                 "citations": [],
                 "created_at": now,
             }
@@ -314,7 +375,9 @@ class ChatService:
                 use_google,
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Tìm kiếm web thất bại: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Tìm kiếm web thất bại: {str(e)}"
+            )
 
         refined_answer = str(search_result.get("answer", "")).strip()
         refinement_model_used: str | None = None
@@ -346,7 +409,9 @@ class ChatService:
                 ],
                 "created_at": utc_now(),
                 "model_used": refinement_model_used or search_result.get("model"),
-                "fallback_applied": search_result.get("search_provider") != "google_search",
+                "fallback_applied": search_result.get("search_provider")
+                != "google_search",
+                "is_web_search": True,
                 "search_results": {
                     "sources": [
                         {
@@ -360,7 +425,9 @@ class ChatService:
                     "search_provider": search_result.get("search_provider"),
                     "search_queries": search_result.get("search_queries", []),
                     "raw_text": str(
-                        search_result.get("raw_text") or search_result.get("answer") or ""
+                        search_result.get("raw_text")
+                        or search_result.get("answer")
+                        or ""
                     ),
                     "refined_with_llm": bool(refinement_model_used),
                     "search_model": search_result.get("model"),
@@ -385,7 +452,9 @@ class ChatService:
             return "", None
 
         # Đưa toàn bộ dữ liệu từ tool search vào prompt để LLM không bỏ sót thông tin.
-        full_tool_output = json.dumps(search_result, ensure_ascii=False, default=str, indent=2)
+        full_tool_output = json.dumps(
+            search_result, ensure_ascii=False, default=str, indent=2
+        )
 
         system_prompt = (
             "Bạn là biên tập viên tiếng Việt. "

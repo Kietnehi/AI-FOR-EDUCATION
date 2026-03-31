@@ -4,7 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-ContentType = Literal["slides", "podcast", "minigame", "chatbot_config", "quiz"]
+ContentType = Literal["slides", "podcast", "minigame", "chatbot_config", "quiz", "video", "infographic"]
 GenerationStatus = Literal["queued", "generating", "generated", "failed"]
 
 
@@ -17,21 +17,25 @@ class GenerateSlidesRequest(BaseModel):
         description="Số lượng slide tối đa muốn tạo (3-50 slides)"
     )
     skip_refine: bool = Field(default=False, description="Skip LLM refine step to save cost (may reduce quality)")
+    force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
 
 
 class GeneratePodcastRequest(BaseModel):
     style: Literal["lecturer", "two_hosts", "quick_summary"] = "lecturer"
     target_duration_minutes: int = Field(default=8, ge=3, le=30)
+    force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
 
 
 class GenerateMinigameRequest(BaseModel):
     game_type: Literal["quiz_mixed", "flashcard", "shooting_quiz"] = "quiz_mixed"
+    force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
 
 
 class GenerateNotebookLMMediaRequest(BaseModel):
     prompt: str | None = Field(default=None, min_length=5, max_length=2000)
     guidance: str | None = Field(default=None, max_length=2000)
     confirm: bool = Field(default=False, description="Set to true to start generation. First call with confirm=false to get confirmation prompt.")
+    force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
 
 
 class NotebookLMMediaFile(BaseModel):

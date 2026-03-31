@@ -135,6 +135,8 @@ services:
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
+      - "6080:6080"
+      - "5900:5900"
     deploy:
       resources:
         reservations:
@@ -148,7 +150,7 @@ services:
       mongo:
         condition: service_healthy
         required: false
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio --reload --reload-dir /app
+    command: bash /app/start-backend-with-gui.sh uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio --reload --reload-dir /app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
