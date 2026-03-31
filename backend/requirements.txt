@@ -24,6 +24,8 @@ groq
 gTTS
 playwright
 docling
+torch
+onnxruntime
 pywin32; platform_system == "Windows"
 nest_asyncio
 pandas

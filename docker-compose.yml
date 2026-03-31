@@ -64,6 +64,7 @@ services:
       - local-db
 
   backend:
+    gpus: all
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -127,11 +128,20 @@ services:
       MATERIAL_GUARDRAIL_EXCERPT_CHARS: ${MATERIAL_GUARDRAIL_EXCERPT_CHARS:-12000}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
       WATCHFILES_FORCE_POLLING: "true"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     depends_on:
       redis:
         condition: service_healthy
@@ -174,6 +184,7 @@ services:
     command: npm run dev -- -H 0.0.0.0 -p 3000
 
   celery-worker:
+    gpus: all
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -236,9 +247,18 @@ services:
       MASCOT_MEMORY_TURNS: ${MASCOT_MEMORY_TURNS:-10}
       MATERIAL_GUARDRAIL_EXCERPT_CHARS: ${MATERIAL_GUARDRAIL_EXCERPT_CHARS:-12000}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
       - backend_storage:/app/storage
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     depends_on:
       redis:
         condition: service_healthy
@@ -256,9 +276,9 @@ services:
       start_period: 30s
 
   celery-flower:
-    build: ./backend
+    image: mher/flower:latest
     container_name: any2-flower
-    command: celery -A app.tasks.celery_app flower --port=5555
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
     ports:
       - "5555:5555"
     environment:
