@@ -51,7 +51,9 @@
 
 </div>
 
-![AI Learning Studio Pipeline](image/pipeline.png)
+![Tổng Quan Project](image/Tong_Quan_Project.png)
+
+
 
 # 🎓 AI Learning Studio — Nền tảng AI Tạo Học Liệu Số
 
@@ -65,6 +67,8 @@ Dự án được chia thành 2 luồng xử lý chính:
   * **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (nhận diện giọng nói bằng Whisper, đọc ảnh bằng OCR), kết hợp tìm kiếm web (Tavily) để tự động hóa việc tạo ra các học liệu trực quan như: Slide bài giảng, Video, Infographic, âm thanh (TTS) và tự động chấm điểm (SCORE).
 
 **🛠 Công nghệ cốt lõi:** FastAPI, Node.js, MongoDB, Hệ sinh thái Vector DB (Chroma, Pinecone, Milvus), và đa dạng mô hình AI (LLM, Hugging Face).
+
+![AI Learning Studio Pipeline](image/pipeline.png)
 ## Tính năng chính
 
 - 📊 **Tạo slide bài giảng** `.pptx` tự động bằng `python-pptx`
