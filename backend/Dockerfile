@@ -4,6 +4,8 @@ ARG CUDA_RUNTIME_IMAGE=nvidia/cuda:12.8.0-runtime-ubuntu22.04
 FROM ${CUDA_RUNTIME_IMAGE} AS base
 
 ARG TORCH_CUDA_CHANNEL=cu128
+ARG INSTALL_GPU_RUNTIME=1
+ARG INSTALL_PLAYWRIGHT_BROWSER=1
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -68,11 +70,16 @@ COPY requirements.txt ./
 
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt \
-    && pip install --no-cache-dir --force-reinstall --index-url https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL} torch torchvision \
-    && pip install --no-cache-dir --force-reinstall onnxruntime-gpu \
+    && if [ "$INSTALL_GPU_RUNTIME" = "1" ]; then \
+        pip install --no-cache-dir --force-reinstall --index-url https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL} torch torchvision; \
+        pip install --no-cache-dir --force-reinstall onnxruntime-gpu; \
+    fi \
+    && if [ "$INSTALL_PLAYWRIGHT_BROWSER" = "1" ]; then \
+        mkdir -p $PLAYWRIGHT_BROWSERS_PATH; \
+        playwright install chrome; \
+        playwright install-deps chrome; \
+    fi \
     && mkdir -p $PLAYWRIGHT_BROWSERS_PATH \
-    && playwright install chrome \
-    && playwright install-deps chrome \
     && chmod -R 777 $PLAYWRIGHT_BROWSERS_PATH
 
 COPY . .

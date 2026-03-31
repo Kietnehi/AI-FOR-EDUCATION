@@ -122,8 +122,17 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
         </div>
       )}
       <Link href="/" className="flex items-center gap-3 px-6 h-20 border-b border-[var(--border-light)] no-underline group overflow-hidden shrink-0">
-        <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 bg-[var(--bg-secondary)] rounded-[14px] shadow-sm border border-[var(--border-light)] group-hover:shadow group-hover:scale-105 transition-all duration-300 p-0.5">
-          <img src="/logo.png" alt="AI Learning Studio" className="w-full h-full object-cover rounded-xl" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+        <div className="relative flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-[18px] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-brand-700 p-[1px] shadow-[0_18px_34px_-18px_rgba(79,70,229,0.55)] transition-all duration-300 group-hover:scale-[1.04] group-hover:shadow-[0_22px_40px_-18px_rgba(79,70,229,0.7)]">
+          <span className="absolute inset-[1px] rounded-[17px] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.3),transparent_55%),linear-gradient(160deg,rgba(15,23,42,0.96),rgba(49,46,129,0.88))]" />
+          <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-white/60 bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.7)]" />
+          <span className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[17px] bg-white/95 px-2 py-2 shadow-inner">
+            <img
+              src="/logo.png"
+              alt="AI Learning Studio"
+              className="h-full w-full object-contain drop-shadow-[0_6px_10px_rgba(15,23,42,0.18)]"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+            />
+          </span>
         </div>
         <div
           className="flex flex-col justify-center whitespace-nowrap transition-all duration-300"
@@ -138,7 +147,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, width, setWi
           >
             AI Learning
           </span>
-          <span className="font-bold text-[13px] text-indigo-600 tracking-[0.1em] uppercase leading-none">
+          <span className="font-bold text-[13px] bg-gradient-to-r from-indigo-600 via-violet-600 to-sky-500 bg-clip-text text-transparent tracking-[0.14em] uppercase leading-none">
             Studio
           </span>
         </div>

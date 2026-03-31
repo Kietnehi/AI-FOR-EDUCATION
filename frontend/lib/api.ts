@@ -23,6 +23,14 @@ export interface AuthUser {
   picture?: string;
 }
 
+export interface CooperationContactPayload {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  captchaToken: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
 type ApiFetchOptions = RequestInit & {
@@ -205,6 +213,21 @@ export async function logout(): Promise<{ message: string }> {
 
 export async function getMe(): Promise<AuthUser> {
   return apiFetch<AuthUser>("/auth/me");
+}
+
+export async function submitCooperationContact(
+  payload: CooperationContactPayload
+): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/contact/cooperation", {
+    method: "POST",
+    body: JSON.stringify({
+      name: payload.name,
+      email: payload.email,
+      subject: payload.subject,
+      message: payload.message,
+      captcha_token: payload.captchaToken,
+    }),
+  });
 }
 
 export async function listMaterials(): Promise<{ items: Material[]; total: number }> {

@@ -17,6 +17,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        INSTALL_GPU_RUNTIME: "0"
+        INSTALL_PLAYWRIGHT_BROWSER: "0"
     container_name: any2-backend
     restart: unless-stopped
     environment:

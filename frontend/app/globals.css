@@ -342,3 +342,263 @@ input[type="range"]::-moz-range-thumb {
     contain-intrinsic-size: 1px 400px;
     /* Placeholder size for better scrollbar stability */
 }
+
+.tech-stack-card {
+    border-color: rgba(226, 232, 240, 0.9);
+    background:
+        radial-gradient(circle at top left, rgba(129, 140, 248, 0.14), transparent 32%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.94));
+}
+
+.dark .tech-stack-card {
+    border-color: rgba(71, 85, 105, 0.35);
+    background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 30%),
+        radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.97));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 24px 50px -32px rgba(2, 6, 23, 0.9);
+}
+
+.tech-stack-kicker {
+    color: var(--color-brand-600);
+}
+
+.dark .tech-stack-kicker {
+    color: rgba(129, 140, 248, 0.95);
+}
+
+.tech-stack-heading {
+    color: var(--text-primary);
+}
+
+.dark .tech-stack-heading {
+    color: rgba(248, 250, 252, 0.98);
+}
+
+.logo-marquee-shell {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    padding: 0.65rem 0;
+    isolation: isolate;
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.dark .logo-marquee-shell {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+}
+
+.logo-marquee-shell::before,
+.logo-marquee-shell::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4.5rem;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.logo-marquee-shell::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--bg-elevated) 0%, transparent 100%);
+}
+
+.logo-marquee-shell::after {
+    right: 0;
+    background: linear-gradient(270deg, var(--bg-elevated) 0%, transparent 100%);
+}
+
+.dark .logo-marquee-shell::before {
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.2) 70%, transparent 100%);
+}
+
+.dark .logo-marquee-shell::after {
+    background: linear-gradient(270deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.2) 70%, transparent 100%);
+}
+
+.logo-marquee-track {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: max-content;
+    animation: logo-marquee 42s linear infinite;
+}
+
+.logo-marquee-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.875rem;
+    min-width: 11.5rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 16px 28px -24px rgba(15, 23, 42, 0.32);
+    backdrop-filter: blur(10px);
+}
+
+.dark .logo-marquee-item {
+    border-color: rgba(148, 163, 184, 0.09);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.92));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 20px 30px -24px rgba(2, 6, 23, 0.8);
+}
+
+.logo-marquee-thumb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.25rem;
+    height: 3rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid rgba(226, 232, 240, 0.88);
+    border-radius: 0.95rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 10px 18px -14px rgba(15, 23, 42, 0.35);
+}
+
+.dark .logo-marquee-thumb {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.985));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 12px 24px -18px rgba(96, 165, 250, 0.2);
+}
+
+.logo-marquee-image {
+    width: auto;
+    height: 2rem;
+    object-fit: contain;
+    filter: saturate(1.02) contrast(1.04);
+}
+
+.logo-marquee-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.dark .logo-marquee-label {
+    color: rgba(226, 232, 240, 0.96);
+}
+
+@keyframes logo-marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(calc(-50% - 0.5rem));
+    }
+}
+
+@media (max-width: 640px) {
+    .logo-marquee-shell::before,
+    .logo-marquee-shell::after {
+        width: 2.5rem;
+    }
+
+    .logo-marquee-item {
+        min-width: 9.75rem;
+        padding: 0.8rem 0.95rem;
+    }
+
+    .logo-marquee-thumb {
+        min-width: 3.65rem;
+        height: 2.75rem;
+        padding: 0.45rem 0.65rem;
+    }
+
+    .logo-marquee-image {
+        height: 1.7rem;
+    }
+
+    .logo-marquee-label {
+        font-size: 0.85rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .logo-marquee-track {
+        animation: none;
+    }
+}
+
+/* ---------- Premium Video Section Animations ---------- */
+
+@keyframes spin-slow {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse-slow {
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+@keyframes shimmer-video {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes bounce-slow {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* Animation utilities */
+.animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
+}
+
+.animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+    animation: shimmer-video 2s ease-in-out infinite;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+.animate-bounce-slow {
+    animation: bounce-slow 2s ease-in-out infinite;
+}

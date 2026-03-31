@@ -32,6 +32,11 @@ class Settings(BaseSettings):
 
     # Cloudflare Turnstile CAPTCHA
     turnstile_secret_key: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    contact_recipient_email: str = ""
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
@@ -112,6 +117,8 @@ class Settings(BaseSettings):
         # Ensure gemini_api_key reflects the first key for backward compatibility
         if self.gemini_api_keys:
             self.gemini_api_key = self.gemini_api_keys[0]
+        if not self.contact_recipient_email and self.smtp_user:
+            self.contact_recipient_email = self.smtp_user
         return self
 
 
