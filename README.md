@@ -68,7 +68,13 @@ Dự án được chia thành 2 luồng xử lý chính:
 
 **🛠 Công nghệ cốt lõi:** FastAPI, Node.js, MongoDB, Hệ sinh thái Vector DB (Chroma, Pinecone, Milvus), và đa dạng mô hình AI (LLM, Hugging Face).
 
-![AI Learning Studio Pipeline](image/pipeline.png)
+
+<p align="center">
+  <img src="image/pipeline.png" alt="AI Learning Studio Pipeline" width="100%" />
+  <br>
+  <em>Hình 1: Full Pipeline Project (vẽ bằng Excalidraw)</em>
+</p>
+
 ## Tính năng chính
 
 - 📊 **Tạo slide bài giảng** `.pptx` tự động bằng `python-pptx`
