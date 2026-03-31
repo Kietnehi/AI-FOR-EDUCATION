@@ -12,6 +12,7 @@ interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
   icon?: ReactNode;
   children?: ReactNode;
   loading?: boolean;
+  fullWidth?: boolean;
 }
 
 const variantClasses: Record<Variant, string> = {
@@ -34,7 +35,7 @@ const sizeClasses: Record<Size, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = "primary", size = "md", icon, loading, children, className = "", disabled, ...props }, ref) => {
+  ({ variant = "primary", size = "md", icon, loading, children, className = "", disabled, fullWidth = false, ...props }, ref) => {
     return (
       <motion.button
         ref={ref}
@@ -47,6 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
           ${variantClasses[variant]}
           ${sizeClasses[size]}
+          ${fullWidth ? "w-full" : ""}
           ${className}
         `}
         disabled={disabled || loading}
