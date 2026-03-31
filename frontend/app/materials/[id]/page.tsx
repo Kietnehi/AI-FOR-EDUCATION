@@ -21,6 +21,9 @@ import {
   Pencil,
   Trash2,
   Check,
+  Eye,
+  Play,
+  RefreshCw,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +47,7 @@ import {
   updateMaterial,
   confirmNotebookLMDownload,
   cancelNotebookLMSession,
+  listGeneratedContents,
 } from "@/lib/api";
 import {
   Material,
@@ -52,6 +56,7 @@ import {
   NotebookLMConfirmationResult,
   NotebookLMResponse,
   NotebookLMSavedResult,
+  GeneratedContent,
 } from "@/types";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN");
@@ -84,6 +89,7 @@ export default function MaterialDetailPage() {
   const materialId = params.id;
 
   const [material, setMaterial] = useState<Material | null>(null);
+  const [generatedContents, setGeneratedContents] = useState<GeneratedContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
   const [isFullPreview, setIsFullPreview] = useState(false);
@@ -117,22 +123,29 @@ export default function MaterialDetailPage() {
   useEffect(() => {
     if (!materialId) return;
     let cancelled = false;
-    getMaterial(materialId)
-      .then((data) => {
+
+    async function fetchData() {
+      try {
+        const [materialData, contentsData] = await Promise.all([
+          getMaterial(materialId),
+          listGeneratedContents(materialId),
+        ]);
         if (!cancelled) {
-          setMaterial(data);
+          setMaterial(materialData);
+          setGeneratedContents(contentsData);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!cancelled) {
           setToast({ message: String(error), type: "error" });
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setLoading(false);
         }
-      });
+      }
+    }
+
+    fetchData();
 
     return () => {
       cancelled = true;
@@ -465,24 +478,27 @@ export default function MaterialDetailPage() {
   const contentActions = [
     {
       id: "slides",
-      label: "Tạo Slides",
+      label: "Slides bài giảng",
       icon: Presentation,
       gradient: "from-brand-500 to-brand-600",
       desc: "Tạo file PPTX tự động",
+      existing: generatedContents.find(c => c.content_type === "slides")
     },
     {
       id: "podcast",
-      label: "Tạo Podcast",
+      label: "Podcast học tập",
       icon: Mic,
       gradient: "from-accent-500 to-accent-600",
       desc: "Kịch bản audio chi tiết",
+      existing: generatedContents.find(c => c.content_type === "podcast")
     },
     {
       id: "minigame",
-      label: "Tạo Minigame",
+      label: "Minigame tương tác",
       icon: Gamepad2,
       gradient: "from-emerald-500 to-emerald-600",
       desc: "Quiz, flashcard, điền từ",
+      existing: generatedContents.find(c => c.content_type === "minigame")
     },
   ];
 
@@ -591,8 +607,18 @@ export default function MaterialDetailPage() {
           {contentActions.map((action) => {
             const Icon = action.icon;
             const isBusy = busyAction === action.id;
+            const existing = action.existing;
+            
             return (
-              <Card key={action.id} hover className="group">
+              <Card key={action.id} hover className="group relative">
+                {existing && (
+                  <div className="absolute top-3 right-3">
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                      <Check className="w-3 h-3" />
+                      Đã tạo
+                    </span>
+                  </div>
+                )}
                 <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${action.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
@@ -602,14 +628,48 @@ export default function MaterialDetailPage() {
                 <p className="text-sm text-[var(--text-secondary)] mb-4">
                   {action.desc}
                 </p>
-                <Button
-                  size="sm"
-                  onClick={() => handleGenerate(action.id as "slides" | "podcast" | "minigame")}
-                  loading={isBusy}
-                  disabled={busyAction.length > 0}
-                >
-                  {isBusy ? "Đang tạo..." : "Bắt đầu tạo"}
-                </Button>
+                <div className="flex flex-col gap-2 w-full">
+                  {!existing ? (
+                    <Button
+                      fullWidth
+                      size="lg"
+                      onClick={() => handleGenerate(action.id as "slides" | "podcast" | "minigame")}
+                      loading={isBusy}
+                      disabled={busyAction.length > 0}
+                      className="rounded-2xl shadow-sm hover:shadow-md transition-all h-11"
+                    >
+                      Bắt đầu tạo
+                    </Button>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        fullWidth
+                        size="lg"
+                        onClick={() => handleGenerate(action.id as "slides" | "podcast" | "minigame")}
+                        loading={isBusy}
+                        disabled={busyAction.length > 0}
+                        icon={action.id === "minigame" ? <Play className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        className={`rounded-2xl h-11 shadow-sm hover:shadow-md transition-all font-bold text-white border-none bg-gradient-to-r ${action.gradient}`}
+                      >
+                        {isBusy ? "Đang xử lý..." : action.id === "minigame" ? "Vào chơi ngay" : "Xem học liệu"}
+                      </Button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("Bạn có chắc muốn tạo lại nội dung này? Một phiên bản mới sẽ được tạo ra.")) {
+                            handleGenerate(action.id as "slides" | "podcast" | "minigame");
+                          }
+                        }}
+                        disabled={busyAction.length > 0}
+                        className="flex items-center justify-center gap-2 w-full h-10 px-4 rounded-xl border border-[var(--border-light)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isBusy ? "animate-spin" : ""}`} />
+                        Tạo phiên bản mới
+                      </button>
+                    </div>
+                  )}
+                </div>
               </Card>
             );
           })}
@@ -715,6 +775,83 @@ export default function MaterialDetailPage() {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* Persistent NotebookLM Media */}
+      {(!notebookSaved && generatedContents.some(c => c.content_type === "video" || c.content_type === "infographic")) && (
+        <div className="grid lg:grid-cols-2 gap-4 mt-6">
+          <Card>
+            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
+              <Presentation className="w-4 h-4 text-brand-500" />
+              Video đã tạo
+            </h3>
+            <div className="space-y-4">
+              {generatedContents.filter(c => c.content_type === "video").length === 0 && (
+                <p className="text-sm text-[var(--text-secondary)] italic">Chưa có video cho học liệu này.</p>
+              )}
+              {generatedContents.filter(c => c.content_type === "video").map((item) => (
+                <div key={item.id} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)]">
+                  <video controls preload="metadata" className="w-full rounded-lg mb-2" src={apiPreviewUrl(item.file_url || "")} />
+                  <div className="flex flex-col gap-2 mt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-brand-600 uppercase tracking-wider">Phiên bản {item.version}</span>
+                      <span className="text-[10px] text-[var(--text-tertiary)]">{DATE_FORMATTER.format(new Date(item.created_at))}</span>
+                    </div>
+                    <button
+                      onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `video_v${item.version}.mp4`)}
+                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-white text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      Tải Video v{item.version}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-accent-500" />
+              Infographic đã tạo
+            </h3>
+            <div className="space-y-4">
+              {generatedContents.filter(c => c.content_type === "infographic").length === 0 && (
+                <p className="text-sm text-[var(--text-secondary)] italic">Chưa có infographic cho học liệu này.</p>
+              )}
+              {generatedContents.filter(c => c.content_type === "infographic").map((item) => (
+                <div key={item.id} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)]">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInfographic({ file_name: `infographic_v${item.version}`, file_url: item.file_url || "" })}
+                    className="group block w-full cursor-zoom-in rounded-xl border-0 bg-transparent p-0 text-left"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={apiPreviewUrl(item.file_url || "")}
+                      alt={`Infographic v${item.version}`}
+                      loading="lazy"
+                      className="w-full rounded-lg mb-2 transition-transform duration-300 group-hover:scale-[1.01]"
+                    />
+                  </button>
+                  <div className="flex flex-col gap-2 mt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-accent-600 uppercase tracking-wider">Phiên bản {item.version}</span>
+                      <span className="text-[10px] text-[var(--text-tertiary)]">{DATE_FORMATTER.format(new Date(item.created_at))}</span>
+                    </div>
+                    <button
+                      onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `infographic_v${item.version}.png`)}
+                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-white text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      Tải Infographic v{item.version}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       )}
 
       {notebookSaved && (

@@ -44,17 +44,32 @@ class ChatMessageResponse(BaseModel):
     message: str
     citations: list[Citation] = Field(default_factory=list)
     created_at: datetime
+    images: list[str] = Field(default_factory=list)
     model_used: str | None = Field(
         default=None, description="Model đã sử dụng để tạo response"
     )
     fallback_applied: bool = Field(
         default=False, description="Có phải fallback từ model khác không"
     )
+    search_results: dict | None = Field(
+        default=None, description="Kết quả tìm kiếm web nếu có"
+    )
+    is_web_search: bool = Field(
+        default=False, description="Liệu tin nhắn này có sử dụng tìm kiếm web hay không"
+    )
 
 
 class ChatSessionDetailResponse(BaseModel):
     session: ChatSessionResponse
     messages: list[ChatMessageResponse]
+
+
+class ChatSessionListResponse(BaseModel):
+    sessions: list[ChatSessionResponse]
+
+
+class DeleteChatSessionsResponse(BaseModel):
+    deleted_count: int
 
 
 class TranscriptionResponse(BaseModel):
@@ -74,6 +89,37 @@ class MascotChatResponse(BaseModel):
     fallback_applied: bool = False
     is_web_search: bool = False
     search_provider: str | None = None
+
+
+class MascotChatSessionResponse(BaseModel):
+    id: str
+    user_id: str
+    session_title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class MascotMessageResponse(BaseModel):
+    id: str
+    session_id: str
+    role: str
+    message: str
+    created_at: datetime
+    images: list[str] = Field(default_factory=list)
+    model_used: str | None = None
+    fallback_applied: bool = False
+    is_web_search: bool = False
+    search_provider: str | None = None
+    search_results: dict | None = None
+
+
+class MascotChatSessionDetailResponse(BaseModel):
+    session: MascotChatSessionResponse
+    messages: list[MascotMessageResponse]
+
+
+class MascotChatSessionListResponse(BaseModel):
+    sessions: list[MascotChatSessionResponse]
 
 
 class WebSearchSource(BaseModel):
@@ -108,7 +154,9 @@ class WebSearchResponse(BaseModel):
 
     answer: str = Field(description="Văn bản câu trả lời với trích dẫn nội tuyến")
     raw_text: str = Field(description="Câu trả lời thô mà không có định dạng")
-    sources: list[WebSearchSource] = Field(description="Danh sách các nguồn từ tìm kiếm")
+    sources: list[WebSearchSource] = Field(
+        description="Danh sách các nguồn từ tìm kiếm"
+    )
     citations: list[WebSearchCitation] = Field(
         description="Siêu dữ liệu trích dẫn cho các nguồn"
     )
@@ -129,10 +177,3 @@ class SessionWebSearchRequest(WebSearchRequest):
 
 class ChatMessageWithSearchResponse(ChatMessageResponse):
     """Phản hồi tin nhắn chat với kết quả tìm kiếm tùy chọn"""
-
-    search_results: dict | None = Field(
-        default=None, description="Kết quả tìm kiếm web nếu tìm kiếm được sử dụng"
-    )
-    is_web_search: bool = Field(
-        default=False, description="Liệu tin nhắn này có sử dụng tìm kiếm web hay không"
-    )

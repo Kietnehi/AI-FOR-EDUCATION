@@ -1,9 +1,12 @@
 import {
   ChatMessage,
   ChatSession,
+  DeleteSessionsResult,
   GeneratedContent,
   Material,
+  MascotChatMessage,
   MascotChatResponse,
+  MascotChatSession,
   NotebookLMArtifactConfirmationResult,
   NotebookLMMediaResult,
   NotebookLMResponse,
@@ -35,6 +38,7 @@ type CacheEntry = {
 const DEFAULT_GET_CACHE_TTL_MS = 15000;
 const responseCache = new Map<string, CacheEntry>();
 const inflightRequests = new Map<string, Promise<unknown>>();
+const cacheVersions = new Map<string, number>();
 
 function getCacheKey(path: string): string {
   return path;
@@ -50,6 +54,14 @@ function readCache<T>(key: string): T | null {
   return cached.data as T;
 }
 
+function getCacheVersion(key: string): number {
+  return cacheVersions.get(key) ?? 0;
+}
+
+function bumpCacheVersion(key: string): void {
+  cacheVersions.set(key, getCacheVersion(key) + 1);
+}
+
 function writeCache(key: string, data: unknown, ttlMs: number): void {
   responseCache.set(key, {
     data,
@@ -58,17 +70,28 @@ function writeCache(key: string, data: unknown, ttlMs: number): void {
 }
 
 function invalidateCache(...prefixes: string[]): void {
+  const trackedKeys = new Set<string>([
+    ...responseCache.keys(),
+    ...inflightRequests.keys(),
+  ]);
+
   if (!prefixes.length) {
+    trackedKeys.forEach((key) => bumpCacheVersion(key));
     responseCache.clear();
     inflightRequests.clear();
     return;
   }
 
-  for (const key of Array.from(responseCache.keys())) {
-    if (prefixes.some((prefix) => key.startsWith(prefix))) {
-      responseCache.delete(key);
+  for (const key of trackedKeys) {
+    if (!prefixes.some((prefix) => key.startsWith(prefix))) {
+      continue;
     }
+
+    bumpCacheVersion(key);
+    responseCache.delete(key);
+    inflightRequests.delete(key);
   }
+
 }
 
 export function clearApiCache(): void {
@@ -84,6 +107,7 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
   const isGet = method === "GET";
   const cacheKey = getCacheKey(path);
   const cacheTtlMs = options?.cacheTtlMs ?? DEFAULT_GET_CACHE_TTL_MS;
+  const requestVersion = getCacheVersion(cacheKey);
 
   if (isGet && !options?.skipCache) {
     const cached = readCache<T>(cacheKey);
@@ -128,7 +152,7 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
     }
 
     const data = await response.json() as T;
-    if (isGet && !options?.skipCache) {
+    if (isGet && !options?.skipCache && getCacheVersion(cacheKey) === requestVersion) {
       writeCache(cacheKey, data, cacheTtlMs);
     }
     return data;
@@ -226,7 +250,7 @@ export async function processMaterial(id: string): Promise<{ message: string }> 
 
 export async function generateSlides(
   id: string,
-  options?: { max_slides?: number; tone?: string; skip_refine?: boolean }
+  options?: { max_slides?: number; tone?: string; skip_refine?: boolean; force_regenerate?: boolean }
 ): Promise<GeneratedContent> {
   const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/slides`, {
     method: "POST",
@@ -234,27 +258,50 @@ export async function generateSlides(
       tone: options?.tone || "teacher",
       max_slides: options?.max_slides || 10,
       skip_refine: options?.skip_refine || false,
+      force_regenerate: options?.force_regenerate || false,
     }),
   });
   primeCache(`/generated-contents/${data.id}`, data);
+  invalidateCache(`/materials/${id}/generated-contents`);
   return data;
 }
 
-export async function generatePodcast(id: string): Promise<GeneratedContent> {
+export async function generatePodcast(id: string, force_regenerate: boolean = false): Promise<GeneratedContent> {
   const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/podcast`, {
     method: "POST",
-    body: JSON.stringify({ style: "lecturer", target_duration_minutes: 8 }),
+    body: JSON.stringify({ 
+      style: "lecturer", 
+      target_duration_minutes: 8,
+      force_regenerate
+    }),
   });
   primeCache(`/generated-contents/${data.id}`, data);
+  invalidateCache(`/materials/${id}/generated-contents`);
   return data;
 }
 
-export async function generateMinigame(id: string, gameType: "quiz_mixed" | "flashcard" | "shooting_quiz" = "quiz_mixed"): Promise<GeneratedContent> {
-  return apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
+export async function generateMinigame(
+  id: string, 
+  gameType: "quiz_mixed" | "flashcard" | "shooting_quiz" = "quiz_mixed",
+  force_regenerate: boolean = false
+): Promise<GeneratedContent> {
+  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
     method: "POST",
-    body: JSON.stringify({ game_type: gameType }),
+    body: JSON.stringify({ game_type: gameType, force_regenerate }),
     cacheTtlMs: gameType === "shooting_quiz" ? 180000 : 60000,
   });
+  invalidateCache(`/materials/${id}/generated-contents`);
+  return data;
+}
+
+export async function listGeneratedContents(materialId: string, contentType?: string): Promise<GeneratedContent[]> {
+  const params = contentType ? `?content_type=${contentType}` : "";
+  return apiFetch<GeneratedContent[]>(`/materials/${materialId}/generated-contents${params}`);
+}
+
+export async function deleteGeneratedContent(id: string): Promise<void> {
+  await apiFetch<void>(`/generated-contents/${id}`, { method: "DELETE" });
+  invalidateCache("/materials/");
 }
 
 export async function getGeneratedContent(id: string): Promise<GeneratedContent> {
@@ -271,12 +318,17 @@ export async function generateNotebookLMMedia(prompt: string, confirm: boolean =
 export async function generateNotebookLMMediaFromMaterial(
   materialId: string,
   guidance?: string,
-  confirm: boolean = false
+  confirm: boolean = false,
+  force_regenerate: boolean = false
 ): Promise<NotebookLMResponse> {
-  return apiFetch<NotebookLMResponse>(`/materials/${materialId}/generate/notebooklm-media`, {
+  const data = await apiFetch<NotebookLMResponse>(`/materials/${materialId}/generate/notebooklm-media`, {
     method: "POST",
-    body: JSON.stringify({ guidance: guidance || null, confirm }),
+    body: JSON.stringify({ guidance: guidance || null, confirm, force_regenerate }),
   });
+  if (data.status === "saved") {
+    invalidateCache(`/materials/${materialId}/generated-contents`);
+  }
+  return data;
 }
 
 export async function confirmNotebookLMDownload(sessionId: string): Promise<NotebookLMSavedResult> {
@@ -311,8 +363,58 @@ export async function createChatSession(materialId: string): Promise<ChatSession
   return session;
 }
 
+export async function listChatSessions(materialId: string): Promise<{ sessions: ChatSession[] }> {
+  return apiFetch<{ sessions: ChatSession[] }>(`/chat/${materialId}/sessions`);
+}
+
 export async function getChatSession(sessionId: string): Promise<{ session: ChatSession; messages: ChatMessage[] }> {
   return apiFetch<{ session: ChatSession; messages: ChatMessage[] }>(`/chat/sessions/${sessionId}`);
+}
+
+export async function getMascotChatSession(
+  sessionId: string
+): Promise<{ session: MascotChatSession; messages: MascotChatMessage[] }> {
+  return apiFetch<{ session: MascotChatSession; messages: MascotChatMessage[] }>(`/chat/mascot/sessions/${sessionId}`, {
+    skipCache: true,
+  });
+}
+
+export async function listMascotChatSessions(): Promise<{ sessions: MascotChatSession[] }> {
+  return apiFetch<{ sessions: MascotChatSession[] }>("/chat/mascot/sessions", {
+    skipCache: true,
+  });
+}
+
+export async function deleteChatSession(sessionId: string): Promise<DeleteSessionsResult> {
+  const result = await apiFetch<DeleteSessionsResult>(`/chat/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+  invalidateCache(`/chat/sessions/${sessionId}`, "/chat/");
+  return result;
+}
+
+export async function deleteChatSessionsByMaterial(materialId: string): Promise<DeleteSessionsResult> {
+  const result = await apiFetch<DeleteSessionsResult>(`/chat/${materialId}/sessions`, {
+    method: "DELETE",
+  });
+  invalidateCache("/chat/");
+  return result;
+}
+
+export async function deleteMascotChatSession(sessionId: string): Promise<DeleteSessionsResult> {
+  const result = await apiFetch<DeleteSessionsResult>(`/chat/mascot/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+  invalidateCache(`/chat/mascot/sessions/${sessionId}`, "/chat/mascot/sessions");
+  return result;
+}
+
+export async function deleteAllMascotChatSessions(): Promise<DeleteSessionsResult> {
+  const result = await apiFetch<DeleteSessionsResult>("/chat/mascot/sessions", {
+    method: "DELETE",
+  });
+  invalidateCache("/chat/mascot/sessions");
+  return result;
 }
 
 export async function sendChatMessage(sessionId: string, message: string, images?: string[]): Promise<ChatMessage> {
@@ -330,7 +432,7 @@ export async function sendMascotChatMessage(
   images?: string[],
   options?: { useWebSearch?: boolean; useGoogle?: boolean }
 ): Promise<MascotChatResponse> {
-  return apiFetch<MascotChatResponse>("/chat/mascot/message", {
+  const result = await apiFetch<MascotChatResponse>("/chat/mascot/message", {
     method: "POST",
     body: JSON.stringify({
       message,
@@ -340,6 +442,9 @@ export async function sendMascotChatMessage(
       use_google: options?.useGoogle ?? true,
     }),
   });
+  invalidateCache("/chat/mascot/sessions");
+  invalidateCache(`/chat/mascot/sessions/${result.session_id}`);
+  return result;
 }
 
 export async function webSearch(sessionId: string, query: string, useGoogle: boolean = true): Promise<any> {

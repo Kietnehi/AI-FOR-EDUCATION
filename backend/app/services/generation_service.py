@@ -200,7 +200,14 @@ class GenerationService:
         max_slides: int,
         skip_refine: bool = False,
         user_id: str | None = None,
+        force_regenerate: bool = False,
     ) -> dict:
+        if not force_regenerate:
+            existing = await self.generated_repo.list_by_material_and_type(material_id, "slides")
+            if existing:
+                # Return the latest version if it exists
+                return existing[0]
+
         material = await self._prepare_material(material_id, user_id=user_id)
         text = self._get_material_text(material)
 
@@ -366,7 +373,13 @@ class GenerationService:
         style: str,
         target_duration_minutes: int,
         user_id: str | None = None,
+        force_regenerate: bool = False,
     ) -> dict:
+        if not force_regenerate:
+            existing = await self.generated_repo.list_by_material_and_type(material_id, "podcast")
+            if existing:
+                return existing[0]
+
         material = await self._prepare_material(material_id, user_id=user_id)
         text = self._get_material_text(material)
         script, version = await asyncio.gather(
@@ -433,7 +446,17 @@ class GenerationService:
         material_id: str,
         game_type: str = "quiz_mixed",
         user_id: str | None = None,
+        force_regenerate: bool = False,
     ) -> dict:
+        if not force_regenerate:
+            existing = await self.generated_repo.list_by_material_and_type(material_id, "minigame")
+            if existing:
+                # Return the same game type if possible or just the latest
+                for item in existing:
+                    if item.get("game_type") == game_type:
+                        return item
+                return existing[0]
+
         material = await self._prepare_material(material_id, user_id=user_id)
         text = self._get_material_text(material)
         valid_game_types = {"quiz_mixed", "flashcard", "shooting_quiz"}
@@ -483,6 +506,40 @@ class GenerationService:
             "updated_at": now,
         }
         return await self.generated_repo.create(doc)
+
+    async def delete_generated_content(
+        self, content_id: str, user_id: str | None = None
+    ) -> bool:
+        content_object_id = parse_object_id(content_id)
+        content = await self.get_generated_content(content_id, user_id=user_id)
+        if not content:
+            return False
+
+        # If it has a file_url, we might want to delete the file too
+        file_url = content.get("file_url")
+        if file_url:
+            object_name = storage_service.extract_object_name(file_url)
+            if object_name:
+                try:
+                    await storage_service.delete_file(
+                        object_name,
+                        storage_type=storage_service.detect_storage_type(file_url),
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to delete file from storage: %s", exc)
+
+        # Use delete_one on the collection directly since repo doesn't have delete_by_id
+        result = await self.db.generated_contents.delete_one({"_id": content_object_id})
+        return result.deleted_count > 0
+
+    async def list_generated_contents(
+        self, material_id: str, content_type: str | None = None, user_id: str | None = None
+    ) -> list[dict]:
+        if content_type:
+            return await self.generated_repo.list_by_material_and_type(material_id, content_type)
+        if user_id:
+            return await self.generated_repo.list_by_material_id_for_user(material_id, user_id)
+        return await self.generated_repo.list_by_material_id(material_id)
 
     async def get_generated_content(
         self, content_id: str, user_id: str | None = None

@@ -17,10 +17,12 @@ from app.schemas.generated_content import (
     GenerationTaskQueuedResponse,
     GenerationTaskStatusResponse,
 )
+from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.services.generation_service import GenerationService
 from app.services.material_service import MaterialService
 from app.services.notebooklm_service import NotebookLMService
 from app.services.storage import storage_service
+from app.utils.time import utc_now
 from app.tasks import (
     celery_app,
     generate_minigame_task,
@@ -45,6 +47,7 @@ async def generate_slides(
         max_slides=payload.max_slides,
         skip_refine=payload.skip_refine,
         user_id=user.id,
+        force_regenerate=payload.force_regenerate,
     )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
@@ -64,6 +67,7 @@ async def generate_podcast(
         style=payload.style,
         target_duration_minutes=payload.target_duration_minutes,
         user_id=user.id,
+        force_regenerate=payload.force_regenerate,
     )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
@@ -78,7 +82,12 @@ async def generate_minigame(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
-    result = await service.generate_minigame(material_id, game_type=payload.game_type)
+    result = await service.generate_minigame(
+        material_id, 
+        game_type=payload.game_type,
+        user_id=user.id,
+        force_regenerate=payload.force_regenerate,
+    )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
@@ -185,6 +194,23 @@ async def get_generation_task_status(
     )
 
 
+@router.get("/materials/{material_id}/generated-contents", response_model=list[GeneratedContentResponse])
+async def list_material_generated_contents(
+    material_id: str,
+    content_type: str | None = None,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> list[GeneratedContentResponse]:
+    service = GenerationService(db)
+    items = await service.list_generated_contents(
+        material_id, content_type=content_type, user_id=user.id
+    )
+    for item in items:
+        if not item.get("storage_type"):
+            item["storage_type"] = storage_service.detect_storage_type(item.get("file_url"))
+    return [GeneratedContentResponse(**item) for item in items]
+
+
 @router.get("/generated-contents/{content_id}", response_model=GeneratedContentResponse)
 async def get_generated_content(
     content_id: str,
@@ -192,10 +218,23 @@ async def get_generated_content(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GeneratedContentResponse:
     service = GenerationService(db)
-    result = await service.get_generated_content(content_id)
+    result = await service.get_generated_content(content_id, user_id=user.id)
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
+
+
+@router.delete("/generated-contents/{content_id}")
+async def delete_generated_content(
+    content_id: str,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> dict:
+    service = GenerationService(db)
+    deleted = await service.delete_generated_content(content_id, user_id=user.id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Generated content not found")
+    return {"message": "Generated content deleted successfully"}
 
 
 @router.post("/notebooklm/generate-media")
@@ -242,16 +281,24 @@ async def generate_notebooklm_media_from_material(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
-    Two-step endpoint for NotebookLM media generation:
-
-    Step 1: Send request with confirm=false (default) to get confirmation prompt
-    Step 2: Review the message and send request with confirm=true to start generation
-
-    Video/infographic generation has 3 phases:
-    1) Confirm start upload
-    2) Confirm start artifact creation after upload
-    3) Confirm download after render complete
+    Two-step endpoint for NotebookLM media generation with existence check.
     """
+    # Check for existing media first
+    if not payload.force_regenerate:
+        service = GenerationService(db)
+        existing_videos = await service.list_generated_contents(material_id, content_type="video", user_id=user.id)
+        existing_infos = await service.list_generated_contents(material_id, content_type="infographic", user_id=user.id)
+        
+        if existing_videos or existing_infos:
+            return {
+                "status": "saved",
+                "session_id": "existing",
+                "material_id": material_id,
+                "videos": [item for item in existing_videos],
+                "infographics": [item for item in existing_infos],
+                "message": "Đã tìm thấy nội dung đã tạo trước đó."
+            }
+
     material_service = MaterialService(db)
     material = await material_service.get_material(material_id, user_id=user.id)
 
@@ -300,17 +347,56 @@ async def confirm_notebooklm_artifacts(
 async def confirm_notebooklm_download(
     session_id: str,
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
-    Confirm and move files from temp storage to permanent storage.
-    This is the final step after previewing generated media.
+    Confirm download and save to generated_contents collection.
     """
     service = NotebookLMService()
+    session_data = service.get_session_data(session_id)
+    material_id = session_data.get("material_id") if session_data else None
+
     try:
         result = await service.confirm_download(session_id)
+        
+        # Persist to database if linked to a material
+        if material_id:
+            gen_repo = GeneratedContentRepository(db)
+            now = utc_now()
+            
+            # Save videos
+            for v in result.get("videos", []):
+                version = await gen_repo.get_next_version(material_id, "video")
+                await gen_repo.create({
+                    "user_id": user.id,
+                    "material_id": material_id,
+                    "content_type": "video",
+                    "version": version,
+                    "file_url": v["file_url"],
+                    "storage_type": v.get("storage_type"),
+                    "generation_status": "generated",
+                    "created_at": now,
+                    "updated_at": now
+                })
+                
+            # Save infographics
+            for info in result.get("infographics", []):
+                version = await gen_repo.get_next_version(material_id, "infographic")
+                await gen_repo.create({
+                    "user_id": user.id,
+                    "material_id": material_id,
+                    "content_type": "infographic",
+                    "version": version,
+                    "file_url": info["file_url"],
+                    "storage_type": info.get("storage_type"),
+                    "generation_status": "generated",
+                    "created_at": now,
+                    "updated_at": now
+                })
+
+        return ConfirmNotebookLMDownloadResponse(**result)
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return ConfirmNotebookLMDownloadResponse(**result)
 
 
 @router.delete("/notebooklm/sessions/{session_id}")

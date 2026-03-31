@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=150&section=header&text=AI%20Learning%20Studio&fontSize=40&fontAlignY=35&animation=twinkling&fontColor=ffffff" width="100%" alt="Header"/>
 
@@ -364,6 +364,15 @@ docker compose --profile local-db up -d --build
 *   🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
 *   🔧 **Backend API:** [http://localhost:8000](http://localhost:8000)
 *   📄 **Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+*   🖥️ **Theo dõi Chrome của NotebookLM trong Docker:** [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html)
+
+#### Theo dõi trình duyệt NotebookLM khi chạy Docker
+
+Luồng NotebookLM trong Docker không mở cửa sổ Chrome native trên máy host. Thay vào đó, backend chạy Chrome trong một display ảo bên trong container và xuất màn hình qua noVNC để bạn theo dõi trong trình duyệt.
+
+- Mở `http://localhost:6080/vnc.html`, bấm `Connect`, rồi kích hoạt workflow NotebookLM để quan sát Chrome trong container.
+- Nếu màn hình bị đen, hãy reload tab noVNC hoặc chạy `docker compose restart backend`.
+- Tài liệu chi tiết: [markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md](/C:/Users/ADMIN/Desktop/AI-FOR-EDUCATION/markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
 
 #### 4. Dừng hệ thống
 ```bash
@@ -482,6 +491,21 @@ Khi backend chạy thành công:
 - API: `http://localhost:8000`
 - Swagger: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/health`
+
+<p align="center">
+<table style="margin: 0 auto;">
+  <tr>
+    <td align="center" style="padding:8px;">
+      <img src="image/docs_8000.png" alt="Swagger UI" width="540" style="border:1px solid #e6e6e6; border-radius:6px;" />
+      <div style="margin-top:8px; font-weight:600;">Giao diện Swagger UI - /docs</div>
+    </td>
+    <td align="center" style="padding:8px;">
+      <img src="image/health_8000.png" alt="Health Check" width="260" style="border:1px solid #e6e6e6; border-radius:6px;" />
+      <div style="margin-top:8px; font-weight:600;">Trạng thái hệ thống - /health</div>
+    </td>
+  </tr>
+</table>
+</p>
 
 Kiểm tra backend bằng PowerShell:
 
@@ -860,11 +884,15 @@ Lưu ý vận hành:
 - **Celery:** [Distributed Task Queue](https://docs.celeryq.dev/en/stable/)
 - **Gemini API:** [Gemini API Quickstart](https://ai.google.dev/gemini-api/docs/quickstart)
 - **Web Search:** [Hướng dẫn Web Search (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
-- **Docker Review:** [Đánh giá Docker & Hot-reload](markdown_docs/DOCKER_REVIEW_2026-03-27.md)
 - **LLM API Flow:** [Luồng xử lý AI & LLM](markdown_docs/LLM_API_FLOW.md)
 - **Minigame Design:** [Thiết kế & logic Minigame](markdown_docs/MINIGAME.md)
 - **NotebookLM Media:** [NotebookLM Video & Infographic](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md)
-- **CI Summary:** [Tóm tắt Pipeline CI Dự Án](markdown_docs/CI_SUMMARY_2026-03-28.md)
+- **Docker Review bản hiện tại:** [Đánh giá Docker & Hot-reload](markdown_docs/DOCKER_REVIEW.md)
+- **CI Summary bản hiện tại:** [Tóm tắt Pipeline CI dự án](markdown_docs/CI_SUMMARY.md)
+- **CD Summary:** [Tóm tắt CI/CD và phát hành](markdown_docs/TOM_TAT_CD.md)
+- **NotebookLM Docker Browser:** [Theo dõi Chrome của NotebookLM trong Docker](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
+- **Storage & Media Fixes:** [Ghi chú các bản vá storage và media](markdown_docs/STORAGE_AND_MEDIA_FIXES.md)
+- **Web Search Online Review:** [Đánh giá và tổng hợp Web Search online](markdown_docs/WEB_SEARCH_ONLINE_REVIEW.md)
 
 ---
 

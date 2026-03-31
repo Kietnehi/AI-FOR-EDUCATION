@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   MessageSquareText,
+  History,
   Plus,
   Send,
   Bot,
@@ -22,23 +23,39 @@ import {
   AlertCircle,
   Play,
   Pause,
-  Globe
+  Globe,
+  Trash2,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { ChatSkeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
 import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import { WebSearchResult } from "@/components/ui/web-search-result";
-import { createChatSession, sendChatMessage, synthesizeChatSpeech, transcribeChatAudio, webSearch } from "@/lib/api";
+import {
+  createChatSession,
+  deleteChatSession,
+  deleteChatSessionsByMaterial,
+  getChatSession,
+  listChatSessions,
+  sendChatMessage,
+  synthesizeChatSpeech,
+  transcribeChatAudio,
+  webSearch,
+} from "@/lib/api";
+import { formatVietnamDateTime } from "@/lib/datetime";
 import { getAudioDurationFromUrl, getSegmentBaseTime, splitTextForTts } from "@/lib/tts";
-import type { ChatMessage, SttModel } from "@/types";
+import type { ChatMessage, ChatSession, SttModel } from "@/types";
 
 const EMPTY_CHAT_SUGGESTIONS = [
   "Tóm tắt nội dung chính",
   "Giải thích khái niệm quan trọng",
   "Cho ví dụ minh họa",
 ];
+
+const getChatSessionStorageKey = (materialId: string) => `chatbot-session-id:${materialId}`;
 
 type ChatMessageItemProps = {
   message: ChatMessage;
@@ -191,6 +208,13 @@ export default function ChatbotPage() {
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState<ChatSession[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyActionId, setHistoryActionId] = useState<string | null>(null);
+  const [isDeletingAllHistory, setIsDeletingAllHistory] = useState(false);
+  const [sessionPendingDelete, setSessionPendingDelete] = useState<ChatSession | null>(null);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [ttsLang, setTtsLang] = useState("vi");
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
@@ -300,26 +324,86 @@ export default function ChatbotPage() {
     setSelectedImage(null);
   }, []);
 
+  const refreshSessionHistory = useCallback(async () => {
+    if (!materialId) {
+      return;
+    }
+    setIsHistoryLoading(true);
+    try {
+      const result = await listChatSessions(materialId);
+      setSessionHistory(result.sessions);
+    } catch {
+      setSessionHistory([]);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [materialId]);
+
+  const loadSessionHistory = useCallback(async (nextSessionId: string) => {
+    const detail = await getChatSession(nextSessionId);
+    setSessionId(detail.session.id);
+    setMessages(detail.messages);
+    setInput("");
+    setImages([]);
+    stopCurrentTtsAudio();
+    resetTtsState();
+    window.localStorage.setItem(getChatSessionStorageKey(materialId), detail.session.id);
+    await refreshSessionHistory();
+  }, [materialId, refreshSessionHistory, resetTtsState, stopCurrentTtsAudio]);
+
   useEffect(() => {
     if (!materialId) return;
     let cancelled = false;
-    createChatSession(materialId)
-      .then((session) => {
+
+    const initializeSession = async () => {
+      try {
+        const storageKey = getChatSessionStorageKey(materialId);
+        const savedSessionId = window.localStorage.getItem(storageKey);
+
+        if (savedSessionId) {
+          try {
+            const detail = await getChatSession(savedSessionId);
+            if (!cancelled) {
+              setSessionId(detail.session.id);
+              setMessages(detail.messages);
+              return;
+            }
+          } catch {
+            window.localStorage.removeItem(storageKey);
+          }
+        }
+
+        const session = await createChatSession(materialId);
         if (cancelled) return;
         setSessionId(session.id);
         setMessages([]);
-      })
-      .catch(() => undefined)
-      .finally(() => {
+      } catch {
+        if (!cancelled) {
+          setMessages([]);
+        }
+      } finally {
+        if (!cancelled) {
+          void refreshSessionHistory();
+        }
         if (!cancelled) {
           setInitializing(false);
         }
-      });
+      }
+    };
+
+    void initializeSession();
 
     return () => {
       cancelled = true;
     };
-  }, [materialId]);
+  }, [materialId, refreshSessionHistory]);
+
+  useEffect(() => {
+    if (!materialId || !sessionId) {
+      return;
+    }
+    window.localStorage.setItem(getChatSessionStorageKey(materialId), sessionId);
+  }, [materialId, sessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -366,11 +450,77 @@ export default function ChatbotPage() {
       setMessages([]);
       setInput("");
       setImages([]);
+      await refreshSessionHistory();
       inputRef.current?.focus();
     } catch {
       alert("Không thể tạo đoạn chat mới");
     } finally {
       setIsStartingNewChat(false);
+    }
+  }
+
+  async function handleOpenHistory() {
+    setIsHistoryOpen(true);
+    await refreshSessionHistory();
+  }
+
+  async function handleSelectSession(nextSessionId: string) {
+    setHistoryActionId(nextSessionId);
+    try {
+      await loadSessionHistory(nextSessionId);
+      setIsHistoryOpen(false);
+    } catch {
+      alert("Không thể tải lịch sử cuộc trò chuyện này");
+    } finally {
+      setHistoryActionId(null);
+    }
+  }
+
+  async function confirmDeleteSession(sessionToDelete: ChatSession) {
+    setHistoryActionId(sessionToDelete.id);
+    try {
+      await deleteChatSession(sessionToDelete.id);
+      const storageKey = getChatSessionStorageKey(materialId);
+      const isActiveSession = sessionId === sessionToDelete.id;
+
+      if (isActiveSession) {
+        stopCurrentTtsAudio();
+        resetTtsState();
+        window.localStorage.removeItem(storageKey);
+        const newSession = await createChatSession(materialId);
+        setSessionId(newSession.id);
+        setMessages([]);
+        setInput("");
+        setImages([]);
+      }
+
+      await refreshSessionHistory();
+      setSessionPendingDelete(null);
+    } catch {
+      alert("Không thể xóa cuộc trò chuyện này");
+    } finally {
+      setHistoryActionId(null);
+    }
+  }
+
+  async function confirmDeleteAllHistory() {
+    setIsDeletingAllHistory(true);
+    try {
+      await deleteChatSessionsByMaterial(materialId);
+      stopCurrentTtsAudio();
+      resetTtsState();
+      window.localStorage.removeItem(getChatSessionStorageKey(materialId));
+      const newSession = await createChatSession(materialId);
+      setSessionId(newSession.id);
+      setMessages([]);
+      setInput("");
+      setImages([]);
+      await refreshSessionHistory();
+      setIsDeleteAllDialogOpen(false);
+    } catch {
+      alert("Không thể xóa toàn bộ lịch sử chatbot");
+    } finally {
+      setIsDeletingAllHistory(false);
     }
   }
 
@@ -631,6 +781,15 @@ export default function ChatbotPage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleOpenHistory}
+            disabled={initializing}
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <History className="w-3.5 h-3.5" />
+            Lịch sử
+          </button>
           <button
             type="button"
             onClick={handleNewChat}
@@ -1257,6 +1416,113 @@ export default function ChatbotPage() {
           </p>
         </div>
       </Card>
+
+      <Dialog open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} title="Lịch sử chatbot" maxWidth="lg">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Chọn cuộc trò chuyện cũ để mở lại hoặc xóa lịch sử của tài liệu này.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsDeleteAllDialogOpen(true)}
+              disabled={isDeletingAllHistory || sessionHistory.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeletingAllHistory ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              Xóa toàn bộ
+            </button>
+          </div>
+
+          <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+            {isHistoryLoading ? (
+              <div className="flex items-center justify-center rounded-xl border border-dashed border-[var(--border-light)] p-6 text-sm text-[var(--text-secondary)]">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Đang tải lịch sử...
+              </div>
+            ) : sessionHistory.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[var(--border-light)] p-6 text-center text-sm text-[var(--text-secondary)]">
+                Chưa có cuộc trò chuyện nào được lưu.
+              </div>
+            ) : (
+              sessionHistory.map((session) => {
+                const isActive = session.id === sessionId;
+                const isBusy = historyActionId === session.id;
+                return (
+                  <div
+                    key={session.id}
+                    className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 ${isActive ? "border-brand-300 bg-brand-50" : "border-[var(--border-light)] bg-[var(--bg-secondary)]"}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => void handleSelectSession(session.id)}
+                      disabled={isBusy}
+                      className="min-w-0 flex-1 text-left disabled:cursor-not-allowed"
+                    >
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                        {session.session_title}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                        Cập nhật: {formatVietnamDateTime(session.updated_at)}
+                      </p>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {isActive && <span className="rounded-full bg-brand-100 px-2 py-1 text-[10px] font-semibold text-brand-700">Hiện tại</span>}
+                      <button
+                        type="button"
+                        onClick={() => setSessionPendingDelete(session)}
+                        disabled={isBusy}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        aria-label={`Xóa ${session.session_title}`}
+                      >
+                        {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!sessionPendingDelete}
+        onClose={() => {
+          if (!historyActionId) {
+            setSessionPendingDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          if (sessionPendingDelete) {
+            void confirmDeleteSession(sessionPendingDelete);
+          }
+        }}
+        isLoading={!!sessionPendingDelete && historyActionId === sessionPendingDelete.id}
+        tone="danger"
+        title="Xóa cuộc trò chuyện?"
+        description={sessionPendingDelete
+          ? `Cuộc trò chuyện "${sessionPendingDelete.session_title}" sẽ bị xóa khỏi lịch sử của tài liệu này.`
+          : ""}
+        confirmLabel="Xóa cuộc trò chuyện"
+        cancelLabel="Giữ lại"
+      />
+
+      <ConfirmDialog
+        open={isDeleteAllDialogOpen}
+        onClose={() => {
+          if (!isDeletingAllHistory) {
+            setIsDeleteAllDialogOpen(false);
+          }
+        }}
+        onConfirm={() => void confirmDeleteAllHistory()}
+        isLoading={isDeletingAllHistory}
+        tone="danger"
+        title="Xóa toàn bộ lịch sử?"
+        description="Toàn bộ cuộc trò chuyện của chatbot trong học liệu này sẽ bị xóa. Phiên hiện tại cũng sẽ được làm mới lại."
+        confirmLabel="Xóa toàn bộ"
+        cancelLabel="Hủy"
+      />
 
       {/* Image Modal */}
       {isImageModalOpen && selectedImage && (

@@ -9,8 +9,14 @@ from app.api.dependencies import get_database, get_current_user
 from app.schemas.auth import AuthUser
 from app.core.config import settings
 from app.schemas.chat import (
+    ChatSessionListResponse,
     ChatMessageRequest,
     ChatMessageResponse,
+    DeleteChatSessionsResponse,
+    MascotChatSessionListResponse,
+    MascotChatSessionDetailResponse,
+    MascotChatSessionResponse,
+    MascotMessageResponse,
     ChatSessionDetailResponse,
     ChatSessionResponse,
     CreateChatSessionRequest,
@@ -45,6 +51,51 @@ async def create_session(
     return ChatSessionResponse(**session)
 
 
+@router.get(
+    "/chat/mascot/sessions",
+    response_model=MascotChatSessionListResponse,
+)
+async def list_mascot_sessions(
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> MascotChatSessionListResponse:
+    service = ChatService(db)
+    sessions = await service.list_mascot_sessions(user.id)
+    return MascotChatSessionListResponse(
+        sessions=[MascotChatSessionResponse(**item) for item in sessions]
+    )
+
+
+@router.get(
+    "/chat/mascot/sessions/{session_id}",
+    response_model=MascotChatSessionDetailResponse,
+)
+async def get_mascot_session(
+    session_id: str,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> MascotChatSessionDetailResponse:
+    service = ChatService(db)
+    detail = await service.get_mascot_session_detail(session_id, user_id=user.id)
+    return MascotChatSessionDetailResponse(
+        session=MascotChatSessionResponse(**detail["session"]),
+        messages=[MascotMessageResponse(**item) for item in detail["messages"]],
+    )
+
+
+@router.get("/chat/{material_id}/sessions", response_model=ChatSessionListResponse)
+async def list_sessions(
+    material_id: str,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> ChatSessionListResponse:
+    service = ChatService(db)
+    sessions = await service.list_sessions(material_id, user.id)
+    return ChatSessionListResponse(
+        sessions=[ChatSessionResponse(**item) for item in sessions]
+    )
+
+
 @router.get("/chat/sessions/{session_id}", response_model=ChatSessionDetailResponse)
 async def get_session(
     session_id: str,
@@ -76,6 +127,20 @@ async def send_message(
     return ChatMessageResponse(**assistant_message)
 
 
+@router.delete(
+    "/chat/sessions/{session_id}",
+    response_model=DeleteChatSessionsResponse,
+)
+async def delete_session(
+    session_id: str,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> DeleteChatSessionsResponse:
+    service = ChatService(db)
+    deleted = await service.delete_session(session_id, user.id)
+    return DeleteChatSessionsResponse(deleted_count=1 if deleted else 0)
+
+
 @router.post("/chat/mascot/message", response_model=MascotChatResponse)
 async def send_mascot_message(
     payload: MascotChatRequest,
@@ -92,6 +157,47 @@ async def send_mascot_message(
         use_google=payload.use_google,
     )
     return MascotChatResponse(**response)
+
+
+@router.delete(
+    "/chat/mascot/sessions",
+    response_model=DeleteChatSessionsResponse,
+)
+async def delete_all_mascot_sessions(
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> DeleteChatSessionsResponse:
+    service = ChatService(db)
+    deleted_count = await service.delete_all_mascot_sessions(user.id)
+    return DeleteChatSessionsResponse(deleted_count=deleted_count)
+
+
+@router.delete(
+    "/chat/mascot/sessions/{session_id}",
+    response_model=DeleteChatSessionsResponse,
+)
+async def delete_mascot_session(
+    session_id: str,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> DeleteChatSessionsResponse:
+    service = ChatService(db)
+    deleted = await service.delete_mascot_session(session_id, user.id)
+    return DeleteChatSessionsResponse(deleted_count=1 if deleted else 0)
+
+
+@router.delete(
+    "/chat/{material_id}/sessions",
+    response_model=DeleteChatSessionsResponse,
+)
+async def delete_sessions_by_material(
+    material_id: str,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> DeleteChatSessionsResponse:
+    service = ChatService(db)
+    deleted_count = await service.delete_sessions_by_material(material_id, user.id)
+    return DeleteChatSessionsResponse(deleted_count=deleted_count)
 
 
 @router.post("/chat/transcribe", response_model=TranscriptionResponse)
@@ -116,7 +222,9 @@ async def transcribe_audio(
         local_whisper_model = LOCAL_WHISPER_MODELS.get(stt_model)
         if local_whisper_model:
             service = SpeechToTextService(local_whisper_model)
-            text = await asyncio.to_thread(service.transcribe_file, temp_path, whisper_language)
+            text = await asyncio.to_thread(
+                service.transcribe_file, temp_path, whisper_language
+            )
         elif stt_model in {"whisper-large-v3", "whisper-large-v3-turbo"}:
             if not settings.groq_api_key:
                 raise HTTPException(status_code=500, detail="Missing Groq API key")
@@ -135,7 +243,9 @@ async def transcribe_audio(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Transcription failed: {exc}"
+        ) from exc
     finally:
         if temp_path:
             try:
@@ -156,7 +266,9 @@ async def text_to_speech(
 ) -> Response:
     service = TextToSpeechService()
     try:
-        audio_bytes = await asyncio.to_thread(service.synthesize, payload.text, payload.lang)
+        audio_bytes = await asyncio.to_thread(
+            service.synthesize, payload.text, payload.lang
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

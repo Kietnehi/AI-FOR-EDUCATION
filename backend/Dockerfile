@@ -9,9 +9,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers
+    PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers \
+    DISPLAY=:99 \
+    XVFB_WHD=1440x960x24 \
+    VNC_PORT=5900 \
+    NOVNC_PORT=6080
 
 WORKDIR /app
 
@@ -21,6 +27,7 @@ RUN apt-get update \
         python3-pip \
         python3-dev \
         build-essential \
+        tzdata \
         ffmpeg \
         libgl1 \
         libglib2.0-0 \
@@ -44,6 +51,15 @@ RUN apt-get update \
         libpango-1.0-0 \
         libcairo2 \
         libreoffice \
+        xvfb \
+        x11vnc \
+        novnc \
+        websockify \
+        openbox \
+        dbus-x11 \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && dpkg-reconfigure -f noninteractive tzdata \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && rm -rf /var/lib/apt/lists/*
@@ -55,19 +71,22 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir --force-reinstall --index-url https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL} torch torchvision \
     && pip install --no-cache-dir --force-reinstall onnxruntime-gpu \
     && mkdir -p $PLAYWRIGHT_BROWSERS_PATH \
-    && playwright install chromium \
-    && playwright install-deps chromium \
+    && playwright install chrome \
+    && playwright install-deps chrome \
     && chmod -R 777 $PLAYWRIGHT_BROWSERS_PATH
 
 COPY . .
 
 RUN useradd -m -u 10001 appuser \
     && mkdir -p /app/storage \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app \
+    && chmod +x /app/start-backend-with-gui.sh
 
 USER appuser
 
 EXPOSE 8000
+EXPOSE 5900
+EXPOSE 6080
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
 

@@ -89,6 +89,14 @@ export type ChatSession = {
   updated_at: string;
 };
 
+export type MascotChatSession = {
+  id: string;
+  user_id: string;
+  session_title: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ChatMessage = {
   id: string;
   session_id: string;
@@ -125,6 +133,24 @@ export type MascotChatResponse = {
   fallback_applied?: boolean;
   is_web_search?: boolean;
   search_provider?: string | null;
+};
+
+export type MascotChatMessage = {
+  id: string;
+  session_id: string;
+  role: "user" | "assistant";
+  message: string;
+  created_at: string;
+  images?: string[];
+  model_used?: string | null;
+  fallback_applied?: boolean;
+  is_web_search?: boolean;
+  search_provider?: string | null;
+  search_results?: Record<string, any> | null;
+};
+
+export type DeleteSessionsResult = {
+  deleted_count: number;
 };
 
 export type SttModel =
