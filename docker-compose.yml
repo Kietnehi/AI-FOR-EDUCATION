@@ -71,6 +71,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        INSTALL_GPU_RUNTIME: "1"
+        INSTALL_PLAYWRIGHT_BROWSER: "1"
     container_name: any2-backend
     restart: unless-stopped
     environment:
@@ -193,6 +196,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        INSTALL_GPU_RUNTIME: "1"
+        INSTALL_PLAYWRIGHT_BROWSER: "1"
     container_name: any2-celery-worker
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
     environment:
