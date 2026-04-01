@@ -568,7 +568,7 @@ npm run dev
 
 ## 6. CI / CD
 
-Hiện tại dự án có **CI đầy đủ**, và **CD bán thực tế**: đã build artifact, publish Docker image lên GHCR, nhưng **chưa deploy lên server thật**. Bước triển khai hiện vẫn là `deploy-placeholder` để tổng hợp metadata và báo cáo phát hành.
+Hiện tại dự án có **CI đầy đủ**, và **CD bán thực tế**: đã build artifact, publish Docker image lên GHCR, nhưng **chưa deploy lên server thật**. Bước triển khai hiện vẫn là `deploy-placeholder` để tổng hợp metadata và báo cáo phát hành..
 
 - Workflow CI: `.github/workflows/project-ci.yml`
 - Workflow CD: `.github/workflows/project-cd.yml`
