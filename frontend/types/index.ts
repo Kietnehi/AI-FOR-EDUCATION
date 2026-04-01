@@ -77,6 +77,7 @@ export type NotebookLMArtifactConfirmationResult = {
 };
 
 export type NotebookLMSavedResult = {
+  status: "saved";
   session_id: string;
   videos: NotebookLMMediaFile[];
   infographics: NotebookLMMediaFile[];
@@ -85,7 +86,8 @@ export type NotebookLMSavedResult = {
 export type NotebookLMResponse =
   | NotebookLMMediaResult
   | NotebookLMConfirmationResult
-  | NotebookLMArtifactConfirmationResult;
+  | NotebookLMArtifactConfirmationResult
+  | NotebookLMSavedResult;
 
 export type ChatSession = {
   id: string;
