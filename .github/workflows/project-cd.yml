@@ -249,6 +249,10 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
+          build-args: |
+            REQUIREMENTS_FILE=requirements.txt
+            INSTALL_GPU_RUNTIME=0
+            INSTALL_PLAYWRIGHT_BROWSER=0
           tags: ${{ steps.backend-meta.outputs.tags }}
           labels: ${{ steps.backend-meta.outputs.labels }}
 

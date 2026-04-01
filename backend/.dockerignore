@@ -10,6 +10,11 @@ __pycache__/
 venv/
 .env
 storage/
+htmlcov/
+tests/
+coverage.xml
+.coverage
+backend_debug.log
 .git/
 .gitignore
 Dockerfile
