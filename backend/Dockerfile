@@ -5,6 +5,8 @@ FROM ${CUDA_RUNTIME_IMAGE} AS base
 
 ARG REQUIREMENTS_FILE=requirements.txt
 ARG TORCH_CUDA_CHANNEL=cu128
+# Mặc định để full-runtime khi override 1/1 để image publish bám sát local development.
+# Nếu muốn giảm tải cho CI/CD, có thể build với INSTALL_GPU_RUNTIME=0 và INSTALL_PLAYWRIGHT_BROWSER=0.
 ARG INSTALL_GPU_RUNTIME=0
 ARG INSTALL_PLAYWRIGHT_BROWSER=0
 
