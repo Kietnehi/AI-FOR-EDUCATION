@@ -3,6 +3,7 @@
 ARG CUDA_RUNTIME_IMAGE=nvidia/cuda:12.8.0-runtime-ubuntu22.04
 FROM ${CUDA_RUNTIME_IMAGE} AS base
 
+ARG REQUIREMENTS_FILE=requirements.txt
 ARG TORCH_CUDA_CHANNEL=cu128
 ARG INSTALL_GPU_RUNTIME=1
 ARG INSTALL_PLAYWRIGHT_BROWSER=1
@@ -66,10 +67,10 @@ RUN apt-get update \
     && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+COPY requirements*.txt ./
 
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
+    && pip install -r ${REQUIREMENTS_FILE} \
     && if [ "$INSTALL_GPU_RUNTIME" = "1" ]; then \
         pip install --no-cache-dir --force-reinstall --index-url https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL} torch torchvision; \
         pip install --no-cache-dir --force-reinstall onnxruntime-gpu; \
