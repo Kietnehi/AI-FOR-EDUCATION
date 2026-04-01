@@ -231,7 +231,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ needs.prepare-release.outputs.release_sha_short }}
-            type=raw,value=${{ env.SOURCE_BRANCH }}
+            type=sha
 
       - name: Tạo metadata image frontend
         id: frontend-meta
@@ -241,7 +241,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ needs.prepare-release.outputs.release_sha_short }}
-            type=raw,value=${{ env.SOURCE_BRANCH }}
+            type=sha
 
       - name: Build và đẩy image backend lên GHCR
         uses: docker/build-push-action@v6
@@ -251,8 +251,8 @@ jobs:
           push: true
           build-args: |
             REQUIREMENTS_FILE=requirements.txt
-            INSTALL_GPU_RUNTIME=0
-            INSTALL_PLAYWRIGHT_BROWSER=0
+            INSTALL_GPU_RUNTIME=1
+            INSTALL_PLAYWRIGHT_BROWSER=1
           tags: ${{ steps.backend-meta.outputs.tags }}
           labels: ${{ steps.backend-meta.outputs.labels }}
 
@@ -260,7 +260,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          file: ./frontend/Dockerfile
+          file: ./frontend/Dockerfile.dev
           push: true
           tags: ${{ steps.frontend-meta.outputs.tags }}
           labels: ${{ steps.frontend-meta.outputs.labels }}
