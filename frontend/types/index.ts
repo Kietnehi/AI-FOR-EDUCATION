@@ -23,7 +23,14 @@ export type Material = {
 export type GeneratedContent = {
   id: string;
   material_id: string;
-  content_type: "slides" | "podcast" | "minigame" | "chatbot_config" | "quiz";
+  content_type:
+    | "slides"
+    | "podcast"
+    | "minigame"
+    | "chatbot_config"
+    | "quiz"
+    | "video"
+    | "infographic";
   game_type?: "quiz_mixed" | "flashcard" | "shooting_quiz";
   version: number;
   outline: string[];
