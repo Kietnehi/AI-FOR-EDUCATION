@@ -6,11 +6,7 @@ import uuid
 import nest_asyncio
 from pathlib import Path
 from PIL import Image
-from playwright.sync_api import sync_playwright
 import pandas as pd
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
 import httpx
 import zipfile
 
@@ -34,6 +30,8 @@ EXTRACTED_DIR.mkdir(parents=True, exist_ok=True)
 def _sync_web_to_pdf(url: str, output_path: Path) -> bool:
     """Synchronous playwright execution - safe to run in a thread on Windows."""
     import time
+    from playwright.sync_api import sync_playwright
+
     print(f"[*] Converting URL: {url}")
     try:
         # Direct PDF download path
@@ -177,6 +175,10 @@ async def convert_file_to_pdf(input_path: str, output_path: str):
 
 def extract_from_pdf(pdf_path: str, extract_id: str):
     try:
+        from docling.document_converter import DocumentConverter, PdfFormatOption
+        from docling.datamodel.base_models import InputFormat
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
+
         pdf_p = Path(pdf_path)
         output_base = EXTRACTED_DIR / extract_id
         output_base.mkdir(exist_ok=True)
