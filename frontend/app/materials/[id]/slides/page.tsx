@@ -45,8 +45,9 @@ function getStorageLabel(storageType?: string): string {
       return "Local";
     case "minio":
       return "MinIO";
+    case "r2":
     case "s3":
-      return "S3";
+      return "Cloudflare R2";
     case "none":
       return "Không có file";
     default:

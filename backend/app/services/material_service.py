@@ -351,7 +351,7 @@ class MaterialService:
     async def delete_material(self, material_id: str, user_id: str | None = None) -> bool:
         material = await self.get_material(material_id, user_id=user_id)
 
-        # 1. Delete Source File from MinIO/S3 or Local
+        # 1. Delete source file from MinIO/R2 or local
         if material.get("file_url"):
             try:
                 file_url = material["file_url"]
@@ -367,7 +367,7 @@ class MaterialService:
                     object_name = storage_service.extract_object_name(file_url)
                     if object_name:
                         await storage_service.delete_file(object_name)
-                        logger.info("Requested deletion from MinIO/S3: %s", object_name)
+                        logger.info("Requested deletion from MinIO/R2: %s", object_name)
             except Exception as e:
                 logger.warning(
                     "Soft failure deleting source file for material %s: %s", material_id, e
