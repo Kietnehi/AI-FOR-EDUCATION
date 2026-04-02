@@ -83,7 +83,7 @@ class NotebookLMService:
             prompt=prompt,
             source_file=source_file,
             material_id=material.get("id"),
-            preferred_storage_type=material.get("storage_type"),
+            preferred_storage_type=storage_service.default_storage_type(),
         )
 
     async def _generate_media_async(self, prompt: str) -> dict:
@@ -827,6 +827,8 @@ class NotebookLMService:
     ) -> dict:
         """Move prepared temp files to permanent storage and return download URLs."""
 
+        target_storage_type = storage_service.default_storage_type()
+
         # Ensure permanent directories exist
         self.VIDEO_DIR.mkdir(parents=True, exist_ok=True)
         self.INFOGRAPHIC_DIR.mkdir(parents=True, exist_ok=True)
@@ -851,7 +853,7 @@ class NotebookLMService:
                     local_relative_path=f"notebooklm/videos/{destination.name}",
                     object_name=f"generated/notebooklm/videos/{destination.name}",
                     content_type="video/mp4",
-                    preferred_storage_type=preferred_storage_type,
+                    preferred_storage_type=target_storage_type,
                 )
                 videos.append({
                     "file_name": destination.name,
@@ -875,7 +877,7 @@ class NotebookLMService:
                     local_relative_path=f"notebooklm/infographics/{destination.name}",
                     object_name=f"generated/notebooklm/infographics/{destination.name}",
                     content_type="image/png",
-                    preferred_storage_type=preferred_storage_type,
+                    preferred_storage_type=target_storage_type,
                 )
                 infographics.append({
                     "file_name": destination.name,

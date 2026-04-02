@@ -8,7 +8,7 @@ export type Material = {
   source_type: string;
   file_name?: string;
   file_url?: string;
-  storage_type?: "local" | "minio" | "s3" | "none" | string;
+  storage_type?: "local" | "minio" | "r2" | "none" | string;
   tags: string[];
   processing_status: "uploaded" | "queued" | "processing" | "processed" | "failed";
   guardrail_status?: string;
@@ -36,7 +36,7 @@ export type GeneratedContent = {
   outline: string[];
   json_content: Record<string, any>;
   file_url?: string;
-  storage_type?: "local" | "minio" | "s3" | "none" | string;
+  storage_type?: "local" | "minio" | "r2" | "none" | string;
   generation_status: "queued" | "generating" | "generated" | "failed";
   model_used?: string | null;
   fallback_applied?: boolean;
@@ -47,7 +47,7 @@ export type GeneratedContent = {
 export type NotebookLMMediaFile = {
   file_name: string;
   file_url: string;
-  storage_type?: "local" | "minio" | "s3" | "none" | string;
+  storage_type?: "local" | "minio" | "r2" | "none" | string;
 };
 
 export type NotebookLMMediaResult = {
