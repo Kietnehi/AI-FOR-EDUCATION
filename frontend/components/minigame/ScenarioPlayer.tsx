@@ -136,7 +136,7 @@ export function ScenarioPlayer({
         </div>
 
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-3xl p-8 border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden">
-          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6 z-10">
+           <div className="w-24 h-24 bg-[var(--bg-elevated)] rounded-full flex items-center justify-center shadow-sm mb-6 z-10 border border-[var(--border-light)]">
              <Trophy className="w-12 h-12 text-emerald-500" />
           </div>
           <h3 className="text-4xl font-black text-emerald-800 mb-2 z-10" style={{ fontFamily: "var(--font-display)" }}>
@@ -148,7 +148,7 @@ export function ScenarioPlayer({
 
         <div className="grid md:grid-cols-2 gap-6">
           {skillsList.length > 0 && (
-            <div className="bg-white rounded-3xl p-6 border border-[var(--border-light)] shadow-sm">
+            <div className="bg-[var(--bg-elevated)] rounded-3xl p-6 border border-[var(--border-light)] shadow-sm">
               <h4 className="font-bold text-[var(--text-primary)] flex items-center gap-3 mb-4 text-lg">
                 <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
                   <Zap className="w-4 h-4 text-amber-600" />
@@ -167,7 +167,7 @@ export function ScenarioPlayer({
           )}
 
           {tips.length > 0 && (
-            <div className="bg-white rounded-3xl p-6 border border-[var(--border-light)] shadow-sm">
+            <div className="bg-[var(--bg-elevated)] rounded-3xl p-6 border border-[var(--border-light)] shadow-sm">
               <h4 className="font-bold text-[var(--text-primary)] flex items-center gap-3 mb-4 text-lg">
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                   <AlertCircle className="w-4 h-4 text-blue-600" />
@@ -230,12 +230,12 @@ export function ScenarioPlayer({
         key={currentNode.id} 
         initial={{ opacity: 0, x: -20 }} 
         animate={{ opacity: 1, x: 0 }}
-        className="bg-[#f8f9fe] border-[1.5px] border-[#e2e8f0] rounded-2xl p-6 sm:p-8 mb-8 shadow-sm"
+        className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-light)] rounded-2xl p-6 sm:p-8 mb-8 shadow-sm"
       >
         <p className="text-lg text-[var(--text-primary)] font-medium leading-[1.7] whitespace-pre-wrap mb-4">
           {currentNode.prompt}
         </p>
-        <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] bg-white px-3 py-2 leading-none w-fit rounded border border-[var(--border-light)] shadow-xs">
+        <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-2 leading-none w-fit rounded border border-[var(--border-light)] shadow-xs">
           <Target className="w-4 h-4 text-brand-500" />
           <span>Hệ thống ghi nhận sự lựa chọn của bạn để đánh giá.</span>
         </div>
@@ -258,7 +258,7 @@ export function ScenarioPlayer({
               onClick={() => handleChoice(choice)}
               disabled={isProcessing}
               className={`
-                group w-full text-left bg-white border border-[var(--border-light)] rounded-2xl p-5 sm:p-6
+                group w-full text-left bg-[var(--bg-elevated)] border border-[var(--border-light)] rounded-2xl p-5 sm:p-6
                 flex items-center justify-between transition-all duration-300 relative overflow-hidden
                 ${isSelected ? "ring-2 ring-brand-500 shadow-brand border-transparent" : "hover:border-brand-300 hover:shadow-md cursor-pointer"}
                 ${isProcessing && !isSelected ? "opacity-50 cursor-not-allowed" : ""}
@@ -298,13 +298,13 @@ export function ScenarioPlayer({
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4"
           >
-            <div className="bg-[#1e293b] text-white p-5 rounded-2xl shadow-2xl flex items-start gap-4 border border-[#334155]">
+            <div className="bg-[var(--bg-elevated)] p-5 rounded-2xl shadow-2xl flex items-start gap-4 border border-[var(--border-light)]">
               <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
                  <AlertCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h4 className="font-bold text-sm text-brand-200 mb-1">Phản hồi hệ thống</h4>
-                <p className="text-sm text-slate-200 leading-relaxed font-medium">{selectedFeedback}</p>
+                <h4 className="font-bold text-sm text-brand-600 mb-1">Phản hồi hệ thống</h4>
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed font-medium">{selectedFeedback}</p>
               </div>
             </div>
           </motion.div>

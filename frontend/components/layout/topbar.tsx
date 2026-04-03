@@ -170,7 +170,7 @@ export const Topbar = memo(function Topbar({
                     className="
                       w-full flex items-center gap-2 px-3 py-2 rounded-full
                       text-sm font-semibold text-rose-600 cursor-pointer
-                      hover:bg-rose-50 transition-colors border-0 bg-transparent
+                      hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors border-0 bg-transparent
                     "
                   >
                     <LogOut className="w-4 h-4" />
