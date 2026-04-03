@@ -878,7 +878,7 @@ export default function DashboardPage() {
                     className="h-full w-full rounded-[18px] object-cover"
                   />
                   <div className="absolute -bottom-1 -right-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 shadow-sm">
-                    <GithubIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                    <GithubIcon className="w-4 h-4 text-[var(--text-secondary)]" />
                   </div>
                 </div>
                 

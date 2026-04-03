@@ -99,7 +99,7 @@ function TableViewer({ extractId, filename, index }: { extractId: string; filena
               </thead>
               <tbody>
                 {data.rows.map((row, ri) => (
-                  <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-[var(--bg-secondary)]"}>
+                  <tr key={ri} className={ri % 2 === 0 ? "bg-[var(--bg-elevated)]" : "bg-[var(--bg-secondary)]"}>
                     {data.headers.map((h) => (
                       <td key={h} className="border border-[var(--border-light)] px-3 py-1.5 text-[var(--text-secondary)]">
                         {row[h] ?? ""}
@@ -501,11 +501,11 @@ export function PdfConverter() {
                           <CopyButton text={extractedText} />
                           <div className="flex gap-1 bg-[var(--bg-secondary)] p-1 rounded-xl">
                             <button onClick={() => setTextView("rendered")}
-                              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${textView === "rendered" ? "bg-white shadow font-semibold text-brand-600" : "text-[var(--text-secondary)]"}`}>
+                              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${textView === "rendered" ? "bg-[var(--bg-elevated)] shadow font-semibold text-brand-600" : "text-[var(--text-secondary)]"}`}>
                               <Eye className="w-3.5 h-3.5" /> Rendered
                             </button>
                             <button onClick={() => setTextView("raw")}
-                              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${textView === "raw" ? "bg-white shadow font-semibold text-brand-600" : "text-[var(--text-secondary)]"}`}>
+                              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${textView === "raw" ? "bg-[var(--bg-elevated)] shadow font-semibold text-brand-600" : "text-[var(--text-secondary)]"}`}>
                               <Code className="w-3.5 h-3.5" /> Raw
                             </button>
                           </div>
