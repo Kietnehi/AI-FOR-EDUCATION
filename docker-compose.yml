@@ -68,12 +68,13 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    image: any2-backend-dev:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        INSTALL_GPU_RUNTIME: "1"
-        INSTALL_PLAYWRIGHT_BROWSER: "1"
+        INSTALL_GPU_RUNTIME: ${INSTALL_GPU_RUNTIME:-0}
+        INSTALL_PLAYWRIGHT_BROWSER: ${INSTALL_PLAYWRIGHT_BROWSER:-1}
     container_name: any2-backend
     restart: unless-stopped
     environment:
@@ -136,6 +137,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
+      - backend_venv:/app/.venv
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
@@ -154,7 +156,7 @@ services:
       mongo:
         condition: service_healthy
         required: false
-    command: bash /app/start-backend-with-gui.sh uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio --reload --reload-dir /app
+    command: bash /app/start-backend-with-gui.sh uvicorn app.main:app --host 0.0.0.0 --port 8000 --loop asyncio --reload --reload-dir /app/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
@@ -194,12 +196,7 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        INSTALL_GPU_RUNTIME: "1"
-        INSTALL_PLAYWRIGHT_BROWSER: "1"
+    image: any2-backend-dev:latest
     container_name: any2-celery-worker
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
     environment:
@@ -261,6 +258,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
+      - backend_venv:/app/.venv
       - backend_storage:/app/storage
     deploy:
       resources:
@@ -303,6 +301,7 @@ volumes:
   redis_data:
   minio_data:
   mongo_data:
+  backend_venv:
   backend_storage:
   redis_insight_data:
   frontend_node_modules:
