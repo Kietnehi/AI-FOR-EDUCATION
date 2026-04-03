@@ -1171,19 +1171,19 @@ export function FloatingMascot() {
                       setIsTtsPlaying(false);
                     }}
                   />
-                  <div className="mb-2 flex items-center justify-between text-[11px] text-slate-700 min-w-0 relative z-10">
+                  <div className="mb-2 flex items-center justify-between text-[11px] text-[var(--text-secondary)] min-w-0 relative z-10">
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                       <span className="inline-flex flex-shrink-0 w-6 h-6 items-center justify-center rounded-full bg-brand-100 text-brand-700 shadow-inner">
                         <Volume2 className="w-3.5 h-3.5" />
                       </span>
-                      <span className="font-semibold text-slate-900 truncate block">
+                      <span className="font-semibold text-[var(--text-primary)] truncate block">
                         Đang phát: {Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setIsTtsPanelCollapsed((prev) => !prev)}
-                      className="rounded-full flex-shrink-0 border border-brand-200/60 bg-white/90 px-2.5 py-1 font-medium text-slate-700 hover:text-brand-700 transform transition-all active:scale-95 ml-2 hover:shadow-sm"
+                      className="rounded-full flex-shrink-0 border border-brand-200/60 bg-[var(--bg-elevated)]/90 px-2.5 py-1 font-medium text-[var(--text-secondary)] hover:text-brand-700 transform transition-all active:scale-95 ml-2 hover:shadow-sm"
                     >
                       {isTtsPanelCollapsed ? "Mở rộng" : "Thu gọn"}
                     </button>
@@ -1191,7 +1191,7 @@ export function FloatingMascot() {
 
                   {isTtsPanelCollapsed ? (
                     <div className="mt-2 flex flex-col gap-2">
-                      <div className="flex items-center gap-2 rounded-full border border-brand-200/60 bg-white/90 p-2 shadow-sm backdrop-blur-sm">
+                      <div className="flex items-center gap-2 rounded-full border border-brand-200/60 bg-[var(--bg-elevated)]/90 p-2 shadow-sm backdrop-blur-sm">
                         <button
                           onClick={() => {
                             if (ttsAudioRef.current) {
@@ -1205,13 +1205,13 @@ export function FloatingMascot() {
                           {isTtsPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />}
                         </button>
                         <div className="group relative h-8 min-w-0 flex-1">
-                          <div className="absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-slate-200 shadow-inner ring-1 ring-brand-200/70" />
+                          <div className="absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-[var(--bg-tertiary)] shadow-inner ring-1 ring-brand-200/70" />
                           <div
                             className="absolute left-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500 shadow-[0_0_12px_rgba(59,130,246,0.35)] transition-all duration-300"
                             style={{ width: `${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}%` }}
                           />
                           <div
-                            className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-white bg-brand-600 shadow-md ring-2 ring-brand-200 transition-transform duration-150 group-hover:scale-110"
+                            className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-[var(--bg-elevated)] bg-brand-600 shadow-md ring-2 ring-brand-200 transition-transform duration-150 group-hover:scale-110"
                             style={{ left: `calc(${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}% - 8px)` }}
                           />
                           <input
@@ -1244,7 +1244,7 @@ export function FloatingMascot() {
                           {isTtsMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
                         </button>
                       </div>
-                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700 tabular-nums">
+                      <div className="flex items-center justify-between text-[10px] font-semibold text-[var(--text-secondary)] tabular-nums">
                         <span>{formatTime(ttsCurrentTime)}</span>
                         <span>{formatTime(ttsDuration)}</span>
                       </div>
@@ -1252,7 +1252,7 @@ export function FloatingMascot() {
                   ) : (
                     <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-2">
                       {/* Custom Audio Player Controls */}
-                      <div className="flex items-center gap-3 w-full bg-white/90 border border-brand-200/60 p-2 rounded-full shadow-sm backdrop-blur-sm">
+                      <div className="flex items-center gap-3 w-full bg-[var(--bg-elevated)]/90 border border-brand-200/60 p-2 rounded-full shadow-sm backdrop-blur-sm">
                         <button 
                           onClick={() => {
                             if (ttsAudioRef.current) {
@@ -1266,7 +1266,7 @@ export function FloatingMascot() {
                           {isTtsPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />}
                         </button>
 
-                        <span className="text-[10px] font-semibold text-slate-700 tabular-nums">{formatTime(ttsCurrentTime)}</span>
+                        <span className="text-[10px] font-semibold text-[var(--text-secondary)] tabular-nums">{formatTime(ttsCurrentTime)}</span>
 
                         <div className="relative flex-1 h-6 flex items-center group cursor-pointer">
                           {/* Base track */}
@@ -1294,12 +1294,12 @@ export function FloatingMascot() {
                             title="Tua âm thanh"
                           />
                           <div 
-                            className="absolute h-3.5 w-3.5 bg-white border-[3px] border-brand-500 rounded-full shadow-md transition-transform duration-100 group-hover:scale-125 z-0"
+                            className="absolute h-3.5 w-3.5 bg-[var(--bg-elevated)] border-[3px] border-brand-500 rounded-full shadow-md transition-transform duration-100 group-hover:scale-125 z-0"
                             style={{ left: `calc(${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}% - 7px)` }}
                           />
                         </div>
 
-                        <span className="text-[10px] font-semibold text-slate-700 tabular-nums">{formatTime(ttsDuration)}</span>
+                        <span className="text-[10px] font-semibold text-[var(--text-secondary)] tabular-nums">{formatTime(ttsDuration)}</span>
                         
                         <div className="flex items-center gap-1 border-l border-brand-200/50 pl-1">
                           <button
@@ -1320,7 +1320,7 @@ export function FloatingMascot() {
                       </div>
 
                       <div className="flex flex-col gap-1 w-full min-w-0 mt-3">
-                        <div className="rounded-xl border border-brand-200/50 bg-white/95 p-2.5 text-left text-slate-900 w-full min-w-0 shadow-sm backdrop-blur-sm custom-scrollbar">
+                        <div className="rounded-xl border border-brand-200/50 bg-[var(--bg-elevated)]/95 p-2.5 text-left text-[var(--text-primary)] w-full min-w-0 shadow-sm backdrop-blur-sm custom-scrollbar">
                           <TtsMarkdown 
                             content={ttsActiveText} 
                             progress={ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0} 
@@ -1502,7 +1502,7 @@ export function FloatingMascot() {
                  setIsImageModalOpen(false);
                  setSelectedImage(null);
                }}
-               className="absolute -top-10 right-0 text-white hover:text-gray-300 text-4xl font-bold"
+               className="absolute -top-10 right-0 text-white hover:text-white/80 text-4xl font-bold"
                aria-label="Close"
              >
                &times;

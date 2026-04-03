@@ -267,34 +267,34 @@ export default function WebSearchPage() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-100">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-100 dark:bg-sky-900/30 dark:text-sky-200 dark:ring-sky-800">
               <span className="h-2 w-2 rounded-full bg-sky-500" />
               Web Search
             </div>
 
             <h1
-              className="max-w-4xl text-[2.2rem] font-black leading-[0.98] tracking-[-0.05em] text-slate-900 sm:text-[3.35rem]"
+              className="max-w-4xl text-[2.2rem] font-black leading-[0.98] tracking-[-0.05em] text-[var(--text-primary)] sm:text-[3.35rem]"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Tìm kiếm Website Online
             </h1>
 
-            <p className="mt-4 max-w-3xl text-[15px] leading-7 text-slate-600 sm:text-[17px]">
+            <p className="mt-4 max-w-3xl text-[15px] leading-7 text-[var(--text-secondary)] sm:text-[17px]">
               Tích hợp Web Search Online trực tiếp trong AI Learning Studio để tra cứu website, tin tức,
               hình ảnh và video nhanh hơn, gọn hơn, tập trung hơn.
             </p>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
               <div className="inline-flex items-center gap-2">
                 <Globe className="h-4 w-4 text-sky-600" />
                 <span>Tra cứu đa định dạng</span>
               </div>
-              <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:block" />
+              <span className="hidden h-1 w-1 rounded-full bg-[var(--text-border)] sm:block" />
               <div className="inline-flex items-center gap-2">
                 <Newspaper className="h-4 w-4 text-sky-600" />
                 <span>Tin tức và liên kết</span>
               </div>
-              <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:block" />
+              <span className="hidden h-1 w-1 rounded-full bg-[var(--text-border)] sm:block" />
               <div className="inline-flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-sky-600" />
                 <span>Hình ảnh và video</span>
