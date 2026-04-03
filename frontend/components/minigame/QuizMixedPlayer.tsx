@@ -41,7 +41,7 @@ export function QuizMixedPlayer({ title, items, onSubmit, loading, submitting }:
   const gameTypeColors: Record<string, string> = {
     true_false: "from-blue-500 to-blue-600",
     mcq: "from-brand-500 to-brand-600",
-    multiple_select: "from-purple-500 to-purple-600",
+    multiple_select: "from-emerald-500 to-emerald-600",
     fill_blank: "from-accent-500 to-accent-600",
   };
 
@@ -187,7 +187,7 @@ export function QuizMixedPlayer({ title, items, onSubmit, loading, submitting }:
                                       ? "border-rose-300 bg-rose-50"
                                       : "border-[var(--border-light)] bg-[var(--bg-secondary)]"
                                   : isSelected
-                                    ? "border-brand-400 bg-brand-50"
+                                    ? "border-brand-400 bg-brand-50 text-brand-700"
                                     : "border-[var(--border-light)] bg-[var(--bg-secondary)] hover:border-brand-300"
                               }
                             `}
