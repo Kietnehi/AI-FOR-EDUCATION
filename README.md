@@ -379,17 +379,20 @@ docker compose --profile local-db up -d --build
 
 #### Bảng Port và Đường dẫn truy cập nhanh
 
-| Dịch vụ | Port | Đường dẫn truy cập |
-|---------|------|--------------------|
-| Frontend | `3000` | [http://localhost:3000](http://localhost:3000) |
-| Backend API | `8000` | [http://localhost:8000](http://localhost:8000) |
-| Swagger Docs | `8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
-| Health Check | `8000` | [http://localhost:8000/health](http://localhost:8000/health) |
-| noVNC (NotebookLM Browser) | `6080` | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html) |
-| Flower (Celery Monitor) | `5555` | [http://localhost:5555](http://localhost:5555) |
-| MinIO API | `9000` | [http://localhost:9000](http://localhost:9000) |
-| MinIO Console | `9001` | [http://localhost:9001](http://localhost:9001) |
-| Redis Insight | `8081` | [http://localhost:8081](http://localhost:8081) |
+| Dịch vụ | Host Port | Container Port | Đường dẫn truy cập |
+|---------|-----------|----------------|--------------------|
+| Frontend | `3000` | `3000` | [http://localhost:3000](http://localhost:3000) |
+| Backend API | `8000` | `8000` | [http://localhost:8000](http://localhost:8000) |
+| Swagger Docs | `8000` | `8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| Health Check | `8000` | `8000` | [http://localhost:8000/health](http://localhost:8000/health) |
+| noVNC (NotebookLM Browser) | `6080` | `6080` | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html) |
+| VNC (NotebookLM Browser - native client) | `5900` | `5900` | Dùng VNC client (không phải HTTP) |
+| Flower (Celery Monitor) | `5555` | `5555` | [http://localhost:5555](http://localhost:5555) |
+| MinIO API | `9000` | `9000` | [http://localhost:9000](http://localhost:9000) |
+| MinIO Console | `9001` | `9001` | [http://localhost:9001](http://localhost:9001) |
+| Redis | `6379` | `6379` | Dùng Redis client/CLI |
+| Redis Insight (service `redis-commander`) | `8081` | `5540` | [http://localhost:8081](http://localhost:8081) |
+| MongoDB (profile `local-db`) | `27017` | `27017` | Dùng MongoDB client/Compass |
 
 #### Theo dõi trình duyệt NotebookLM khi chạy Docker
 
