@@ -7,6 +7,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+except ImportError:  # pragma: no cover - optional dependency fallback
+    Instrumentator = None
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -14,7 +18,7 @@ from app.core.logging import configure_logging, logger
 from app.db.mongo import close_mongo, connect_mongo, ensure_indexes
 
 
-if sys.platform.startswith("win"):
+if sys.platform.startswith("win") and sys.version_info < (3, 14):
     # Playwright async API needs subprocess support, which requires Proactor loop on Windows.
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
@@ -29,14 +33,14 @@ async def lifespan(_: FastAPI):
     await connect_mongo()
     await ensure_indexes()
     
-    # Initialize MinIO bucket
+    # Initialize object storage bucket(s)
     from app.services.storage import storage_service
     if storage_service.enabled:
         try:
             storage_service.ensure_bucket_exists()
-            logger.info("MinIO bucket '%s' initialized successfully", storage_service.bucket_name)
+            logger.info("Object storage bucket '%s' initialized successfully", storage_service.bucket_name)
         except Exception as e:
-            logger.warning("Failed to initialize MinIO bucket: %s", e)
+            logger.warning("Failed to initialize object storage bucket: %s", e)
     else:
         logger.info("Object storage disabled; using local filesystem storage")
     
@@ -67,6 +71,11 @@ app.add_middleware(
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+if Instrumentator is not None:
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+else:
+    logger.warning("prometheus-fastapi-instrumentator is not installed; /metrics endpoint is disabled")
 
 app.include_router(api_router, prefix="/api")
 
