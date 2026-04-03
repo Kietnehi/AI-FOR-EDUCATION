@@ -1,24 +1,55 @@
 # syntax=docker/dockerfile:1.7
 
-ARG CUDA_RUNTIME_IMAGE=nvidia/cuda:12.8.0-runtime-ubuntu22.04
-FROM ${CUDA_RUNTIME_IMAGE} AS base
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim-bookworm AS deps
 
 ARG REQUIREMENTS_FILE=requirements.txt
 ARG TORCH_CUDA_CHANNEL=cu128
-# Mặc định để full-runtime khi override 1/1 để image publish bám sát local development.
-# Nếu muốn giảm tải cho CI/CD, có thể build với INSTALL_GPU_RUNTIME=0 và INSTALL_PLAYWRIGHT_BROWSER=0.
 ARG INSTALL_GPU_RUNTIME=0
 ARG INSTALL_PLAYWRIGHT_BROWSER=0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     DEBIAN_FRONTEND=noninteractive \
-    TZ=Etc/UTC \
-    NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers \
+    UV_LINK_MODE=copy \
+    VIRTUAL_ENV=/app/.venv \
+    PATH=/app/.venv/bin:/usr/local/bin:$PATH \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:0.5.24 /uv /usr/local/bin/uv
+COPY requirements*.txt ./
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    python -m venv "$VIRTUAL_ENV" \
+    && uv pip install --python "$VIRTUAL_ENV/bin/python" -r "$REQUIREMENTS_FILE" \
+    && if [ "$INSTALL_GPU_RUNTIME" = "1" ]; then \
+        uv pip install --python "$VIRTUAL_ENV/bin/python" --index-url "https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL}" torch torchvision; \
+        uv pip install --python "$VIRTUAL_ENV/bin/python" onnxruntime-gpu; \
+    fi
+
+FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
+
+ARG APP_UID=10001
+ARG APP_GID=10001
+ARG INSTALL_LIBREOFFICE=0
+ARG INSTALL_PLAYWRIGHT_BROWSER=0
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    VIRTUAL_ENV=/app/.venv \
+    PATH=/app/.venv/bin:/usr/local/bin:$PATH \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     DISPLAY=:99 \
     XVFB_WHD=1440x960x24 \
     VNC_PORT=5900 \
@@ -28,11 +59,12 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        python3 \
-        python3-pip \
-        python3-dev \
-        build-essential \
-        tzdata \
+        tini \
+        xvfb \
+        x11vnc \
+        openbox \
+        novnc \
+        websockify \
         ffmpeg \
         libgl1 \
         libglib2.0-0 \
@@ -55,42 +87,30 @@ RUN apt-get update \
         libasound2 \
         libpango-1.0-0 \
         libcairo2 \
-        libreoffice \
-        xvfb \
-        x11vnc \
-        novnc \
-        websockify \
-        openbox \
-        dbus-x11 \
-    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
-    && echo $TZ > /etc/timezone \
-    && dpkg-reconfigure -f noninteractive tzdata \
-    && ln -sf /usr/bin/python3 /usr/bin/python \
-    && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements*.txt ./
+RUN if [ "$INSTALL_LIBREOFFICE" = "1" ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends libreoffice \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
 
-RUN pip install --upgrade pip \
-    && pip install -r ${REQUIREMENTS_FILE} \
-    && if [ "$INSTALL_GPU_RUNTIME" = "1" ]; then \
-        pip install --no-cache-dir --force-reinstall --index-url https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL} torch torchvision; \
-        pip install --no-cache-dir --force-reinstall onnxruntime-gpu; \
-    fi \
-    && if [ "$INSTALL_PLAYWRIGHT_BROWSER" = "1" ]; then \
-        mkdir -p $PLAYWRIGHT_BROWSERS_PATH; \
-        playwright install chrome; \
-        playwright install-deps chrome; \
-    fi \
-    && mkdir -p $PLAYWRIGHT_BROWSERS_PATH \
-    && chmod -R 777 $PLAYWRIGHT_BROWSERS_PATH
+RUN groupadd --gid "$APP_GID" appuser \
+    && useradd --uid "$APP_UID" --gid "$APP_GID" --create-home --shell /usr/sbin/nologin appuser
 
-COPY . .
+COPY --from=deps /app/.venv /app/.venv
+COPY --chown=appuser:appuser app ./app
+COPY --chown=appuser:appuser run.py ./run.py
+COPY --chown=appuser:appuser sitecustomize.py ./sitecustomize.py
+COPY --chown=appuser:appuser start-backend-with-gui.sh ./start-backend-with-gui.sh
 
-RUN useradd -m -u 10001 appuser \
-    && mkdir -p /app/storage \
+RUN mkdir -p /app/storage \
     && chown -R appuser:appuser /app \
     && chmod +x /app/start-backend-with-gui.sh
+
+RUN if [ "$INSTALL_PLAYWRIGHT_BROWSER" = "1" ]; then \
+        /app/.venv/bin/playwright install chrome; \
+    fi
 
 USER appuser
 
@@ -100,4 +120,5 @@ EXPOSE 6080
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
 
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--loop", "asyncio"]
