@@ -3,7 +3,6 @@ import shutil
 import re
 import asyncio
 import uuid
-import nest_asyncio
 from pathlib import Path
 from PIL import Image
 import pandas as pd
@@ -17,8 +16,6 @@ if os.name == 'nt':
         import pythoncom
     except ImportError:
         pass
-
-nest_asyncio.apply()
 
 UPLOAD_DIR = Path("storage/uploads")
 OUTPUT_DIR = Path("storage/outputs")
