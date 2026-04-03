@@ -6,6 +6,8 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 *.mp4
+!intro_videos/
+!intro_videos/*.mp4
 *.tmp
 *.temp
 *.swp
