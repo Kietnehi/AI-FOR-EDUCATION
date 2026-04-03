@@ -33,8 +33,13 @@ class GenerationService:
         self.image_fetcher = ImageFetcher()
         self.image_extractor = ImageExtractor()
 
-    async def _next_version(self, material_id: str, content_type: str) -> int:
-        return await self.generated_repo.get_next_version(material_id, content_type)
+    async def _next_version(
+        self,
+        material_id: str,
+        content_type: str,
+        user_id: str | None = None,
+    ) -> int:
+        return await self.generated_repo.get_next_version(material_id, content_type, user_id=user_id)
 
     async def _prepare_material(self, material_id: str, user_id: str | None = None) -> dict:
         """Return the full material document (must be processed)."""
@@ -203,7 +208,11 @@ class GenerationService:
         force_regenerate: bool = False,
     ) -> dict:
         if not force_regenerate:
-            existing = await self.generated_repo.list_by_material_and_type(material_id, "slides")
+            existing = await self.generated_repo.list_by_material_and_type(
+                material_id,
+                "slides",
+                user_id=user_id,
+            )
             if existing:
                 # Return the latest version if it exists
                 return existing[0]
@@ -324,7 +333,7 @@ class GenerationService:
         logger.info("Using document images only - external image fetching disabled for cost optimization.")
 
         # Step 5: Export PPTX with priority: doc image -> Pexels -> placeholder
-        version = await self._next_version(material_id, "slides")
+        version = await self._next_version(material_id, "slides", user_id=user_id)
         filename = f"slides_{material_id}_v{version}.pptx"
         output_path = str(Path(settings.generated_dir) / filename)
         self.slide_generator.export_pptx(
@@ -376,7 +385,11 @@ class GenerationService:
         force_regenerate: bool = False,
     ) -> dict:
         if not force_regenerate:
-            existing = await self.generated_repo.list_by_material_and_type(material_id, "podcast")
+            existing = await self.generated_repo.list_by_material_and_type(
+                material_id,
+                "podcast",
+                user_id=user_id,
+            )
             if existing:
                 return existing[0]
 
@@ -389,7 +402,7 @@ class GenerationService:
                 style=style,
                 target_duration_minutes=target_duration_minutes,
             ),
-            self._next_version(material_id, "podcast"),
+            self._next_version(material_id, "podcast", user_id=user_id),
         )
         llm = getattr(self.podcast_generator, "llm", None)
         model_used = getattr(llm, "last_model_used", None) if llm else None
@@ -449,7 +462,11 @@ class GenerationService:
         force_regenerate: bool = False,
     ) -> dict:
         if not force_regenerate:
-            existing = await self.generated_repo.list_by_material_and_type(material_id, "minigame")
+            existing = await self.generated_repo.list_by_material_and_type(
+                material_id,
+                "minigame",
+                user_id=user_id,
+            )
             if existing:
                 # Return the same game type if possible or just the latest
                 for item in existing:
@@ -467,7 +484,7 @@ class GenerationService:
                 text,
                 game_type=selected_game_type,
             ),
-            self._next_version(material_id, "minigame"),
+            self._next_version(material_id, "minigame", user_id=user_id),
         )
         llm = getattr(self.minigame_generator, "llm", None)
         model_used = getattr(llm, "last_model_used", None) if llm else None
@@ -536,7 +553,11 @@ class GenerationService:
         self, material_id: str, content_type: str | None = None, user_id: str | None = None
     ) -> list[dict]:
         if content_type:
-            return await self.generated_repo.list_by_material_and_type(material_id, content_type)
+            return await self.generated_repo.list_by_material_and_type(
+                material_id,
+                content_type,
+                user_id=user_id,
+            )
         if user_id:
             return await self.generated_repo.list_by_material_id_for_user(material_id, user_id)
         return await self.generated_repo.list_by_material_id(material_id)

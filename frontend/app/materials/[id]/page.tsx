@@ -35,6 +35,7 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { SlideGenerationDialog } from "@/components/ui/slide-generation-dialog";
 import {
   confirmNotebookLMArtifactGeneration,
+  deleteGeneratedContent,
   deleteMaterial,
   generateMinigame,
   generateNotebookLMMediaFromMaterial,
@@ -103,6 +104,9 @@ export default function MaterialDetailPage() {
   const [selectedInfographic, setSelectedInfographic] = useState<{ file_name: string; file_url: string } | null>(null);
   const [isEditingMaterial, setIsEditingMaterial] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingGeneratedId, setDeletingGeneratedId] = useState("");
+  const [libraryModalType, setLibraryModalType] = useState<"slides" | "podcast" | "minigame" | null>(null);
+  const [forceRegenerateSlides, setForceRegenerateSlides] = useState(false);
   const [isCustomEducationLevel, setIsCustomEducationLevel] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -210,6 +214,7 @@ export default function MaterialDetailPage() {
 
     // For slides, show dialog first
     if (type === "slides") {
+      setForceRegenerateSlides(false);
       setShowSlideDialog(true);
       return;
     }
@@ -218,7 +223,7 @@ export default function MaterialDetailPage() {
     setBusyAction(type);
     try {
       if (type === "podcast") {
-        const generated = await generatePodcast(materialId);
+        const generated = await generatePodcast(materialId, false);
         router.push(`/materials/${materialId}/podcast?contentId=${generated.id}`);
         return;
       } else {
@@ -233,7 +238,7 @@ export default function MaterialDetailPage() {
       setBusyAction("");
     }
   }
-  async function handleGenerateSlides(maxSlides: number, skipRefine: boolean) {
+  async function handleGenerateSlides(maxSlides: number, skipRefine: boolean, forceRegenerate = false) {
     if (!ensureMaterialProcessed("tạo slides")) {
       return;
     }
@@ -251,7 +256,11 @@ export default function MaterialDetailPage() {
     }, 800);
 
     try {
-      const generated = await generateSlides(materialId, { max_slides: maxSlides, skip_refine: skipRefine });
+      const generated = await generateSlides(materialId, {
+        max_slides: maxSlides,
+        skip_refine: skipRefine,
+        force_regenerate: forceRegenerate,
+      });
       clearInterval(progressInterval);
       setSlideProgress(100);
 
@@ -259,13 +268,94 @@ export default function MaterialDetailPage() {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setShowSlideDialog(false);
+      setForceRegenerateSlides(false);
       router.push(`/materials/${materialId}/slides?contentId=${generated.id}`);
     } catch (error) {
       clearInterval(progressInterval);
       setSlideProgress(0);
       setToast({ message: String(error), type: "error" });
     } finally {
+      setForceRegenerateSlides(false);
       setBusyAction("");
+    }
+  }
+
+  function getContentsByType(type: "slides" | "podcast" | "minigame") {
+    return generatedContents
+      .filter((content) => content.content_type === type)
+      .sort((a, b) => Number(b.version || 0) - Number(a.version || 0));
+  }
+
+  async function refreshGeneratedContents() {
+    const contentsData = await listGeneratedContents(materialId);
+    setGeneratedContents(contentsData);
+  }
+
+  function openLibrary(type: "slides" | "podcast" | "minigame") {
+    setLibraryModalType(type);
+  }
+
+  function openGeneratedItem(item: GeneratedContent) {
+    if (item.content_type === "slides") {
+      router.push(`/materials/${materialId}/slides?contentId=${item.id}`);
+      return;
+    }
+    if (item.content_type === "podcast") {
+      router.push(`/materials/${materialId}/podcast?contentId=${item.id}`);
+      return;
+    }
+    if (item.content_type === "minigame") {
+      router.push(`/materials/${materialId}/minigame?contentId=${item.id}`);
+    }
+  }
+
+  async function handleCreateNewVersion(type: "slides" | "podcast" | "minigame") {
+    if (!ensureMaterialProcessed(`tạo phiên bản mới ${type}`)) {
+      return;
+    }
+
+    if (type === "slides") {
+      setLibraryModalType(null);
+      setForceRegenerateSlides(true);
+      setShowSlideDialog(true);
+      return;
+    }
+
+    setBusyAction(type);
+    try {
+      if (type === "podcast") {
+        const generated = await generatePodcast(materialId, true);
+        setLibraryModalType(null);
+        await refreshGeneratedContents();
+        router.push(`/materials/${materialId}/podcast?contentId=${generated.id}`);
+        return;
+      }
+
+      setLibraryModalType(null);
+      router.push(`/materials/${materialId}/minigame?mode=create`);
+    } catch (error) {
+      setToast({ message: String(error), type: "error" });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function handleDeleteGeneratedItem(item: GeneratedContent) {
+    const label = item.content_type === "minigame"
+      ? `minigame v${item.version}`
+      : `${item.content_type} v${item.version}`;
+    const confirmed = window.confirm(`Bạn có chắc muốn xóa ${label}?`);
+    if (!confirmed) return;
+
+    setDeletingGeneratedId(item.id);
+    try {
+      await deleteGeneratedContent(item.id);
+      await refreshGeneratedContents();
+      setToast({ message: `Đã xóa ${label} thành công.`, type: "success" });
+    } catch (error) {
+      setToast({ message: String(error), type: "error" });
+    } finally {
+      setDeletingGeneratedId("");
     }
   }
 
@@ -482,7 +572,7 @@ export default function MaterialDetailPage() {
       icon: Presentation,
       gradient: "from-brand-500 to-brand-600",
       desc: "Tạo file PPTX tự động",
-      existing: generatedContents.find(c => c.content_type === "slides")
+      items: getContentsByType("slides"),
     },
     {
       id: "podcast",
@@ -490,7 +580,7 @@ export default function MaterialDetailPage() {
       icon: Mic,
       gradient: "from-accent-500 to-accent-600",
       desc: "Kịch bản audio chi tiết",
-      existing: generatedContents.find(c => c.content_type === "podcast")
+      items: getContentsByType("podcast"),
     },
     {
       id: "minigame",
@@ -498,9 +588,23 @@ export default function MaterialDetailPage() {
       icon: Gamepad2,
       gradient: "from-emerald-500 to-emerald-600",
       desc: "Quiz, flashcard, điền từ",
-      existing: generatedContents.find(c => c.content_type === "minigame")
+      items: getContentsByType("minigame"),
     },
   ];
+
+  const libraryTypeLabels: Record<"slides" | "podcast" | "minigame", string> = {
+    slides: "Slides bài giảng",
+    podcast: "Podcast học tập",
+    minigame: "Minigame tương tác",
+  };
+
+  const minigameTypeLabels: Record<string, string> = {
+    quiz_mixed: "Quiz hỗn hợp",
+    flashcard: "Flashcard",
+    shooting_quiz: "Bắn gà ôn tập",
+  };
+
+  const libraryItems = libraryModalType ? getContentsByType(libraryModalType) : [];
 
   return (
     <motion.div
@@ -607,15 +711,16 @@ export default function MaterialDetailPage() {
           {contentActions.map((action) => {
             const Icon = action.icon;
             const isBusy = busyAction === action.id;
-            const existing = action.existing;
+            const existingCount = action.items.length;
+            const hasExisting = existingCount > 0;
             
             return (
               <Card key={action.id} hover className="group relative">
-                {existing && (
+                {hasExisting && (
                   <div className="absolute top-3 right-3">
                     <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
                       <Check className="w-3 h-3" />
-                      Đã tạo
+                      {existingCount} phiên bản
                     </span>
                   </div>
                 )}
@@ -629,7 +734,7 @@ export default function MaterialDetailPage() {
                   {action.desc}
                 </p>
                 <div className="flex flex-col gap-2 w-full">
-                  {!existing ? (
+                  {!hasExisting ? (
                     <Button
                       fullWidth
                       size="lg"
@@ -645,22 +750,18 @@ export default function MaterialDetailPage() {
                       <Button
                         fullWidth
                         size="lg"
-                        onClick={() => handleGenerate(action.id as "slides" | "podcast" | "minigame")}
+                        onClick={() => openLibrary(action.id as "slides" | "podcast" | "minigame")}
                         loading={isBusy}
-                        disabled={busyAction.length > 0}
+                        disabled={busyAction.length > 0 || deletingGeneratedId.length > 0}
                         icon={action.id === "minigame" ? <Play className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         className={`rounded-2xl h-11 shadow-sm hover:shadow-md transition-all font-bold text-white border-none bg-gradient-to-r ${action.gradient}`}
                       >
-                        {isBusy ? "Đang xử lý..." : action.id === "minigame" ? "Vào chơi ngay" : "Xem học liệu"}
+                        {isBusy ? "Đang xử lý..." : action.id === "minigame" ? "Chọn game đã tạo" : "Xem danh sách đã tạo"}
                       </Button>
                       
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm("Bạn có chắc muốn tạo lại nội dung này? Một phiên bản mới sẽ được tạo ra.")) {
-                            handleGenerate(action.id as "slides" | "podcast" | "minigame");
-                          }
-                        }}
+                        onClick={() => handleCreateNewVersion(action.id as "slides" | "podcast" | "minigame")}
                         disabled={busyAction.length > 0}
                         className="flex items-center justify-center gap-2 w-full h-10 px-4 rounded-xl border border-[var(--border-light)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer"
                       >
@@ -965,6 +1066,115 @@ export default function MaterialDetailPage() {
           document.body,
         )}
 
+      {libraryModalType &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm"
+            onClick={() => setLibraryModalType(null)}
+          >
+            <div
+              className="relative w-full max-w-4xl rounded-[28px] border border-white/10 bg-[var(--bg-elevated)] p-5 shadow-[0_30px_80px_rgba(2,6,23,0.45)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setLibraryModalType(null)}
+                className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                aria-label="Đóng danh sách nội dung đã tạo"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="mb-4 pr-12">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+                  Thư viện nội dung đã tạo
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                  {libraryTypeLabels[libraryModalType]}
+                </h3>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  Chọn phiên bản đã tạo để mở lại, hoặc tạo phiên bản mới.
+                </p>
+              </div>
+
+              <div className="mb-4 flex items-center justify-end gap-2">
+                <Button
+                  onClick={() => handleCreateNewVersion(libraryModalType)}
+                  loading={busyAction === libraryModalType}
+                  disabled={busyAction.length > 0 || deletingGeneratedId.length > 0}
+                  icon={<RefreshCw className="w-4 h-4" />}
+                >
+                  Tạo phiên bản mới
+                </Button>
+              </div>
+
+              <div className="max-h-[65vh] space-y-3 overflow-auto pr-1">
+                {libraryItems.length === 0 && (
+                  <Card className="border-dashed">
+                    <p className="text-sm text-[var(--text-secondary)] m-0">
+                      Chưa có nội dung nào cho mục này.
+                    </p>
+                  </Card>
+                )}
+
+                {libraryItems.map((item) => {
+                  const title =
+                    item.content_type === "podcast"
+                      ? item.json_content?.title || `Podcast v${item.version}`
+                      : item.content_type === "minigame"
+                        ? `${minigameTypeLabels[item.game_type || ""] || "Minigame"} v${item.version}`
+                        : `Slides v${item.version}`;
+
+                  return (
+                    <Card key={item.id} className="border border-[var(--border-light)]">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h4 className="m-0 text-sm font-semibold text-[var(--text-primary)]">{title}</h4>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                            <span>Phiên bản {item.version}</span>
+                            <span>•</span>
+                            <span>{DATE_FORMATTER.format(new Date(item.created_at))}</span>
+                            {item.model_used ? (
+                              <>
+                                <span>•</span>
+                                <span>Model: {item.model_used}</span>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            icon={item.content_type === "minigame" ? <Play className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            onClick={() => openGeneratedItem(item)}
+                            disabled={busyAction.length > 0 || deletingGeneratedId.length > 0}
+                          >
+                            {item.content_type === "minigame" ? "Vào game" : "Mở lại"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            icon={<Trash2 className="w-4 h-4" />}
+                            onClick={() => handleDeleteGeneratedItem(item)}
+                            loading={deletingGeneratedId === item.id}
+                            disabled={busyAction.length > 0}
+                          >
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
       {/* Chat CTA */}
       <Card className="relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-200/30 to-accent-200/30 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl" />
@@ -1020,9 +1230,10 @@ export default function MaterialDetailPage() {
           if (busyAction !== "slides") {
             setShowSlideDialog(false);
             setSlideProgress(0);
+            setForceRegenerateSlides(false);
           }
         }}
-        onGenerate={handleGenerateSlides}
+        onGenerate={(maxSlides, skipRefine) => handleGenerateSlides(maxSlides, skipRefine, forceRegenerateSlides)}
         loading={busyAction === "slides"}
         progress={slideProgress}
       />

@@ -17,6 +17,8 @@ import {
   MapPin,
   Mail,
   Send,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -110,6 +112,7 @@ export default function DashboardPage() {
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactSuccess, setContactSuccess] = useState("");
   const [contactError, setContactError] = useState("");
+  const [contactExpanded, setContactExpanded] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -200,36 +203,36 @@ export default function DashboardPage() {
       variants={container}
       initial="hidden"
       animate="show"
-      className="space-y-8"
+      className="flex flex-col gap-8"
     >
-      {/* Hero Section */}
-      <motion.div variants={item}>
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-accent-600 to-brand-700 p-8 sm:p-10 text-white min-h-[400px] flex flex-col justify-center">
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent-400/20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl pointer-events-none" />
+      {/* Hero Section — Soft Brutalism: Dark slate + Mint accents */}
+      <motion.div variants={item} className="order-1">
+        <div className="relative overflow-hidden rounded-2xl border-2 border-slate-800 bg-slate-900 text-white p-8 sm:p-12 min-h-[380px] flex flex-col justify-center" style={{ boxShadow: "var(--shadow-soft)" }}>
+          {/* Decorative background */}
+          <div className="absolute top-0 right-0 w-72 h-72 bg-[#A1E8AF]/10 rounded-full -translate-y-1/3 translate-x-1/4 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#A1E8AF]/5 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl pointer-events-none" />
 
-          {/* 3D Visualizer Background */}
+          {/* 3D Visualizer */}
           <div className="absolute top-0 right-0 bottom-0 w-full sm:w-2/3 lg:w-1/2 min-h-[300px]">
-             {showVisualizer ? <AIVisualizer /> : null}
+            {showVisualizer ? <AIVisualizer /> : null}
           </div>
 
           <div className="relative z-10 max-w-xl pointer-events-none">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm text-sm font-medium mb-4 pointer-events-auto">
-              <Sparkles className="w-4 h-4" />
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#A1E8AF] text-slate-900 text-xs font-bold mb-6 pointer-events-auto uppercase tracking-widest">
+              <Sparkles className="w-3.5 h-3.5" />
               AI-Powered Learning
-            </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-4 pointer-events-auto" style={{ fontFamily: "var(--font-display)" }}>
-              Tạo học liệu 
+            </span>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-4 pointer-events-auto" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+              Tạo học liệu
               <br />
-              <span className="text-accent-200 drop-shadow-sm">thông minh với AI</span>
+              <span className="text-[#A1E8AF]">thông minh với AI</span>
             </h1>
-            <p className="text-base text-brand-50 mb-8 max-w-md pointer-events-auto text-lg leading-relaxed">
+            <p className="text-base text-slate-400 mb-8 max-w-md pointer-events-auto text-lg leading-relaxed">
               Upload tài liệu, tự động tạo slide gốc, podcast, minigame và chatbot hỏi đáp chỉ trong vài phút.
             </p>
-            <div className="flex flex-wrap gap-3 pointer-events-auto shadow-lg rounded-full w-fit">
+            <div className="flex flex-wrap gap-3 pointer-events-auto w-fit">
               <Link href="/materials/upload">
-                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-semibold">
+                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-bold bg-[#A1E8AF] text-slate-900 border-2 border-[#A1E8AF] hover:brightness-110">
                   Tải lên học liệu
                 </Button>
               </Link>
@@ -238,7 +241,7 @@ export default function DashboardPage() {
                   variant="ghost"
                   size="lg"
                   icon={<ArrowRight className="w-5 h-5" />}
-                  className="!text-white/90 hover:!bg-white/20 h-12 px-6 rounded-full backdrop-blur-sm bg-white/5 font-semibold"
+                  className="!text-white/90 hover:!bg-slate-800 h-12 px-6 rounded-full border-2 border-slate-700 font-bold"
                 >
                   Xem tất cả
                 </Button>
@@ -249,7 +252,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Video Intro Section */}
-      <motion.div variants={item}>
+      <motion.div variants={item} className="order-2">
         <div className="mb-8">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-4">
@@ -467,7 +470,7 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      <motion.div variants={item}>
+      <motion.div variants={item} className="order-7">
         <Card className="tech-stack-card relative overflow-hidden shadow-sm">
           <div className="mb-5 flex items-end justify-between gap-4">
             <div>
@@ -510,7 +513,8 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Quick Stats */}
-      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ perspective: 1000 }}>
+      <motion.div variants={item} className="order-3 w-full overflow-x-clip">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           const count =
@@ -518,7 +522,7 @@ export default function DashboardPage() {
               ? materials.length
               : 0;
           return (
-            <TiltCard key={stat.label}>
+            <TiltCard key={stat.label} className="min-w-0">
               <Card className="!p-4 h-full shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0 shadow-inner`}>
@@ -533,13 +537,14 @@ export default function DashboardPage() {
             </TiltCard>
           );
         })}
+        </div>
       </motion.div>
 
       {/* Recent Materials */}
-      <motion.div variants={item}>
+      <motion.div variants={item} className="order-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+            <h2 className="text-xl font-black text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
               Học liệu gần đây
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mt-0.5">
@@ -547,9 +552,9 @@ export default function DashboardPage() {
             </p>
           </div>
           <Link href="/materials">
-            <Button variant="ghost" size="sm" icon={<ArrowRight className="w-4 h-4" />}>
-              Xem tất cả
-            </Button>
+            <button className="flex items-center gap-1.5 px-4 h-9 rounded-full border-2 border-[var(--border-structural)] text-sm font-semibold text-[var(--text-secondary)] hover:border-[#A1E8AF] hover:text-[var(--text-primary)] transition-all cursor-pointer bg-transparent">
+              Xem tất cả <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </Link>
         </div>
 
@@ -629,47 +634,52 @@ export default function DashboardPage() {
         )}
       </motion.div>
 
-      {/* Quick Actions */}
-      <motion.div variants={item}>
-        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)" }}>
-          Hành động nhanh
+      {/* Quick Actions — Soft Brutalism cards */}
+      <motion.div variants={item} className="order-4">
+        <h2 className="text-xl font-black text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+          Công cụ AI của bạn
         </h2>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             {
               icon: Upload,
               title: "Tải lên tài liệu",
               desc: "PDF, DOCX, TXT hoặc nhập trực tiếp",
               href: "/materials/upload",
-              gradient: "from-brand-500 to-brand-600",
+              tags: ["PDF", "Docx"],
             },
             {
               icon: Sparkles,
-              title: "Tạo nội dung AI",
+              title: "Nội dung AI",
               desc: "Slides, podcast, minigame tự động",
               href: "/materials",
-              gradient: "from-accent-500 to-accent-600",
+              tags: ["Hot"],
             },
             {
               icon: MessageSquareText,
-              title: "Chat với AI",
+              title: "Chatbot RAG",
               desc: "Hỏi đáp thông minh theo tài liệu",
               href: "/chatbot",
-              gradient: "from-emerald-500 to-emerald-600",
+              tags: ["Interactive"],
             },
           ].map((action) => {
             const Icon = action.icon;
             return (
-              <Link key={action.href} href={action.href} className="no-underline">
-                <Card hover className="group">
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${action.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-6 h-6 text-white" />
+              <Link key={action.href} href={action.href} className="no-underline group">
+                <div className="sb-card cursor-pointer p-6">
+                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-section)] flex items-center justify-center mb-4 border-2 border-[var(--border-structural)] group-hover:bg-[#A1E8AF] group-hover:border-[#A1E8AF] transition-colors">
+                    <Icon className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-slate-900 transition-colors" />
                   </div>
-                  <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">
+                  <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">
                     {action.title}
                   </h3>
-                  <p className="text-sm text-[var(--text-secondary)]">{action.desc}</p>
-                </Card>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">{action.desc}</p>
+                  <div className="flex items-center gap-1.5">
+                    {action.tags.map(tag => (
+                      <span key={tag} className="text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--bg-section)] text-[var(--text-secondary)] uppercase border border-[var(--border-structural)]">{tag}</span>
+                    ))}
+                  </div>
+                </div>
               </Link>
             );
           })}
@@ -677,41 +687,23 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Geography Location */}
-      <motion.div variants={item} className="content-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <MapPin className="w-5 h-5 text-brand-600" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-            Vị trí địa lý
-          </h2>
-        </div>
-        <Card className="overflow-hidden !p-0 border-[var(--border-light)] shadow-sm">
-          <div className="p-4 bg-[var(--bg-secondary)] border-b border-[var(--border-light)]">
-            <h3 className="font-semibold text-[var(--text-primary)]">Trường Đại học Sài Gòn</h3>
-            <p className="text-sm text-[var(--text-secondary)]">273 An Dương Vương, Phường 3, Quận 5, Thành phố Hồ Chí Minh</p>
-          </div>
-          <div className="w-full h-[400px] relative">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d9309.215601568438!2d106.67968337575233!3d10.759917089387919!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2sus!4v1774422510403!5m2!1svi!2sus"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen={true}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title="SGU Map"
-              className="grayscale-[0.2] contrast-[1.1]"
-            ></iframe>
-          </div>
-        </Card>
-      </motion.div>
-
       {/* Cooperation Contact */}
-      <motion.div variants={item} className="content-auto">
-        <div className="flex items-center gap-2 mb-4">
+      <motion.div variants={item} className="order-6 content-auto">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
           <Mail className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
             Liên hệ hợp tác
           </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setContactExpanded((prev) => !prev)}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] px-4 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            {contactExpanded ? "Thu gọn" : "Xem chi tiết"}
+            {contactExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
         </div>
         <div className="relative overflow-hidden rounded-[28px] border border-[var(--border-default)] bg-[var(--bg-secondary)] p-3 shadow-[var(--shadow-lg)] sm:p-4">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.12),transparent_58%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.1),transparent_42%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_58%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_42%)]" />
@@ -747,6 +739,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {!contactExpanded ? (
+            <div className="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">
+              Biểu mẫu đang được thu gọn để giao diện gọn hơn. Nhấn <strong>Xem chi tiết</strong> để mở form liên hệ và danh sách thành viên.
+            </div>
+          ) : (
           <form onSubmit={handleContactSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <label className="block">
@@ -844,7 +841,9 @@ export default function DashboardPage() {
               </Button>
             </div>
           </form>
+          )}
         </Card>
+        {contactExpanded ? (
         <div className="grid gap-3 lg:grid-cols-3">
           {[
             {
@@ -917,7 +916,37 @@ export default function DashboardPage() {
             </a>
           ))}
         </div>
+        ) : null}
         </div>
+      </motion.div>
+
+      {/* Geography Location */}
+      <motion.div variants={item} className="order-8 content-auto">
+        <div className="flex items-center gap-2 mb-4">
+          <MapPin className="w-5 h-5 text-brand-600" />
+          <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+            Vị trí địa lý
+          </h2>
+        </div>
+        <Card className="overflow-hidden !p-0 border-[var(--border-light)] shadow-sm">
+          <div className="p-4 bg-[var(--bg-secondary)] border-b border-[var(--border-light)]">
+            <h3 className="font-semibold text-[var(--text-primary)]">Trường Đại học Sài Gòn</h3>
+            <p className="text-sm text-[var(--text-secondary)]">273 An Dương Vương, Phường 3, Quận 5, Thành phố Hồ Chí Minh</p>
+          </div>
+          <div className="w-full h-[400px] relative">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d9309.215601568438!2d106.67968337575233!3d10.759917089387919!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2sus!4v1774422510403!5m2!1svi!2sus"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen={true}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title="SGU Map"
+              className="grayscale-[0.2] contrast-[1.1]"
+            ></iframe>
+          </div>
+        </Card>
       </motion.div>
     </motion.div>
   );

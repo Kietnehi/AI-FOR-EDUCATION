@@ -62,6 +62,17 @@ type UserShotAnswer = { id: string; answer: string };
 type Props = {
   payload: ShootingPayload;
   onSubmit: (answers: UserShotAnswer[]) => Promise<any>;
+  sessionKey?: string;
+};
+
+type ShootingSessionSnapshot = {
+  screen: "playing";
+  roundIndex: number;
+  score: number;
+  correctCount: number;
+  roundTimeLeft: number;
+  answersLog: UserShotAnswer[];
+  savedAt: number;
 };
 
 const ARENA_WIDTH = 980;
@@ -74,10 +85,12 @@ const PLAYER_AVATAR_SIZE = 96;
 const PLAYER_AVATAR_BOTTOM = 12;
 // Fine-tune these offsets if you want the shooting origin to move slightly.
 const PLAYER_ANCHOR_X_OFFSET = 0;
-const PLAYER_ANCHOR_Y_OFFSET = 10;
+const PLAYER_ANCHOR_Y_OFFSET = 0;
 const PLAYER_X = ARENA_WIDTH / 2 + PLAYER_ANCHOR_X_OFFSET;
 const PLAYER_Y = ARENA_HEIGHT - PLAYER_AVATAR_BOTTOM - PLAYER_AVATAR_SIZE / 2 + PLAYER_ANCHOR_Y_OFFSET;
 const BULLET_SPEED = 16;
+const CHICKEN_HIT_RADIUS = 34;
+const PHYSICS_SUBSTEPS = 4;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -91,11 +104,35 @@ function yToPercent(y: number): string {
   return `${(y / ARENA_HEIGHT) * 100}%`;
 }
 
+function didBulletHitEnemy(prevX: number, prevY: number, nextX: number, nextY: number, enemy: EnemyChicken): boolean {
+  const dx = nextX - prevX;
+  const dy = nextY - prevY;
+  const segmentLengthSq = dx * dx + dy * dy;
+
+  if (!segmentLengthSq) {
+    const distX = prevX - enemy.x;
+    const distY = prevY - enemy.y;
+    return distX * distX + distY * distY <= CHICKEN_HIT_RADIUS * CHICKEN_HIT_RADIUS;
+  }
+
+  const t = clamp(((enemy.x - prevX) * dx + (enemy.y - prevY) * dy) / segmentLengthSq, 0, 1);
+  const closestX = prevX + dx * t;
+  const closestY = prevY + dy * t;
+  const distToCenterX = closestX - enemy.x;
+  const distToCenterY = closestY - enemy.y;
+
+  if (distToCenterX * distToCenterX + distToCenterY * distToCenterY <= CHICKEN_HIT_RADIUS * CHICKEN_HIT_RADIUS) {
+    return true;
+  }
+
+  return false;
+}
+
 function createRoundEnemies(answers: QuizAnswer[]): EnemyChicken[] {
   return answers.map((answer, idx) => {
     const laneWidth = ARENA_WIDTH / answers.length;
     const laneCenter = laneWidth * idx + laneWidth / 2;
-    const startX = laneCenter + (Math.random() * 72 - 36);
+    const startX = laneCenter + (Math.random() * 12 - 6);
     return {
       answerId: answer.id,
       text: answer.text,
@@ -109,7 +146,7 @@ function createRoundEnemies(answers: QuizAnswer[]): EnemyChicken[] {
   });
 }
 
-export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
+export function ShootingQuizPlayer({ payload, onSubmit, sessionKey }: Props) {
   const questions = useMemo(() => {
     const source = Array.isArray(payload?.game?.questions) ? payload.game?.questions || [] : [];
     return source.slice(0, 10).map((question, qIndex) => {
@@ -141,6 +178,7 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
   const [answersLog, setAnswersLog] = useState<UserShotAnswer[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<any>(null);
+  const [resumeSnapshot, setResumeSnapshot] = useState<ShootingSessionSnapshot | null>(null);
 
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const enemiesRef = useRef<EnemyChicken[]>([]);
@@ -148,6 +186,41 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
 
   const currentQuestion = questions[roundIndex];
   const totalRounds = questions.length || 10;
+
+  function getSessionStorageKey() {
+    if (!sessionKey) return "";
+    return `shooting-quiz-session:${sessionKey}`;
+  }
+
+  function clearSessionSnapshot() {
+    if (typeof window === "undefined") return;
+    const key = getSessionStorageKey();
+    if (!key) return;
+    window.localStorage.removeItem(key);
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = getSessionStorageKey();
+    if (!key) return;
+
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      setResumeSnapshot(null);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as ShootingSessionSnapshot;
+      if (parsed?.screen === "playing" && Number.isFinite(parsed.roundIndex) && parsed.roundIndex < totalRounds) {
+        setResumeSnapshot(parsed);
+      } else {
+        setResumeSnapshot(null);
+      }
+    } catch {
+      setResumeSnapshot(null);
+    }
+  }, [sessionKey, totalRounds]);
 
   useEffect(() => {
     if (screen !== "playing" || !currentQuestion) return;
@@ -178,50 +251,65 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
       const minY = CHICKEN_HEIGHT / 2;
       const maxY = ARENA_HEIGHT - CHICKEN_HEIGHT / 2 - PLAYER_SAFE_ZONE;
 
-      const movedEnemies = enemiesRef.current.map((enemy) => {
-        const nextX = enemy.x + enemy.vx;
-        const nextY = enemy.y + enemy.vy;
-        const bouncedX = nextX <= minX || nextX >= maxX;
-        const bouncedY = nextY <= minY || nextY >= maxY;
-
-        return {
-          ...enemy,
-          x: bouncedX ? clamp(nextX, minX, maxX) : nextX,
-          y: bouncedY ? clamp(nextY, minY, maxY) : nextY,
-          vx: bouncedX ? enemy.vx * -1 : enemy.vx,
-          vy: bouncedY ? enemy.vy * -1 : enemy.vy,
-        };
-      });
-
+      let simulatedEnemies = enemiesRef.current;
+      let simulatedBullets = bulletsRef.current;
       let hitEnemy: EnemyChicken | null = null;
-      const movedBullets = bulletsRef.current
-        .map((bullet) => ({
-          ...bullet,
-          x: bullet.x + bullet.vx,
-          y: bullet.y + bullet.vy,
-        }))
-        .filter((bullet) => bullet.x >= -20 && bullet.x <= ARENA_WIDTH + 20 && bullet.y >= -20 && bullet.y <= ARENA_HEIGHT + 20)
-        .filter((bullet) => {
-          if (hitEnemy) return false;
 
-          const enemy = movedEnemies.find((candidate) => {
-            const left = candidate.x - CHICKEN_WIDTH / 2;
-            const right = candidate.x + CHICKEN_WIDTH / 2;
-            const top = candidate.y - CHICKEN_HEIGHT / 2;
-            const bottom = candidate.y + CHICKEN_HEIGHT / 2;
-            return bullet.x >= left && bullet.x <= right && bullet.y >= top && bullet.y <= bottom;
-          });
+      for (let step = 0; step < PHYSICS_SUBSTEPS; step += 1) {
+        simulatedEnemies = simulatedEnemies.map((enemy) => {
+          const stepVX = enemy.vx / PHYSICS_SUBSTEPS;
+          const stepVY = enemy.vy / PHYSICS_SUBSTEPS;
+          const nextX = enemy.x + stepVX;
+          const nextY = enemy.y + stepVY;
+          const bouncedX = nextX <= minX || nextX >= maxX;
+          const bouncedY = nextY <= minY || nextY >= maxY;
 
-          if (enemy) {
-            hitEnemy = enemy;
-            return false;
-          }
-
-          return true;
+          return {
+            ...enemy,
+            x: bouncedX ? clamp(nextX, minX, maxX) : nextX,
+            y: bouncedY ? clamp(nextY, minY, maxY) : nextY,
+            vx: bouncedX ? enemy.vx * -1 : enemy.vx,
+            vy: bouncedY ? enemy.vy * -1 : enemy.vy,
+          };
         });
 
-      setEnemies(movedEnemies);
-      setBullets(hitEnemy ? [] : movedBullets);
+        simulatedBullets = simulatedBullets
+          .map((bullet) => ({
+            ...bullet,
+            prevX: bullet.x,
+            prevY: bullet.y,
+            x: bullet.x + bullet.vx / PHYSICS_SUBSTEPS,
+            y: bullet.y + bullet.vy / PHYSICS_SUBSTEPS,
+          }))
+          .filter((bullet) => {
+            if (hitEnemy) return false;
+
+            const enemy = simulatedEnemies
+              .filter((candidate) => didBulletHitEnemy(bullet.prevX, bullet.prevY, bullet.x, bullet.y, candidate))
+              .sort((a, b) => {
+                const distA = (a.x - bullet.prevX) * (a.x - bullet.prevX) + (a.y - bullet.prevY) * (a.y - bullet.prevY);
+                const distB = (b.x - bullet.prevX) * (b.x - bullet.prevX) + (b.y - bullet.prevY) * (b.y - bullet.prevY);
+                return distA - distB;
+              })[0];
+
+            if (enemy) {
+              hitEnemy = enemy;
+              return false;
+            }
+
+            return true;
+          })
+          .filter(
+            (bullet) => bullet.x >= -20 && bullet.x <= ARENA_WIDTH + 20 && bullet.y >= -20 && bullet.y <= ARENA_HEIGHT + 20
+          );
+
+        if (hitEnemy) {
+          break;
+        }
+      }
+
+      setEnemies(simulatedEnemies);
+      setBullets(hitEnemy ? [] : simulatedBullets);
 
       if (hitEnemy) {
         resolveRound(hitEnemy);
@@ -280,6 +368,28 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
     setAwaitingTimeoutContinue(false);
     setRoundTimeLeft(ROUND_TIME_MS);
     setBullets([]);
+    clearSessionSnapshot();
+  }
+
+  function resumeGame() {
+    if (!resumeSnapshot) {
+      beginGame();
+      return;
+    }
+
+    setScreen("playing");
+    setRoundIndex(clamp(resumeSnapshot.roundIndex, 0, Math.max(totalRounds - 1, 0)));
+    setScore(resumeSnapshot.score || 0);
+    setCorrectCount(resumeSnapshot.correctCount || 0);
+    setAnswersLog(Array.isArray(resumeSnapshot.answersLog) ? resumeSnapshot.answersLog : []);
+    setSubmitResult(null);
+    setFeedback(null);
+    setSelectedAnswerId(null);
+    setLockedRound(false);
+    setIsPaused(false);
+    setAwaitingTimeoutContinue(false);
+    setRoundTimeLeft(clamp(resumeSnapshot.roundTimeLeft || ROUND_TIME_MS, 0, ROUND_TIME_MS));
+    setBullets([]);
   }
 
   function handleRoundTimeout() {
@@ -319,6 +429,7 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
 
   function finishGame() {
     setScreen("end");
+    clearSessionSnapshot();
   }
 
   function nextRound() {
@@ -374,12 +485,15 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
     });
   }
 
-  function handleShoot() {
+  function handleShoot(targetPoint?: { x: number; y: number }) {
     if (screen !== "playing" || lockedRound || isPaused) return;
 
+    const targetX = targetPoint?.x ?? aim.x;
+    const targetY = targetPoint?.y ?? aim.y;
+
     // Convert mouse target into a normalized direction vector from player.
-    const dx = aim.x - PLAYER_X;
-    const dy = aim.y - PLAYER_Y;
+    const dx = targetX - PLAYER_X;
+    const dy = targetY - PLAYER_Y;
     const length = Math.sqrt(dx * dx + dy * dy);
     if (!length) return;
 
@@ -422,12 +536,12 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
         style={{
           left: xToPercent(PLAYER_X),
           top: yToPercent(PLAYER_Y),
-          transform: `translate(-50%, -50%) rotate(${aimAngle}rad)`,
+          transform: `translate(0, -50%) rotate(${aimAngle}rad)`,
           transformOrigin: "0 50%",
         }}
       >
-        <div className="relative w-20 h-1.5 bg-white/90 rounded-full -translate-y-1">
-          <div className="absolute -right-1.5 -top-1.5 w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[10px] border-l-white/95" />
+        <div className="relative w-20 h-[3px] bg-white/90 rounded-full">
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[10px] border-l-white/95" />
         </div>
       </div>
     );
@@ -548,6 +662,36 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
   const accuracyPercent = totalRounds > 0 ? Math.round((correctCount / totalRounds) * 100) : 0;
   const evaluation = getEvaluationLabel(accuracyPercent);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = getSessionStorageKey();
+    if (!key) return;
+
+    if (screen !== "playing") {
+      return;
+    }
+
+    const snapshot: ShootingSessionSnapshot = {
+      screen: "playing",
+      roundIndex,
+      score,
+      correctCount,
+      roundTimeLeft,
+      answersLog,
+      savedAt: Date.now(),
+    };
+
+    window.localStorage.setItem(key, JSON.stringify(snapshot));
+  }, [
+    answersLog,
+    correctCount,
+    roundIndex,
+    roundTimeLeft,
+    score,
+    screen,
+    sessionKey,
+  ]);
+
   const renderStartScreen = () => (
     <Card className="relative overflow-hidden !border-0 bg-[radial-gradient(circle_at_15%_15%,rgba(251,191,36,0.22),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(34,197,94,0.18),transparent_35%),linear-gradient(140deg,#101827,#1f2937_45%,#0f172a_90%)] text-slate-100">
       <div className="absolute inset-0 opacity-40 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:28px_28px]" />
@@ -571,6 +715,12 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
           <Play className="w-5 h-5 mr-2" />
           Bắt đầu chơi
         </Button>
+        {resumeSnapshot ? (
+          <Button size="lg" variant="secondary" onClick={resumeGame}>
+            <Play className="w-5 h-5 mr-2" />
+            Tiếp tục phiên tạm dừng
+          </Button>
+        ) : null}
       </div>
     </Card>
   );
@@ -611,7 +761,18 @@ export function ShootingQuizPlayer({ payload, onSubmit }: Props) {
           role="button"
           tabIndex={0}
           onMouseMove={handleArenaMouseMove}
-          onClick={handleShoot}
+          onClick={(event) => {
+            if (!arenaRef.current) return;
+            const rect = arenaRef.current.getBoundingClientRect();
+            const targetX = ((event.clientX - rect.left) / rect.width) * ARENA_WIDTH;
+            const targetY = ((event.clientY - rect.top) / rect.height) * ARENA_HEIGHT;
+            const clampedTarget = {
+              x: clamp(targetX, 0, ARENA_WIDTH),
+              y: clamp(targetY, 0, ARENA_HEIGHT),
+            };
+            setAim(clampedTarget);
+            handleShoot(clampedTarget);
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
