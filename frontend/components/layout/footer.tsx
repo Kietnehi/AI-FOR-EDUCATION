@@ -43,7 +43,7 @@ export function Footer() {
                 contact@ailearning.studio
               </a>
               <a
-                href="https://github.com"
+                href="https://github.com/Kietnehi/AI-FOR-EDUCATION"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 rounded-full border border-[var(--border-light)] bg-[var(--bg-secondary)] px-3 py-1 no-underline hover:border-brand-300 hover:text-[var(--text-primary)]"
