@@ -376,6 +376,20 @@ docker compose --profile local-db up -d --build
 *   📄 **Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 *   🖥️ **Theo dõi Chrome của NotebookLM trong Docker:** [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html)
 
+#### Bảng Port và Đường dẫn truy cập nhanh
+
+| Dịch vụ | Port | Đường dẫn truy cập |
+|---------|------|--------------------|
+| Frontend | `3000` | [http://localhost:3000](http://localhost:3000) |
+| Backend API | `8000` | [http://localhost:8000](http://localhost:8000) |
+| Swagger Docs | `8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| Health Check | `8000` | [http://localhost:8000/health](http://localhost:8000/health) |
+| noVNC (NotebookLM Browser) | `6080` | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html) |
+| Flower (Celery Monitor) | `5555` | [http://localhost:5555](http://localhost:5555) |
+| MinIO API | `9000` | [http://localhost:9000](http://localhost:9000) |
+| MinIO Console | `9001` | [http://localhost:9001](http://localhost:9001) |
+| Redis Insight | `8081` | [http://localhost:8081](http://localhost:8081) |
+
 #### Theo dõi trình duyệt NotebookLM khi chạy Docker
 
 Luồng NotebookLM trong Docker không mở cửa sổ Chrome native trên máy host. Thay vào đó, backend chạy Chrome trong một display ảo bên trong container và xuất màn hình qua noVNC để bạn theo dõi trong trình duyệt.
