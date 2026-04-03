@@ -88,6 +88,137 @@ def _looks_like_network_error(exc: Exception) -> bool:
         )
     )
 
+
+def _normalize_https_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    if url.startswith("http://"):
+        return "https://" + url[len("http://"):]
+    return url
+
+
+def _extract_openlibrary_text(value: Any) -> str | None:
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    if isinstance(value, dict):
+        candidate = value.get("value") or value.get("text")
+        return _extract_openlibrary_text(candidate)
+    if isinstance(value, list):
+        for item in value:
+            text = _extract_openlibrary_text(item)
+            if text:
+                return text
+    return None
+
+
+async def _fetch_openlibrary_work_description(client: httpx.AsyncClient, work_key: str | None) -> str | None:
+    if not work_key:
+        return None
+
+    try:
+        response = await client.get(f"https://openlibrary.org{work_key}.json", timeout=8.0)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        return None
+
+    return (
+        _extract_openlibrary_text(payload.get("description"))
+        or _extract_openlibrary_text(payload.get("first_sentence"))
+        or _extract_openlibrary_text(payload.get("subtitle"))
+    )
+
+
+async def _search_openlibrary_books(query: str, max_results: int) -> list[dict[str, Any]]:
+    """Fallback cho Google Books, ưu tiên dữ liệu có ảnh bìa."""
+    url = "https://openlibrary.org/search.json"
+    params = {
+        "q": query,
+        "limit": max_results,
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params, timeout=10.0)
+        response.raise_for_status()
+        docs = response.json().get("docs", [])
+
+        descriptions = await asyncio.gather(
+            *[_fetch_openlibrary_work_description(client, doc.get("key")) for doc in docs],
+            return_exceptions=True,
+        )
+
+    results: list[dict[str, Any]] = []
+    for idx, doc in enumerate(docs):
+        title = doc.get("title") or "Không có tiêu đề"
+        authors = doc.get("author_name") or ["Nhiều tác giả"]
+        authors_str = ", ".join(authors)
+        publisher = (doc.get("publisher") or [None])[0]
+        published_date = str(doc.get("first_publish_year") or "N/A")
+        cover_id = doc.get("cover_i")
+        thumbnail = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if cover_id else None
+        work_key = doc.get("key")
+        info_link = f"https://openlibrary.org{work_key}" if work_key else None
+
+        raw_detail_description = descriptions[idx] if idx < len(descriptions) else None
+        detail_description = None if isinstance(raw_detail_description, Exception) else raw_detail_description
+
+        subjects = doc.get("subject") or []
+        subject_preview = ", ".join(subjects[:3]) if subjects else None
+
+        synthesized_description = (
+            f"Tiểu thuyết của {authors_str}, xuất bản năm {published_date}."
+            + (f" Chủ đề: {subject_preview}." if subject_preview else "")
+        )
+
+        final_description = (
+            detail_description
+            or _extract_openlibrary_text(doc.get("first_sentence"))
+            or _extract_openlibrary_text(doc.get("subtitle"))
+            or synthesized_description
+        )
+
+        isbns = doc.get("isbn") or []
+        isbn_str = " | ".join(isbns[:3]) if isbns else "N/A"
+
+        body_parts = [
+            f"Tác giả: {authors_str}",
+            f"Nhà xuất bản: {publisher or 'N/A'}",
+            f"Xuất bản: {published_date}",
+            f"ISBN: {isbn_str}",
+        ]
+
+        results.append(
+            {
+                "id": work_key,
+                "title": title,
+                "subtitle": "",
+                "authors": authors,
+                "publisher": publisher,
+                "publishedDate": published_date,
+                "description": final_description,
+                "categories": ["Books"],
+                "pageCount": doc.get("number_of_pages_median"),
+                "language": (doc.get("language") or [None])[0],
+                "averageRating": None,
+                "ratingsCount": None,
+                "isbn": isbn_str,
+                "thumbnail": thumbnail,
+                "link": info_link,
+                "href": info_link,
+                "previewLink": info_link,
+                "buyLink": None,
+                "webReaderLink": info_link,
+                "body": "\n".join(body_parts),
+                "source": "OpenLibrary",
+                "isEbook": False,
+                "pdfAvailable": False,
+                "epubAvailable": False,
+            }
+        )
+
+    return results
+
 async def _search_google_books(query: str, max_results: int) -> list[dict[str, Any]]:
     """Tìm kiếm sách từ Google Books API (Miễn phí)"""
     url = "https://www.googleapis.com/books/v1/volumes"
@@ -151,7 +282,10 @@ async def _search_google_books(query: str, max_results: int) -> list[dict[str, A
                     "ratingsCount": info.get("ratingsCount"),
                     "isbn": isbn_str,
                     # Links & Media
-                    "thumbnail": info.get("imageLinks", {}).get("thumbnail") or info.get("imageLinks", {}).get("smallThumbnail"),
+                    "thumbnail": _normalize_https_url(
+                        info.get("imageLinks", {}).get("thumbnail")
+                        or info.get("imageLinks", {}).get("smallThumbnail")
+                    ),
                     "link": info.get("infoLink"),
                     "href": info.get("infoLink"),
                     "previewLink": info.get("previewLink"),
@@ -165,11 +299,15 @@ async def _search_google_books(query: str, max_results: int) -> list[dict[str, A
                     "epubAvailable": access.get("epub", {}).get("isAvailable", False)
                 })
             return results
-        except Exception as e:
-            # Nếu Google Books lỗi, fallback về DuckDuckGo text search
-            ddgs_class = _get_ddgs_class()
-            with ddgs_class() as ddgs:
-                return [{"title": r["title"], "link": r["href"], "body": r["body"]} for r in ddgs.text(f"{query} books", max_results=max_results)]
+        except Exception:
+            # Nếu Google Books lỗi (quota/rate-limit/network), fallback qua OpenLibrary trước.
+            try:
+                return await _search_openlibrary_books(query, max_results)
+            except Exception:
+                # Fallback cuối cùng: DuckDuckGo text search.
+                ddgs_class = _get_ddgs_class()
+                with ddgs_class() as ddgs:
+                    return [{"title": r["title"], "link": r["href"], "body": r["body"]} for r in ddgs.text(f"{query} books", max_results=max_results)]
 
 def _run_ddgs_search(query: str, search_type: str, max_results: int) -> list[dict[str, Any]]:
     """Hàm chạy DuckDuckGo search cho các loại non-books"""
