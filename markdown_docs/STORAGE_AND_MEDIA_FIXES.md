@@ -6,7 +6,7 @@ Ngày cập nhật: 2026-03-30
 
 Tài liệu này tổng hợp các thay đổi mới nhất liên quan đến:
 
-- storage mode `local / MinIO / S3`
+- storage mode `local / MinIO / Cloudflare R2`
 - podcast play/download
 - slide generation và slide preview
 - NotebookLM input/output
@@ -16,15 +16,15 @@ Tài liệu này tổng hợp các thay đổi mới nhất liên quan đến:
 
 Hệ thống hiện hỗ trợ 3 mode theo 2 biến env:
 
-| USE_OBJECT_STORAGE | USE_S3 | Kết quả |
+| USE_OBJECT_STORAGE | USE_R2 | Kết quả |
 |---|---|---|
 | `false` | `false` hoặc `true` | Local filesystem |
 | `true` | `false` | MinIO |
-| `true` | `true` | AWS S3 |
+| `true` | `true` | Cloudflare R2 |
 
 Ghi chú:
 
-- `USE_S3` chỉ có ý nghĩa khi `USE_OBJECT_STORAGE=true`
+- `USE_R2` chỉ có ý nghĩa khi `USE_OBJECT_STORAGE=true`
 - khi `USE_OBJECT_STORAGE=false`, backend không khởi tạo object storage client
 - startup không còn cố tạo bucket khi object storage đang tắt
 
@@ -34,7 +34,7 @@ Ghi chú:
 
 - sau khi generate podcast, frontend không còn bị điều hướng nhầm sang trang minigame
 - frontend không còn ghép sai URL kiểu `http://localhost:8000http://localhost:9000/...`
-- absolute URL từ MinIO/S3 được giữ nguyên
+- absolute URL từ MinIO/R2 được giữ nguyên
 - relative URL `/api/files/...` mới được ghép với backend host
 
 ### Kết quả
@@ -48,7 +48,7 @@ Ghi chú:
 ### Đã sửa
 
 - modal tạo slide được render bằng portal để không bị lệch tâm
-- backend resolve được source file từ cả `local`, `MinIO`, `S3`
+- backend resolve được source file từ cả `local`, `MinIO`, `R2`
 - slide generation có thể tải file nguồn từ object storage về local khi cần extract ảnh
 - xóa file local/object storage được parse bằng helper chung thay vì string split cũ
 
@@ -72,7 +72,7 @@ Lưu ý:
 - parse `material.file_url` đúng cho:
   - local `/api/files/.../download`
   - MinIO URL
-  - S3 URL
+  - R2 URL
 - nếu file local không tồn tại nhưng `file_url` đang trỏ object storage, backend sẽ tải file đó về local trước khi xử lý
 - NotebookLM video/infographic output không còn local-only
 - output NotebookLM giờ lưu theo đúng mode env

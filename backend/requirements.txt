@@ -37,3 +37,4 @@ ddgs
 google-auth
 PyJWT
 requests
+prometheus-fastapi-instrumentator

@@ -138,8 +138,9 @@ Dự án được chia thành 2 luồng xử lý chính:
 | Redis | Broker và result backend cho Celery |
 | Celery | Xử lý background jobs |
 | Flower | Theo dõi Celery worker |
-| MinIO | Object storage S3-compatible cho file upload và file sinh ra |
-| Boto3 | Tích hợp MinIO / AWS S3 |
+| MinIO | Object storage S3-compatible cho môi trường local |
+| Cloudflare R2 | Object storage production cho file upload và file sinh ra |
+| Boto3 | Tích hợp MinIO / Cloudflare R2 |
 
 ### DevOps, kiểm thử và phát hành
 
@@ -163,7 +164,7 @@ Dự án được chia thành 2 luồng xử lý chính:
 - **Redis** — Message broker cho Celery tasks
 - **Celery Worker** — Thực thi background tasks (generate slides, podcast, minigame)
 - **Celery Flower** — Monitoring UI cho Celery tasks
-- **MinIO** — Object storage lưu trữ files (uploads, generated content)
+- **MinIO / Cloudflare R2** — Object storage lưu trữ files (uploads, generated content)
 - MongoDB — Lưu metadata tài liệu, chunks, nội dung tạo sinh, session chat, attempt game
 - ChromaDB — Lưu vector embeddings để truy vấn ngữ nghĩa
 - OpenAI — Dùng cho embedding và generation (nếu có API key)
@@ -218,7 +219,7 @@ AI-FOR-EDUCATION/
 │  │  ├─ repositories/          ← Lớp tương tác trực tiếp với Database
 │  │  ├─ schemas/               ← Data Transfer Objects (DTO) cho API request/response
 │  │  ├─ services/              ← Business logic xử lý yêu cầu nghiệp vụ
-│  │  │  ├─ storage.py          ← MinIO/S3 storage service
+│  │  │  ├─ storage.py          ← MinIO/Cloudflare R2 storage service
 │  │  │  ├─ material_service.py ← Material management
 │  │  │  ├─ generation_service.py← Content generation
 │  │  │  ├─ chat_service.py     ← Chatbot RAG service
@@ -347,7 +348,7 @@ AI-FOR-EDUCATION/
 
 *Giao diện Docker Desktop hiển thị đầy đủ các thành phần đang chạy: Frontend, Backend, Database (MongoDB, Redis), Storage (Minio), Redis Commander và các Celery Workers/Flower phục vụ tác vụ nền.*
 
-> 💡 **Ghi chú về Storage:** Hệ thống mặc định sử dụng **Minio** để lưu trữ file cục bộ (S3-compatible) trong môi trường Docker. Nếu bạn có cấu hình **AWS S3**, hệ thống có thể chuyển sang dùng S3; ngược lại, Minio sẽ đóng vai trò là kho lưu trữ thay thế hoàn hảo trên máy local.
+> 💡 **Ghi chú về Storage:** Hệ thống hỗ trợ **MinIO (local)** và **Cloudflare R2 (production)**. Khi bật `USE_OBJECT_STORAGE=true` và `USE_R2=true`, file upload và file generate sẽ ưu tiên lưu trên R2; nếu R2 không khả dụng, hệ thống sẽ fallback local.
 
 Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/macOS/Linux với tính năng **Hot-reload** hoàn chỉnh (sửa code cập nhật ngay lập tức mà không cần restart container).
 
@@ -378,17 +379,23 @@ docker compose --profile local-db up -d --build
 
 #### Bảng Port và Đường dẫn truy cập nhanh
 
-| Dịch vụ | Port | Đường dẫn truy cập |
-|---------|------|--------------------|
-| Frontend | `3000` | [http://localhost:3000](http://localhost:3000) |
-| Backend API | `8000` | [http://localhost:8000](http://localhost:8000) |
-| Swagger Docs | `8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
-| Health Check | `8000` | [http://localhost:8000/health](http://localhost:8000/health) |
-| noVNC (NotebookLM Browser) | `6080` | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html) |
-| Flower (Celery Monitor) | `5555` | [http://localhost:5555](http://localhost:5555) |
-| MinIO API | `9000` | [http://localhost:9000](http://localhost:9000) |
-| MinIO Console | `9001` | [http://localhost:9001](http://localhost:9001) |
-| Redis Insight | `8081` | [http://localhost:8081](http://localhost:8081) |
+| Dịch vụ | Host Port | Container Port | Đường dẫn truy cập |
+|---------|-----------|----------------|--------------------|
+| Frontend | `3000` | `3000` | [http://localhost:3000](http://localhost:3000) |
+| Backend API | `8000` | `8000` | [http://localhost:8000](http://localhost:8000) |
+| Swagger Docs | `8000` | `8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| Health Check | `8000` | `8000` | [http://localhost:8000/health](http://localhost:8000/health) |
+| noVNC (NotebookLM Browser) | `6080` | `6080` | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html) |
+| VNC (NotebookLM Browser - native client) | `5900` | `5900` | Dùng VNC client (không phải HTTP) |
+| Flower (Celery Monitor) | `5555` | `5555` | [http://localhost:5555](http://localhost:5555) |
+| MinIO API | `9000` | `9000` | [http://localhost:9000](http://localhost:9000) |
+| MinIO Console | `9001` | `9001` | [http://localhost:9001](http://localhost:9001) |
+| Redis | `6379` | `6379` | Dùng Redis client/CLI |
+| Redis Insight (service `redis-commander`) | `8081` | `5540` | [http://localhost:8081](http://localhost:8081) |
+| MongoDB (profile `local-db`) | `27017` | `27017` | Dùng MongoDB client/Compass |
+| Grafana (monitoring stack - optional) | `3300` | `3000` | [http://localhost:3300](http://localhost:3300) |
+| Prometheus (monitoring stack - optional) | `9090` | `9090` | [http://localhost:9090](http://localhost:9090) |
+| Cloudflare R2 (production object storage) | `N/A` | `N/A` | Dịch vụ cloud, không map localhost port |
 
 #### Theo dõi trình duyệt NotebookLM khi chạy Docker
 
@@ -396,7 +403,7 @@ Luồng NotebookLM trong Docker không mở cửa sổ Chrome native trên máy 
 
 - Mở `http://localhost:6080/vnc.html`, bấm `Connect`, rồi kích hoạt workflow NotebookLM để quan sát Chrome trong container.
 - Nếu màn hình bị đen, hãy reload tab noVNC hoặc chạy `docker compose restart backend`.
-- Tài liệu chi tiết: [markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md](/C:/Users/ADMIN/Desktop/AI-FOR-EDUCATION/markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
+- Tài liệu chi tiết: [markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
 
 #### 4. Dừng hệ thống
 ```bash
@@ -777,7 +784,7 @@ Coverage report sau khi chạy:
 
 ---
 
-## 6.5 Redis, Celery & MinIO
+## 6.5 Redis, Celery & Object Storage
 
 ### 🔴 Redis - Message Broker & Result Backend
 - **Port:** `6379`
@@ -790,10 +797,11 @@ Coverage report sau khi chạy:
 - **Tasks:** Generate slides, podcast, minigame
 - **Monitoring:** http://localhost:5555
 
-### 📦 MinIO - Object Storage (S3-compatible)
+### 📦 MinIO / Cloudflare R2 - Object Storage
 - **Ports:** `9000` (API), `9001` (Console)
 - **Console:** http://localhost:9001 (minioadmin/minioadmin123)
-- **Bucket:** `ai-learning-storage`
+- **Bucket local (MinIO):** `ai-learning-storage`
+- **Bucket production (R2):** cấu hình qua `R2_BUCKET`
 - **Storage:** uploads/, generated/slides/, generated/podcasts/
 
 ### Quick Commands
@@ -801,7 +809,7 @@ Coverage report sau khi chạy:
 # Redis - Check task results
 docker exec any2-redis redis-cli -n 1 KEYS "celery-task-meta-*"
 
-# MinIO - List files
+# MinIO - List files local
 docker exec any2-minio mc ls myminio/ai-learning-storage/
 
 # Celery Worker logs
@@ -810,10 +818,45 @@ docker logs any2-celery-worker --tail=50
 
 ### Integration Flow
 ```
-Upload → MinIO → MongoDB → Queue (Redis) → Celery Worker → Generate → MinIO → Result (Redis)
+Upload → MinIO/Cloudflare R2 → MongoDB → Queue (Redis) → Celery Worker → Generate → MinIO/Cloudflare R2 → Result (Redis)
 ```
 
-📚 **Chi tiết:** Xem `markdown_docs/REDIS_CELERY_MINIO_GUIDE.md`
+📚 **Chi tiết:** Xem `markdown_docs/Redis_Celery_Minio.md`
+
+---
+
+## 6.7 Monitoring (Prometheus + Grafana)
+
+Hệ thống đã tích hợp endpoint metrics cho backend FastAPI và có thể scrape bằng Prometheus để visualize trên Grafana.
+
+### Endpoint metrics
+- Backend expose metrics tại: `GET /metrics`
+- URL local: http://localhost:8000/metrics
+
+### Chạy stack monitoring
+1. `cd Monitoring/railway-grafana-stack`
+2. `docker compose up -d`
+
+Các dịch vụ chính:
+- Grafana: http://localhost:3300
+- Prometheus: http://localhost:9090
+- Loki: http://localhost:3100
+- Tempo: http://localhost:3200
+
+### Cấu hình scrape backend
+- File Prometheus: `Monitoring/railway-grafana-stack/prometheus/prom.yml`
+- Job backend hiện tại: `ai-learning-backend`
+- Target local: `host.docker.internal:8000`
+
+### Kiểm tra nhanh
+1. Mở http://localhost:9090/targets
+2. Đảm bảo target `ai-learning-backend` ở trạng thái `UP`
+3. Mở Grafana và query datasource Prometheus với `up`
+
+### Query gợi ý cho Grafana
+- `rate(http_requests_total[5m])`
+- `sum(rate(http_requests_total[5m])) by (handler, method, status)`
+- `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler))`
 
 ---
 
@@ -900,11 +943,13 @@ Lưu ý vận hành:
 - **Groq API:** [Groq Cloud (Cho Whisper STT nhanh nhất)](https://console.groq.com/keys)
 
 ### 📚 Tài liệu tham khảo
-- **Redis, Celery & Minio:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md)
+- **Redis, Celery & Object Storage:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md)
+- **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md)
 - **Docker:** [Trang chủ Docker](https://www.docker.com/)
 - **Redis:** [Redis Documentation](https://redis.io/)
 - **RedisInsight:** [RedisInsight GUI](https://github.com/redis/RedisInsight)
 - **MinIO:** [High Performance Object Storage](https://www.min.io/)
+- **Cloudflare R2:** [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)
 - **Celery:** [Distributed Task Queue](https://docs.celeryq.dev/en/stable/)
 - **Gemini API:** [Gemini API Quickstart](https://ai.google.dev/gemini-api/docs/quickstart)
 - **Web Search:** [Hướng dẫn Web Search (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
