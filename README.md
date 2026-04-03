@@ -393,6 +393,9 @@ docker compose --profile local-db up -d --build
 | Redis | `6379` | `6379` | Dùng Redis client/CLI |
 | Redis Insight (service `redis-commander`) | `8081` | `5540` | [http://localhost:8081](http://localhost:8081) |
 | MongoDB (profile `local-db`) | `27017` | `27017` | Dùng MongoDB client/Compass |
+| Grafana (monitoring stack - optional) | `3300` | `3000` | [http://localhost:3300](http://localhost:3300) |
+| Prometheus (monitoring stack - optional) | `9090` | `9090` | [http://localhost:9090](http://localhost:9090) |
+| Cloudflare R2 (production object storage) | `N/A` | `N/A` | Dịch vụ cloud, không map localhost port |
 
 #### Theo dõi trình duyệt NotebookLM khi chạy Docker
 
@@ -835,7 +838,7 @@ Hệ thống đã tích hợp endpoint metrics cho backend FastAPI và có thể
 2. `docker compose up -d`
 
 Các dịch vụ chính:
-- Grafana: http://localhost:3000
+- Grafana: http://localhost:3300
 - Prometheus: http://localhost:9090
 - Loki: http://localhost:3100
 - Tempo: http://localhost:3200
