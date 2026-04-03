@@ -55,17 +55,21 @@ async def download_file(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
-    Download a file from either local storage or MinIO/S3.
+    Download a file from either local storage or MinIO/R2.
     
     file_path can be:
     - Local: filename.ext or podcasts/filename.mp3
-    - MinIO/S3: Full URL or object path
+    - MinIO/R2: Full URL or object path
     """
     file_path = unquote(file_path)
 
-    # Check if file_path is a MinIO/S3 URL or object path
-    if file_path.startswith("http") or file_path.startswith(settings.minio_bucket):
-        # It's a MinIO/S3 URL - download from storage service
+    # Check if file_path is a MinIO/R2 URL or object path
+    if (
+        file_path.startswith("http")
+        or file_path.startswith(settings.minio_bucket)
+        or (settings.r2_bucket and file_path.startswith(settings.r2_bucket))
+    ):
+        # It's a MinIO/R2 URL - download from storage service
         try:
             cached_path, filename = await _resolve_remote_file(file_path)
             media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
@@ -104,7 +108,11 @@ async def preview_file(file_path: str):
     file_path = unquote(file_path)
     media_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
 
-    if file_path.startswith("http") or file_path.startswith(settings.minio_bucket):
+    if (
+        file_path.startswith("http")
+        or file_path.startswith(settings.minio_bucket)
+        or (settings.r2_bucket and file_path.startswith(settings.r2_bucket))
+    ):
         try:
             cached_path, _ = await _resolve_remote_file(file_path)
             return FileResponse(

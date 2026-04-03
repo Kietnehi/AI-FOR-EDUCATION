@@ -4,7 +4,7 @@ import sys
 import uvicorn
 
 
-if sys.platform.startswith("win"):
+if sys.platform.startswith("win") and sys.version_info < (3, 14):
     # Must be set before uvicorn creates the server event loop.
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 

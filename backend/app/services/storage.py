@@ -15,22 +15,23 @@ StorageType = str
 
 
 class StorageService:
-    """Storage abstraction supporting local, MinIO, and AWS S3."""
+    """Storage abstraction supporting local, MinIO, and Cloudflare R2."""
 
     def __init__(self) -> None:
         # Compatibility flag used by existing startup code.
         self.enabled = settings.use_object_storage
         # settings.use_object_storage is used mainly to decide for NEW uploads
         self.upload_enabled = settings.use_object_storage
-        self.use_s3 = settings.use_s3
+        self.use_r2 = settings.use_r2
         self.minio_endpoint = (settings.minio_endpoint or "").rstrip("/")
         self.minio_bucket = settings.minio_bucket
-        self.s3_bucket = settings.aws_s3_bucket
-        self.s3_region = settings.aws_region
-        self.bucket_name = self.s3_bucket if self.use_s3 else self.minio_bucket
+        self.r2_endpoint = (settings.r2_endpoint or "").rstrip("/")
+        self.r2_bucket = settings.r2_bucket
+        self.r2_public_base_url = (settings.r2_public_base_url or "").rstrip("/")
+        self.bucket_name = self.r2_bucket if self.use_r2 else self.minio_bucket
 
         self.minio_client = None
-        self.s3_client = None
+        self.r2_client = None
 
         # Always try to initialize clients if credentials exist,
         # so we can still manage existing remote files even if upload is disabled.
@@ -46,20 +47,21 @@ class StorageService:
             except Exception:
                 pass
 
-        if self.s3_bucket:
+        if self.r2_endpoint and self.r2_bucket:
             try:
-                self.s3_client = boto3.client(
+                self.r2_client = boto3.client(
                     "s3",
-                    aws_access_key_id=settings.aws_access_key_id or None,
-                    aws_secret_access_key=settings.aws_secret_access_key or None,
-                    region_name=settings.aws_region,
+                    aws_access_key_id=settings.r2_access_key_id or None,
+                    aws_secret_access_key=settings.r2_secret_access_key or None,
+                    endpoint_url=settings.r2_endpoint,
+                    region_name="auto",
                     config=Config(signature_version="s3v4"),
                 )
             except Exception:
                 pass
 
     def ensure_bucket_exists(self) -> None:
-        for storage_type in ("minio", "s3"):
+        for storage_type in ("minio", "r2"):
             client = self._get_client(storage_type)
             bucket_name = self._get_bucket_name(storage_type)
             if client is None or not bucket_name:
@@ -67,6 +69,9 @@ class StorageService:
             try:
                 client.head_bucket(Bucket=bucket_name)
             except Exception:
+                if storage_type == "r2":
+                    # R2 buckets are typically provisioned outside the app lifecycle.
+                    continue
                 try:
                     client.create_bucket(Bucket=bucket_name)
                 except Exception:
@@ -75,7 +80,7 @@ class StorageService:
     def default_storage_type(self) -> str:
         if not self.upload_enabled:
             return "local"
-        return "s3" if self.use_s3 else "minio"
+        return "r2" if self.use_r2 else "minio"
 
     def current_storage_type(self) -> str:
         return self.default_storage_type()
@@ -86,9 +91,13 @@ class StorageService:
         file_url: str | None = None,
     ) -> str:
         normalized = (preferred_storage_type or "").strip().lower()
-        if normalized not in {"local", "minio", "s3"}:
+        if normalized == "s3":
+            normalized = "r2"
+        if normalized not in {"local", "minio", "r2"}:
             normalized = self.detect_storage_type(file_url)
-        if normalized not in {"local", "minio", "s3"}:
+        if normalized == "s3":
+            normalized = "r2"
+        if normalized not in {"local", "minio", "r2"}:
             normalized = self.default_storage_type()
 
         if normalized == "local":
@@ -97,13 +106,13 @@ class StorageService:
         if not self.upload_enabled:
             return "local"
 
-        if normalized == "s3":
-            if self.use_s3 and self.is_storage_available("s3"):
-                return "s3"
+        if normalized == "r2":
+            if self.use_r2 and self.is_storage_available("r2"):
+                return "r2"
             return "local"
 
         if normalized == "minio":
-            if not self.use_s3 and self.is_storage_available("minio"):
+            if not self.use_r2 and self.is_storage_available("minio"):
                 return "minio"
             return "local"
 
@@ -111,34 +120,44 @@ class StorageService:
 
     def is_storage_available(self, storage_type: str) -> bool:
         normalized = (storage_type or "").strip().lower()
+        if normalized == "s3":
+            normalized = "r2"
         if normalized == "local":
             return True
         if normalized == "minio":
             return self.minio_client is not None and bool(self.minio_bucket)
-        if normalized == "s3":
-            return self.s3_client is not None and bool(self.s3_bucket)
+        if normalized == "r2":
+            return self.r2_client is not None and bool(self.r2_bucket)
         return False
 
     def _get_client(self, storage_type: str):
         normalized = (storage_type or "").strip().lower()
+        if normalized == "s3":
+            normalized = "r2"
         if normalized == "minio":
             return self.minio_client
-        if normalized == "s3":
-            return self.s3_client
+        if normalized == "r2":
+            return self.r2_client
         return None
 
     def _get_bucket_name(self, storage_type: str) -> str | None:
         normalized = (storage_type or "").strip().lower()
+        if normalized == "s3":
+            normalized = "r2"
         if normalized == "minio":
             return self.minio_bucket
-        if normalized == "s3":
-            return self.s3_bucket
+        if normalized == "r2":
+            return self.r2_bucket
         return None
 
     def _build_object_url(self, object_name: str, storage_type: str | None = None) -> str:
         normalized = self.resolve_target_storage_type(storage_type)
-        if normalized == "s3":
-            return f"https://{self.s3_bucket}.s3.{self.s3_region}.amazonaws.com/{object_name}"
+        if normalized == "r2":
+            if self.r2_public_base_url:
+                return f"{self.r2_public_base_url}/{object_name}"
+            if self.r2_endpoint:
+                return f"{self.r2_endpoint}/{self.r2_bucket}/{object_name}"
+            raise RuntimeError("R2 endpoint is not configured")
         if normalized == "minio":
             return f"{self.minio_endpoint}/{self.minio_bucket}/{object_name}"
         raise RuntimeError("Local storage does not have an object URL")
@@ -297,20 +316,24 @@ class StorageService:
 
         if normalized.startswith("/api/files/"):
             return "local"
+        if ".r2.cloudflarestorage.com/" in normalized:
+            return "r2"
         if ".amazonaws.com/" in normalized or normalized.startswith("s3://"):
-            return "s3"
+            return "r2"
         if self.minio_endpoint and normalized.startswith(self.minio_endpoint.lower()):
             return "minio"
+        if self.r2_endpoint and normalized.startswith(self.r2_endpoint.lower()):
+            return "r2"
         
         # Check bucket names in URL
-        if self.s3_bucket and f"/{self.s3_bucket.lower()}/" in normalized:
-            return "s3"
+        if self.r2_bucket and f"/{self.r2_bucket.lower()}/" in normalized:
+            return "r2"
         if self.minio_bucket and f"/{self.minio_bucket.lower()}/" in normalized:
             return "minio"
             
         # If absolute URL but no match, assume it was one of our remote storages
         if normalized.startswith("http"):
-            return "s3" if self.use_s3 else "minio"
+            return "r2" if self.use_r2 else "minio"
 
         return "local"
 
@@ -319,7 +342,8 @@ class StorageService:
         mapping = {
             "local": "Local",
             "minio": "MinIO",
-            "s3": "S3",
+            "r2": "Cloudflare R2",
+            "s3": "Cloudflare R2",
             "none": "Không có file",
             "unknown": "Không rõ",
         }
@@ -364,7 +388,7 @@ class StorageService:
         if not path:
             return None
 
-        for bucket_name in filter(None, [self.minio_bucket, self.s3_bucket]):
+        for bucket_name in filter(None, [self.minio_bucket, self.r2_bucket]):
             bucket_prefix = f"{bucket_name}/"
             if path.startswith(bucket_prefix):
                 path = path[len(bucket_prefix):]

@@ -71,15 +71,16 @@ class Settings(BaseSettings):
     notebooklm_headless: bool = False
 
     use_object_storage: bool = False
-    use_s3: bool = False
+    use_r2: bool = False
     minio_endpoint: str = "http://localhost:9000"
     minio_root_user: str = "minioadmin"
     minio_root_password: str = "minioadmin123"
     minio_bucket: str = "ai-learning-storage"
-    aws_access_key_id: str = ""
-    aws_secret_access_key: str = ""
-    aws_region: str = "ap-southeast-1"
-    aws_s3_bucket: str = ""
+    r2_endpoint: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket: str = ""
+    r2_public_base_url: str = ""
     storage_presigned_expiration_seconds: int = 3600
 
     cors_origins: list[str] = ["http://localhost:3000"]
