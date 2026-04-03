@@ -1,3 +1,26 @@
+# VCS and Python cache
+.git
+.gitignore
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Virtual environments and local tooling
+.venv/
+venv/
+
+# Local data and generated artifacts
+storage/
+tests/.pytest_cache/
+
+# Editor and OS metadata
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+
 __pycache__/
 *.py[cod]
 *.pyo

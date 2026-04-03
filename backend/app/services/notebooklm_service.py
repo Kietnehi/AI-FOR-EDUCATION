@@ -1,12 +1,15 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -24,6 +27,7 @@ class NotebookLMService:
     VIDEO_DIR = Path(settings.generated_dir) / "notebooklm" / "videos"
     INFOGRAPHIC_DIR = Path(settings.generated_dir) / "notebooklm" / "infographics"
     TEMP_DIR = Path("./storage") / "notebooklm" / "temp"
+    SESSION_STALE_MINUTES = 20
 
     async def generate_media(self, prompt: str) -> dict:
         """Start NotebookLM flow and stop after upload for user confirmation."""
@@ -124,7 +128,10 @@ class NotebookLMService:
         preferred_storage_type: str | None,
     ) -> dict:
         """Open NotebookLM, create notebook, upload source, then wait for artifact confirmation."""
+        self._ensure_single_active_session()
         session_id = str(uuid.uuid4())
+        session_profile_dir = self._session_profile_dir(session_id)
+        session_profile_dir.mkdir(parents=True, exist_ok=True)
 
         # Uvicorn on Windows often runs selector loop where asyncio subprocess is
         # unsupported. Use sync Playwright in-process to preserve interactive
@@ -186,12 +193,7 @@ class NotebookLMService:
                 "message": "Đã tạo xong ở chế độ worker fallback. Vui lòng xác nhận để tải xuống.",
             }
 
-        context = await playwright.chromium.launch_persistent_context(
-            user_data_dir=settings.notebooklm_user_data_dir,
-            channel="chrome",
-            headless=settings.notebooklm_headless,
-            args=["--start-maximized", "--disable-blink-features=AutomationControlled"],
-        )
+        context = await self._launch_async_context_with_recovery(playwright, session_profile_dir)
         page = context.pages[0] if context.pages else await context.new_page()
 
         try:
@@ -208,8 +210,10 @@ class NotebookLMService:
                 "prompt": prompt,
                 "material_id": material_id,
                 "preferred_storage_type": preferred_storage_type,
+                "profile_dir": str(session_profile_dir),
                 "stage": "uploaded",
                 "mode": "async",
+                "created_at": datetime.utcnow(),
             }
 
             logger.info("✅ NotebookLM upload complete for session %s. Waiting for artifact confirmation.", session_id)
@@ -243,12 +247,9 @@ class NotebookLMService:
         from playwright.sync_api import sync_playwright
 
         playwright = sync_playwright().start()
-        context = playwright.chromium.launch_persistent_context(
-            user_data_dir=settings.notebooklm_user_data_dir,
-            channel="chrome",
-            headless=settings.notebooklm_headless,
-            args=["--start-maximized", "--disable-blink-features=AutomationControlled"],
-        )
+        session_profile_dir = self._session_profile_dir(session_id)
+        session_profile_dir.mkdir(parents=True, exist_ok=True)
+        context = self._launch_sync_context_with_recovery(playwright, session_profile_dir)
         page = context.pages[0] if context.pages else context.new_page()
 
         try:
@@ -264,8 +265,10 @@ class NotebookLMService:
                 "prompt": prompt,
                 "material_id": material_id,
                 "preferred_storage_type": preferred_storage_type,
+                "profile_dir": str(session_profile_dir),
                 "stage": "uploaded",
                 "mode": "sync",
+                "created_at": datetime.utcnow(),
             }
 
             logger.info(
@@ -313,6 +316,262 @@ class NotebookLMService:
         if process.returncode != 0:
             details = process.stderr.strip() or process.stdout.strip() or "Unknown worker error"
             raise RuntimeError(f"NotebookLM worker thất bại: {details}")
+
+    def _ensure_single_active_session(self) -> None:
+        """NotebookLM uses one persistent Chrome profile, so only one active session is allowed."""
+        self._cleanup_stale_sessions()
+        if not _active_sessions:
+            return
+
+        for existing_session_id, data in _active_sessions.items():
+            stage = data.get("stage")
+            if stage in {"uploaded", "artifacts_requested", "generated"}:
+                raise RuntimeError(
+                    "Đang có phiên NotebookLM chưa hoàn tất "
+                    f"(session_id={existing_session_id}, stage={stage}). "
+                    "Hãy hoàn tất tải xuống hoặc hủy phiên đó trước khi tạo phiên mới."
+                )
+
+    def _cleanup_stale_sessions(self) -> None:
+        now = datetime.utcnow()
+        stale_ids: list[str] = []
+        for session_id, data in _active_sessions.items():
+            created_at = data.get("created_at")
+            if isinstance(created_at, datetime) and now - created_at > timedelta(minutes=self.SESSION_STALE_MINUTES):
+                stale_ids.append(session_id)
+
+        for session_id in stale_ids:
+            data = _active_sessions.pop(session_id, None)
+            if not data:
+                continue
+            try:
+                if data.get("mode") == "sync":
+                    data.get("context") and data["context"].close()
+                    data.get("playwright") and data["playwright"].stop()
+                else:
+                    context = data.get("context")
+                    if context is not None:
+                        asyncio.create_task(context.close())
+                    playwright = data.get("playwright")
+                    if playwright is not None:
+                        asyncio.create_task(playwright.stop())
+            except Exception:
+                pass
+            self._cleanup_session_profile_dir(data)
+            logger.warning("NotebookLM session %s was stale and has been cleaned up.", session_id)
+
+    async def _launch_async_context_with_recovery(self, playwright, user_data_dir: Path):
+        launch_kwargs = {
+            "user_data_dir": str(user_data_dir),
+            "channel": "chrome",
+            "headless": settings.notebooklm_headless,
+            "args": ["--start-maximized", "--disable-blink-features=AutomationControlled"],
+        }
+        # Pre-clean orphan locks from previous crashed/stale browser runs.
+        self._force_release_profile_lock(user_data_dir)
+        try:
+            return await playwright.chromium.launch_persistent_context(**launch_kwargs)
+        except Exception as exc:
+            if self._is_profile_lock_error(exc):
+                if self._try_cleanup_profile_lock(user_data_dir):
+                    try:
+                        return await playwright.chromium.launch_persistent_context(**launch_kwargs)
+                    except Exception as retry_exc:
+                        raise RuntimeError(
+                            "Chrome profile của NotebookLM vẫn đang bị khóa sau khi thử dọn lock tự động. "
+                            "Hãy đóng phiên NotebookLM cũ/noVNC rồi thử lại."
+                        ) from retry_exc
+                raise RuntimeError(
+                    "Chrome profile của NotebookLM đang bị khóa bởi một phiên khác. "
+                    "Hãy hoàn tất hoặc hủy phiên NotebookLM trước đó rồi thử lại."
+                ) from exc
+            if self._is_target_closed_error(exc):
+                if self._force_release_profile_lock(user_data_dir):
+                    try:
+                        return await playwright.chromium.launch_persistent_context(**launch_kwargs)
+                    except Exception as retry_exc:
+                        raise RuntimeError(
+                            "Chrome profile của NotebookLM vẫn bị khóa sau khi cleanup. "
+                            "Hãy restart backend và mở lại flow NotebookLM."
+                        ) from retry_exc
+                raise RuntimeError(
+                    "Chrome profile của NotebookLM đang bị khóa bởi một tiến trình Chrome cũ. "
+                    "Đã thử tự dọn nhưng chưa thành công, hãy restart backend rồi thử lại."
+                ) from exc
+            if "Chromium distribution 'chrome' is not found" in str(exc):
+                raise RuntimeError(
+                    "Thiếu Chrome cho Playwright trong container backend. "
+                    "Với Docker Compose, build lại backend với INSTALL_PLAYWRIGHT_BROWSER=1."
+                ) from exc
+            raise
+
+    def _launch_sync_context_with_recovery(self, playwright, user_data_dir: Path):
+        launch_kwargs = {
+            "user_data_dir": str(user_data_dir),
+            "channel": "chrome",
+            "headless": settings.notebooklm_headless,
+            "args": ["--start-maximized", "--disable-blink-features=AutomationControlled"],
+        }
+        # Pre-clean orphan locks from previous crashed/stale browser runs.
+        self._force_release_profile_lock(user_data_dir)
+        try:
+            return playwright.chromium.launch_persistent_context(**launch_kwargs)
+        except Exception as exc:
+            if self._is_profile_lock_error(exc):
+                if self._try_cleanup_profile_lock(user_data_dir):
+                    try:
+                        return playwright.chromium.launch_persistent_context(**launch_kwargs)
+                    except Exception as retry_exc:
+                        playwright.stop()
+                        raise RuntimeError(
+                            "Chrome profile của NotebookLM vẫn đang bị khóa sau khi thử dọn lock tự động. "
+                            "Hãy đóng phiên NotebookLM cũ/noVNC rồi thử lại."
+                        ) from retry_exc
+                playwright.stop()
+                raise RuntimeError(
+                    "Chrome profile của NotebookLM đang bị khóa bởi một phiên khác. "
+                    "Hãy hoàn tất hoặc hủy phiên NotebookLM trước đó rồi thử lại."
+                ) from exc
+            if self._is_target_closed_error(exc):
+                if self._force_release_profile_lock(user_data_dir):
+                    try:
+                        return playwright.chromium.launch_persistent_context(**launch_kwargs)
+                    except Exception as retry_exc:
+                        playwright.stop()
+                        raise RuntimeError(
+                            "Chrome profile của NotebookLM vẫn bị khóa sau khi cleanup. "
+                            "Hãy restart backend và mở lại flow NotebookLM."
+                        ) from retry_exc
+                playwright.stop()
+                raise RuntimeError(
+                    "Chrome profile của NotebookLM đang bị khóa bởi một tiến trình Chrome cũ. "
+                    "Đã thử tự dọn nhưng chưa thành công, hãy restart backend rồi thử lại."
+                ) from exc
+            if "Chromium distribution 'chrome' is not found" in str(exc):
+                playwright.stop()
+                raise RuntimeError(
+                    "Thiếu Chrome cho Playwright trong container backend. "
+                    "Với Docker Compose, build lại backend với INSTALL_PLAYWRIGHT_BROWSER=1."
+                ) from exc
+            playwright.stop()
+            raise
+
+    def _is_profile_lock_error(self, exc: Exception) -> bool:
+        detail = str(exc).lower()
+        return (
+            "profile appears to be in use" in detail
+            or "process_singleton_posix" in detail
+            or ("target page, context or browser has been closed" in detail and "chrome" in detail)
+        )
+
+    def _is_target_closed_error(self, exc: Exception) -> bool:
+        return "target page, context or browser has been closed" in str(exc).lower()
+
+    def _profile_lock_likely_present(self) -> bool:
+        profile_dir = Path(settings.notebooklm_user_data_dir)
+        lock_files = (profile_dir / "SingletonLock", profile_dir / "SingletonSocket", profile_dir / "SingletonCookie")
+        return any(path.exists() for path in lock_files)
+
+    def _try_cleanup_profile_lock(self, profile_dir: Path | None = None) -> bool:
+        if profile_dir is None:
+            profile_dir = Path(settings.notebooklm_user_data_dir)
+        if self._is_chrome_profile_in_use(profile_dir):
+            return False
+
+        removed_any = False
+        for lock_name in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+            lock_path = profile_dir / lock_name
+            if lock_path.exists():
+                try:
+                    lock_path.unlink()
+                    removed_any = True
+                except Exception:
+                    return False
+
+        if removed_any:
+            logger.warning("NotebookLM profile lock files were cleaned up automatically.")
+        return True
+
+    def _force_release_profile_lock(self, profile_dir: Path | None = None) -> bool:
+        """Best-effort recovery for stale lock: kill orphan Chrome processes then clear lock files."""
+        if _active_sessions:
+            return False
+
+        if profile_dir is None:
+            profile_dir = Path(settings.notebooklm_user_data_dir)
+        pids = self._get_chrome_profile_pids(profile_dir)
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except Exception:
+                continue
+
+        if pids:
+            time.sleep(0.8)
+
+        alive_after_term = self._get_chrome_profile_pids(profile_dir)
+        for pid in alive_after_term:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except Exception:
+                continue
+
+        time.sleep(0.3)
+        return self._try_cleanup_profile_lock(profile_dir)
+
+    def _session_profile_dir(self, session_id: str) -> Path:
+        return Path(settings.notebooklm_user_data_dir) / f"session-{session_id}"
+
+    def _cleanup_session_profile_dir(self, session_data: dict) -> None:
+        profile_dir = session_data.get("profile_dir")
+        if not profile_dir:
+            return
+        try:
+            shutil.rmtree(profile_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    def _get_chrome_profile_pids(self, profile_dir: Path) -> list[int]:
+        pids: list[int] = []
+        profile_dir_str = str(profile_dir)
+        proc_root = Path("/proc")
+        if not proc_root.exists():
+            return pids
+
+        for proc_entry in proc_root.iterdir():
+            if not proc_entry.name.isdigit():
+                continue
+            cmdline_path = proc_entry / "cmdline"
+            try:
+                raw = cmdline_path.read_bytes()
+            except Exception:
+                continue
+            cmdline = raw.replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+            if "chrome" in cmdline and profile_dir_str in cmdline:
+                try:
+                    pids.append(int(proc_entry.name))
+                except ValueError:
+                    continue
+        return pids
+
+    def _is_chrome_profile_in_use(self, profile_dir: Path) -> bool:
+        profile_dir_str = str(profile_dir)
+        proc_root = Path("/proc")
+        if not proc_root.exists():
+            return False
+
+        for proc_entry in proc_root.iterdir():
+            if not proc_entry.name.isdigit():
+                continue
+            cmdline_path = proc_entry / "cmdline"
+            try:
+                raw = cmdline_path.read_bytes()
+            except Exception:
+                continue
+            cmdline = raw.replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+            if "chrome" in cmdline and profile_dir_str in cmdline:
+                return True
+        return False
 
     def _ensure_output_dirs(self) -> None:
         self.VIDEO_DIR.mkdir(parents=True, exist_ok=True)
@@ -766,7 +1025,9 @@ class NotebookLMService:
                     logger.warning(f"Failed to close browser for session {session_id}: {exc}")
 
                 # Remove from active sessions
-                _active_sessions.pop(session_id, None)
+                closed_session = _active_sessions.pop(session_id, None)
+                if closed_session:
+                    self._cleanup_session_profile_dir(closed_session)
 
         preferred_storage_type = session_data.get("preferred_storage_type")
         return await self._move_temp_files_to_permanent(
@@ -806,7 +1067,9 @@ class NotebookLMService:
                     logger.info("Browser closed for sync session %s", session_id)
                 except Exception as exc:
                     logger.warning("Failed to close sync browser for session %s: %s", session_id, exc)
-                _active_sessions.pop(session_id, None)
+                closed_session = _active_sessions.pop(session_id, None)
+                if closed_session:
+                    self._cleanup_session_profile_dir(closed_session)
 
         preferred_storage_type = session_data.get("preferred_storage_type")
         return asyncio.run(
@@ -920,7 +1183,9 @@ class NotebookLMService:
             except Exception as exc:
                 logger.warning(f"Failed to close browser for session {session_id}: {exc}")
             finally:
-                _active_sessions.pop(session_id, None)
+                closed_session = _active_sessions.pop(session_id, None)
+                if closed_session:
+                    self._cleanup_session_profile_dir(closed_session)
 
         # Clean up temp files if they exist
         session_dir = self.TEMP_DIR / session_id
