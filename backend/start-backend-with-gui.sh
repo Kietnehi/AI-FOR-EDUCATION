@@ -7,6 +7,9 @@ VNC_BIND_PORT="${VNC_PORT:-5900}"
 NOVNC_BIND_PORT="${NOVNC_PORT:-6080}"
 NOVNC_WEB_DIR="${NOVNC_WEB_DIR:-/usr/share/novnc}"
 
+DISPLAY_ID="${DISPLAY_NUM#:}"
+rm -f "/tmp/.X${DISPLAY_ID}-lock"
+
 mkdir -p /tmp/.X11-unix /tmp/novnc
 
 Xvfb "${DISPLAY_NUM}" -screen 0 "${XVFB_GEOMETRY}" -ac +extension RANDR &

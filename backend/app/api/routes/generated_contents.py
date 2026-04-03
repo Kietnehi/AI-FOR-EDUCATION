@@ -267,7 +267,10 @@ async def generate_notebooklm_media(
 
     # Step 2: If confirmed, run upload phase and wait for artifact confirmation
     service = NotebookLMService()
-    result = await service.generate_media(prompt=payload.prompt)
+    try:
+        result = await service.generate_media(prompt=payload.prompt)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if result.get("status") == "awaiting_artifact_confirmation":
         return NotebookLMArtifactConfirmationResponse(**result)
     return GenerateNotebookLMMediaResponse(**result)
@@ -318,10 +321,13 @@ async def generate_notebooklm_media_from_material(
 
     # Step 2: If confirmed, run upload phase and wait for artifact confirmation
     notebook_service = NotebookLMService()
-    result = await notebook_service.generate_media_for_material(
-        material=material,
-        guidance=payload.guidance,
-    )
+    try:
+        result = await notebook_service.generate_media_for_material(
+            material=material,
+            guidance=payload.guidance,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if result.get("status") == "awaiting_artifact_confirmation":
         return NotebookLMArtifactConfirmationResponse(**result)
     return GenerateNotebookLMMediaResponse(**result)
