@@ -785,7 +785,7 @@ export default function ChatbotPage() {
             type="button"
             onClick={handleOpenHistory}
             disabled={initializing}
-            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-light)] bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <History className="w-3.5 h-3.5" />
             Lịch sử
@@ -803,9 +803,9 @@ export default function ChatbotPage() {
             )}
             New chat
           </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-medium text-emerald-700">Online</span>
+            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Online</span>
           </div>
         </div>
       </div>
@@ -998,13 +998,13 @@ export default function ChatbotPage() {
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-200/60 shadow-sm flex items-start gap-3 text-sm text-blue-800">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Globe className="w-4 h-4 text-blue-600" />
+                <div className="p-3 rounded-xl bg-sky-50/80 dark:bg-sky-900/30 border border-sky-200/60 dark:border-sky-800 shadow-sm flex items-start gap-3 text-sm text-sky-800 dark:text-sky-200">
+                  <div className="w-8 h-8 rounded-full bg-sky-100 dark:bg-sky-800/60 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Globe className="w-4 h-4 text-sky-600 dark:text-sky-300" />
                   </div>
                   <div className="flex-1 mt-1">
                     <span className="font-semibold inline-block mr-1">Tìm kiếm Web đang hoạt động:</span> 
-                    AI sẽ tra cứu thông tin mới nhất trên Internet để trả lời câu hỏi của bạn. Hệ thống sẽ <strong className="font-bold underline decoration-blue-300 underline-offset-2">không sử dụng</strong> dữ liệu từ học liệu (RAG).
+                    AI sẽ tra cứu thông tin mới nhất trên Internet để trả lời câu hỏi của bạn. Hệ thống sẽ <strong className="font-bold underline decoration-sky-300 underline-offset-2">không sử dụng</strong> dữ liệu từ học liệu (RAG).
                   </div>
                 </div>
               </motion.div>
@@ -1143,7 +1143,7 @@ export default function ChatbotPage() {
                 transition-all duration-200 shadow-md cursor-pointer border
                 ${isWebSearchEnabled 
                   ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 hover:shadow-blue-500/30" 
-                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-light)] hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50"
+                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-light)] hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/25"
                 }
                 disabled:opacity-40 disabled:cursor-not-allowed
               `}
@@ -1242,19 +1242,19 @@ export default function ChatbotPage() {
                   setIsTtsPlaying(false);
                 }}
               />
-              <div className="mb-3 flex items-center justify-between text-xs text-slate-700 relative z-10">
+              <div className="mb-3 flex items-center justify-between text-xs text-[var(--text-secondary)] relative z-10">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex w-7 h-7 items-center justify-center rounded-full bg-brand-100 text-brand-700 shadow-inner">
                     <Volume2 className="w-4 h-4" />
                   </span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-[var(--text-primary)]">
                     Đang phát {Math.round((ttsDuration > 0 ? ttsCurrentTime / ttsDuration : 0) * 100)}%
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsTtsPanelCollapsed((prev) => !prev)}
-                  className="rounded-full border border-brand-200/60 bg-white/90 px-3 py-1.5 font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 hover:shadow-sm transition-all"
+                  className="rounded-full border border-brand-200/60 bg-[var(--bg-elevated)]/90 px-3 py-1.5 font-medium text-[var(--text-secondary)] hover:bg-brand-50 dark:hover:bg-brand-900/25 hover:text-brand-700 hover:shadow-sm transition-all"
                 >
                   {isTtsPanelCollapsed ? "Mở rộng" : "Thu gọn"}
                 </button>
@@ -1262,7 +1262,7 @@ export default function ChatbotPage() {
 
               {isTtsPanelCollapsed ? (
                 <div className="mt-2 flex flex-col gap-2">
-                  <div className="flex items-center gap-3 rounded-full border border-brand-200/50 bg-white/90 p-2.5 shadow-sm backdrop-blur-md">
+                  <div className="flex items-center gap-3 rounded-full border border-brand-200/50 bg-[var(--bg-elevated)]/90 p-2.5 shadow-sm backdrop-blur-md">
                     <button 
                       onClick={() => {
                         if (ttsAudioRef.current) {
@@ -1276,7 +1276,7 @@ export default function ChatbotPage() {
                       {isTtsPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-1 fill-current" />}
                     </button>
                     <div className="group relative h-9 min-w-0 flex-1">
-                      <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 rounded-full bg-slate-200 shadow-inner ring-1 ring-brand-200/70" />
+                      <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 rounded-full bg-[var(--bg-tertiary)] shadow-inner ring-1 ring-brand-200/70" />
                       <div
                         className="absolute left-0 top-1/2 h-3 -translate-y-1/2 rounded-full bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500 shadow-[0_0_12px_rgba(59,130,246,0.35)] transition-all duration-300 ease-out"
                         style={{ width: `${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}%` }}
@@ -1315,7 +1315,7 @@ export default function ChatbotPage() {
                       {isTtsMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                     </button>
                   </div>
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-700 tabular-nums">
+                  <div className="flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] tabular-nums">
                     <span>{formatTime(ttsCurrentTime)}</span>
                     <span>{formatTime(ttsDuration)}</span>
                   </div>
@@ -1323,7 +1323,7 @@ export default function ChatbotPage() {
               ) : (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                   {/* Custom Audio Player Controls */}
-                  <div className="flex items-center gap-4 w-full bg-white/90 border border-brand-200/50 p-2.5 rounded-full shadow-sm backdrop-blur-md mt-1">
+                  <div className="flex items-center gap-4 w-full bg-[var(--bg-elevated)]/90 border border-brand-200/50 p-2.5 rounded-full shadow-sm backdrop-blur-md mt-1">
                     <button 
                       onClick={() => {
                         if (ttsAudioRef.current) {
@@ -1337,7 +1337,7 @@ export default function ChatbotPage() {
                       {isTtsPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 ml-1 fill-current" />}
                     </button>
 
-                    <span className="text-xs font-semibold text-slate-700 tabular-nums w-10 text-center">
+                    <span className="text-xs font-semibold text-[var(--text-secondary)] tabular-nums w-10 text-center">
                       {formatTime(ttsCurrentTime)}
                     </span>
 
@@ -1367,12 +1367,12 @@ export default function ChatbotPage() {
                         title="Tua âm thanh"
                       />
                       <div 
-                        className="absolute h-4 w-4 bg-white border-[3px] border-brand-500 rounded-full shadow-md transition-transform duration-100 group-hover:scale-125 z-0"
+                        className="absolute h-4 w-4 bg-[var(--bg-elevated)] border-[3px] border-brand-500 rounded-full shadow-md transition-transform duration-100 group-hover:scale-125 z-0"
                         style={{ left: `calc(${ttsDuration > 0 ? (ttsCurrentTime / ttsDuration) * 100 : 0}% - 8px)` }}
                       />
                     </div>
 
-                    <span className="text-xs font-semibold text-slate-700 tabular-nums w-10 text-center">
+                    <span className="text-xs font-semibold text-[var(--text-secondary)] tabular-nums w-10 text-center">
                       {formatTime(ttsDuration)}
                     </span>
 
@@ -1394,8 +1394,8 @@ export default function ChatbotPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 rounded-xl border border-brand-200/50 bg-white/95 p-3.5 text-left text-slate-900 shadow-sm backdrop-blur-md">
-                    <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider font-bold text-slate-700">
+                  <div className="mt-3 rounded-xl border border-brand-200/50 bg-[var(--bg-elevated)]/95 p-3.5 text-left text-[var(--text-primary)] shadow-sm backdrop-blur-md">
+                    <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider font-bold text-[var(--text-secondary)]">
                       <span>Văn bản đang đọc</span>
                     </div>
                     <div className="pr-2 custom-scrollbar">
@@ -1533,7 +1533,7 @@ export default function ChatbotPage() {
           <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={handleCloseImage}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300 text-4xl font-bold"
+              className="absolute -top-10 right-0 text-white hover:text-white/80 text-4xl font-bold"
               aria-label="Close"
             >
               &times;

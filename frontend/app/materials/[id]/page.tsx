@@ -901,7 +901,7 @@ export default function MaterialDetailPage() {
                     </div>
                     <button
                       onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `video_v${item.version}.mp4`)}
-                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-white text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
+                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
                     >
                       <Download className="w-4 h-4" />
                       Tải Video v{item.version}
@@ -943,7 +943,7 @@ export default function MaterialDetailPage() {
                     </div>
                     <button
                       onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `infographic_v${item.version}.png`)}
-                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-white text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
+                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
                     >
                       <Download className="w-4 h-4" />
                       Tải Infographic v{item.version}

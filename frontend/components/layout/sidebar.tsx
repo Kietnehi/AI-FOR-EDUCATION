@@ -107,10 +107,10 @@ export const Sidebar = memo(function Sidebar({
           className="absolute top-0 -right-3 h-full w-6 cursor-col-resize z-50 flex items-center justify-center group/r"
         >
           <div className={`h-full w-full flex items-center justify-center transition-colors ${isResizing ? "bg-[#A1E8AF]/10" : "hover:bg-[#A1E8AF]/10"}`}>
-            <div className={`flex h-14 w-3 flex-col items-center justify-center gap-1 rounded-full border border-slate-200 bg-white shadow-sm transition-all ${isResizing ? "scale-105 border-[#A1E8AF]" : "group-hover/r:scale-105 group-hover/r:border-[#A1E8AF]"}`}>
-              <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <span className="h-1 w-1 rounded-full bg-slate-300" />
+            <div className={`flex h-14 w-3 flex-col items-center justify-center gap-1 rounded-full border border-[var(--border-light)] bg-[var(--bg-elevated)] shadow-sm transition-all ${isResizing ? "scale-105 border-[#A1E8AF]" : "group-hover/r:scale-105 group-hover/r:border-[#A1E8AF]"}`}>
+              <span className="h-1 w-1 rounded-full bg-[var(--text-border)]" />
+              <span className="h-1 w-1 rounded-full bg-[var(--text-border)]" />
+              <span className="h-1 w-1 rounded-full bg-[var(--text-border)]" />
             </div>
           </div>
         </div>
