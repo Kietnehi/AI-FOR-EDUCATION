@@ -217,14 +217,14 @@ export function FlashcardPlayer({ title, items, onSubmit, loading }: FlashcardPl
               <Button
                 variant="secondary"
                 onClick={handleUnknown}
-                className="text-rose-600 border-rose-300 hover:bg-rose-50"
+                className="text-[var(--text-secondary)] border-[var(--border-light)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
               >
                 Chưa biết
               </Button>
               <Button
                 variant="secondary"
                 onClick={handleKnown}
-                className="text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                className="text-brand-700 border-brand-300 hover:bg-brand-50"
               >
                 Biết rồi
               </Button>

@@ -2,7 +2,7 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthProvider } from "@/components/auth-provider";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,10 +10,11 @@ const inter = Inter({
   display: "swap",
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata = {
@@ -25,7 +26,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="vi" suppressHydrationWarning className={`${inter.variable} ${plusJakartaSans.variable}`}>
+    <html lang="vi" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head>
         <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"} />
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"} />

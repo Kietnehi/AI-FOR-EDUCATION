@@ -44,7 +44,7 @@ export function WebSearchDialog({ sessionId, isOpen, onClose, onSuccess }: WebSe
     <Dialog open={isOpen} onClose={onClose} title="Tìm kiếm trên web" maxWidth="md">
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Globe className="w-5 h-5 text-blue-600" />
+          <Globe className="w-5 h-5 text-brand-500" />
           <p className="text-sm text-[var(--text-secondary)]">
             Nhà cung cấp: {useGoogle ? "Google" : "Tavily"}
           </p>
@@ -66,7 +66,7 @@ export function WebSearchDialog({ sessionId, isOpen, onClose, onSuccess }: WebSe
             checked={useGoogle}
             onChange={(e) => setUseGoogle(e.target.checked)}
             disabled={loading}
-            className="w-4 h-4 cursor-pointer"
+            className="w-4 h-4 cursor-pointer accent-brand-600"
           />
           <label htmlFor="useGoogle" className="text-sm text-[var(--text-secondary)] cursor-pointer">
             Thử Google Search trước (nhanh hơn nếu hỗ trợ)
@@ -74,9 +74,9 @@ export function WebSearchDialog({ sessionId, isOpen, onClose, onSuccess }: WebSe
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-3 flex gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-300 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-rose-700 dark:text-rose-200">{error}</p>
           </div>
         )}
 
@@ -84,14 +84,15 @@ export function WebSearchDialog({ sessionId, isOpen, onClose, onSuccess }: WebSe
           <Button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            variant="secondary"
+            className="px-4 py-2"
           >
             Hủy
           </Button>
           <Button
             onClick={handleSearch}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition flex items-center gap-2"
+            className="px-4 py-2 flex items-center gap-2"
           >
             {loading ? (
               <>

@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { Footer } from "@/components/layout/footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/components/auth-provider";
 
@@ -133,6 +134,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             {children}
           </div>
         </main>
+
+        <div
+          style={{
+            paddingLeft: sidebarCollapsed ? 80 : sidebarWidth,
+            transition: isResizing ? "none" : "padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        >
+          <Footer />
+        </div>
 
         {authNoticeVisible ? (
           <div className="fixed right-4 bottom-4 z-40 max-w-sm rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-xl">
