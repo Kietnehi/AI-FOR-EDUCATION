@@ -20,8 +20,16 @@ class GeneratedContentRepository:
             await self.collection.find_one({"_id": content_id, "user_id": user_id})
         )
 
-    async def list_by_material_and_type(self, material_id: str, content_type: str) -> list[dict]:
-        cursor = self.collection.find({"material_id": material_id, "content_type": content_type}).sort("version", -1)
+    async def list_by_material_and_type(
+        self,
+        material_id: str,
+        content_type: str,
+        user_id: str | None = None,
+    ) -> list[dict]:
+        query: dict[str, str] = {"material_id": material_id, "content_type": content_type}
+        if user_id:
+            query["user_id"] = user_id
+        cursor = self.collection.find(query).sort("version", -1)
         items = [serialize_document(doc) async for doc in cursor]
         return [item for item in items if item]
 
@@ -35,9 +43,17 @@ class GeneratedContentRepository:
         items = [serialize_document(doc) async for doc in cursor]
         return [item for item in items if item]
 
-    async def get_next_version(self, material_id: str, content_type: str) -> int:
+    async def get_next_version(
+        self,
+        material_id: str,
+        content_type: str,
+        user_id: str | None = None,
+    ) -> int:
+        query: dict[str, str] = {"material_id": material_id, "content_type": content_type}
+        if user_id:
+            query["user_id"] = user_id
         latest = await self.collection.find_one(
-            {"material_id": material_id, "content_type": content_type},
+            query,
             sort=[("version", -1)],
             projection={"version": 1},
         )

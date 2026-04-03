@@ -108,7 +108,7 @@ export default function PodcastPage() {
                       </div>
                     )}
                     {content.fallback_applied && (
-                      <div className="rounded-lg border border-amber-200 bg-amber-100 px-3 py-1.5 text-amber-700 shadow-sm">
+                      <div className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-amber-900 shadow-sm dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
                         {`Đã chuyển sang model dự phòng: ${content.model_used || "không xác định"}`}
                       </div>
                     )}
@@ -168,7 +168,7 @@ export default function PodcastPage() {
                     {/* Content Bubble */}
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2.5">
-                        <span className={`font-bold text-sm ${isHost ? 'text-brand-600 dark:text-brand-400' : 'text-accent-600 dark:text-accent-400'}`}>
+                        <span className={`font-bold text-sm ${isHost ? 'text-brand-600' : 'text-accent-600'}`}>
                           {segment.speaker || (isHost ? "Host" : "Guest")}
                         </span>
                         {segment.timestamp && (
@@ -179,15 +179,16 @@ export default function PodcastPage() {
                       </div>
                       
                       <Card className={`
-                        !p-5 border-0 shadow-sm
+                        !p-5 shadow-sm
                         rounded-2xl rounded-tl-sm
                         transition-colors
+                        bg-[var(--bg-elevated)] hover:bg-[var(--bg-secondary)]
                         ${isHost 
-                          ? 'bg-brand-50/60 hover:bg-brand-50 dark:bg-brand-950/10 dark:hover:bg-brand-950/20' 
-                          : 'bg-accent-50/60 hover:bg-accent-50 dark:bg-accent-950/10 dark:hover:bg-accent-950/20'
+                          ? 'border-l-[3px] border-l-brand-500' 
+                          : 'border-l-[3px] border-l-accent-500'
                         }
                       `}>
-                        <p className="text-[var(--text-secondary)] leading-relaxed m-0 text-[15px]">
+                        <p className="text-[var(--text-primary)] leading-relaxed m-0 text-[15px]">
                           {segment.text}
                         </p>
                       </Card>
