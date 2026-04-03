@@ -364,12 +364,14 @@ Mở file `.env` và điền ít nhất `MONGO_URI` (Khuyến nghị dùng Mongo
 #### 2. Khởi động hệ thống
 ```bash
 # Chạy với MongoDB Atlas (mặc định - nhẹ nhất)
-docker compose up -d --build
+docker compose build
+docker compose up
 
 # HOẶC Chạy với MongoDB Local (nếu không có Atlas)
-docker compose --profile local-db up -d --build
+docker compose --profile local-db build
+docker compose --profile local-db up
 ```
-*Lưu ý: Dùng cờ `--build` trong lần đầu hoặc khi có thay đổi cấu hình `Dockerfile`.*
+*Lưu ý: Chạy lại `docker compose build` khi có thay đổi cấu hình `Dockerfile` hoặc dependencies.*
 
 #### 3. Truy cập hệ thống
 *   🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
@@ -599,7 +601,7 @@ Hiện tại dự án có **CI đầy đủ**, và **CD bán thực tế**: đã
   `CI` pass -> `CD Dự Án` tạo metadata -> build frontend artifact -> package backend artifact -> resolve Docker bundle -> publish image frontend/backend lên GHCR -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
 - Frontend CI: `npm ci` -> `npm run lint` -> `npx vitest run --coverage --reporter=json`
 - Backend CI: `pip install -r requirements-test.txt` -> `pytest --junitxml=junit.xml`
-- Docker CI: `docker compose -f docker-compose.ci.yml up -d --build`, chờ `/health` của backend và HTTP response của frontend, rồi `down -v`
+- Docker CI: `docker compose -f docker-compose.ci.yml build` -> `docker compose -f docker-compose.ci.yml up`, chờ `/health` của backend và HTTP response của frontend, rồi `down -v`
 - Khi CI fail trên sự kiện `push`, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
 - Nếu CD fail, workflow CD cũng sẽ tự tạo hoặc cập nhật GitHub Issue
 - GHCR login hiện dùng secret cố định `GHCR_TOKEN`
@@ -640,7 +642,8 @@ flowchart LR
 
         B --> E["Docker Compose smoke
         cp .env.docker.example .env
-        docker compose up -d --build
+        docker compose build
+        docker compose up
         health check backend
         HTTP check frontend
         thu thập logs
@@ -753,7 +756,8 @@ python -m pip install -r requirements-test.txt
 python -m pytest
 
 cp .env.docker.example .env
-docker compose up -d --build
+docker compose build
+docker compose up
 curl http://localhost:8000/health
 docker compose down -v
 ```
@@ -835,7 +839,7 @@ Hệ thống đã tích hợp endpoint metrics cho backend FastAPI và có thể
 
 ### Chạy stack monitoring
 1. `cd Monitoring/railway-grafana-stack`
-2. `docker compose up -d`
+2. `docker compose up`
 
 Các dịch vụ chính:
 - Grafana: http://localhost:3300
