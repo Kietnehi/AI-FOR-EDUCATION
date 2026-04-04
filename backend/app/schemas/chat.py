@@ -1,3 +1,4 @@
+from typing import Any
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -21,6 +22,8 @@ class ChatSessionResponse(BaseModel):
 class ChatMessageRequest(BaseModel):
     message: str
     images: list[str] = Field(default_factory=list, description="Base64 encoded images")
+    model: str | None = None
+    reasoning_enabled: bool = False
 
 
 class MascotChatRequest(BaseModel):
@@ -35,6 +38,8 @@ class MascotChatRequest(BaseModel):
         default=True,
         description="Nếu bật web search, thử Google trước",
     )
+    model: str | None = None
+    reasoning_enabled: bool = False
 
 
 class ChatMessageResponse(BaseModel):
@@ -56,6 +61,9 @@ class ChatMessageResponse(BaseModel):
     )
     is_web_search: bool = Field(
         default=False, description="Liệu tin nhắn này có sử dụng tìm kiếm web hay không"
+    )
+    reasoning_details: Any | None = Field(
+        default=None, description="Chi tiết reasoning nếu có bật"
     )
 
 
@@ -89,6 +97,7 @@ class MascotChatResponse(BaseModel):
     fallback_applied: bool = False
     is_web_search: bool = False
     search_provider: str | None = None
+    reasoning_details: Any | None = None
 
 
 class MascotChatSessionResponse(BaseModel):
@@ -111,6 +120,7 @@ class MascotMessageResponse(BaseModel):
     is_web_search: bool = False
     search_provider: str | None = None
     search_results: dict | None = None
+    reasoning_details: Any | None = None
 
 
 class MascotChatSessionDetailResponse(BaseModel):

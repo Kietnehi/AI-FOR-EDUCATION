@@ -32,6 +32,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog } from "@/components/ui/dialog";
 import { ChatSkeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
+import { ReasoningBlock } from "@/components/ui/reasoning-block";
 import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import { WebSearchResult } from "@/components/ui/web-search-result";
 import {
@@ -41,6 +42,7 @@ import {
   getChatSession,
   listChatSessions,
   sendChatMessage,
+  streamChatMessage,
   synthesizeChatSpeech,
   transcribeChatAudio,
   webSearch,
@@ -62,6 +64,8 @@ type ChatMessageItemProps = {
   isSpeaking: boolean;
   onToggleSpeak: (messageId: string, content: string) => void;
   onOpenImage: (image: string) => void;
+  isStreaming?: boolean;
+  reasoningEnabled?: boolean;
 };
 
 type PreparedTtsSegment = {
@@ -75,6 +79,8 @@ const ChatMessageItem = memo(function ChatMessageItem({
   isSpeaking,
   onToggleSpeak,
   onOpenImage,
+  isStreaming,
+  reasoningEnabled,
 }: ChatMessageItemProps) {
   return (
     <motion.div
@@ -104,6 +110,30 @@ const ChatMessageItem = memo(function ChatMessageItem({
           : "bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] rounded-tl-sm"
         }
       `}>
+        {message.role === "assistant" && message.reasoning_details && reasoningEnabled && (
+          <ReasoningBlock
+            isStreaming={isStreaming}
+            reasoning={message.reasoning_details.reasoning || message.reasoning_details.reasoning_content || JSON.stringify(message.reasoning_details)}
+          />
+        )}
+        {message.role === "assistant" && (
+           <div className="mt-1 flex items-center justify-between gap-2 overflow-hidden mb-2">
+             <div className="flex flex-wrap items-center gap-1.5 leading-none">
+               {message.model_used && (
+                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-brand-50/80 dark:bg-brand-900/40 text-brand-500 dark:text-brand-400 border border-brand-100 dark:border-brand-800/60 uppercase tracking-tight">
+                   <Bot className="w-2.5 h-2.5" />
+                   Model: {message.model_used}
+                 </span>
+               )}
+               {message.fallback_applied && (
+                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight">
+                   <AlertCircle className="w-2.5 h-2.5" />
+                   Dự phòng
+                 </span>
+               )}
+             </div>
+           </div>
+        )}
         {message.role === "user" ? (
           <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
             {message.message}
@@ -232,6 +262,8 @@ export default function ChatbotPage() {
    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
    const [initializing, setInitializing] = useState(true);
   const [isStartingNewChat, setIsStartingNewChat] = useState(false);
+  const [chatModel, setChatModel] = useState<string | null>(null);
+  const [reasoningEnabled, setReasoningEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -241,6 +273,9 @@ export default function ChatbotPage() {
   const ttsSegmentsRef = useRef<PreparedTtsSegment[]>([]);
   const ttsSeekTargetRef = useRef<number | null>(null);
   const ttsShouldAutoplayRef = useRef(false);
+  const lastScrollTimeRef = useRef(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionChangeRef = useRef(false);
 
   const resetTtsState = useCallback(() => {
     ttsSegmentsRef.current.forEach((segment) => URL.revokeObjectURL(segment.audioUrl));
@@ -348,6 +383,7 @@ export default function ChatbotPage() {
     stopCurrentTtsAudio();
     resetTtsState();
     window.localStorage.setItem(getChatSessionStorageKey(materialId), detail.session.id);
+    sessionChangeRef.current = true;
     await refreshSessionHistory();
   }, [materialId, refreshSessionHistory, resetTtsState, stopCurrentTtsAudio]);
 
@@ -366,6 +402,7 @@ export default function ChatbotPage() {
             if (!cancelled) {
               setSessionId(detail.session.id);
               setMessages(detail.messages);
+              sessionChangeRef.current = true;
               return;
             }
           } catch {
@@ -377,6 +414,7 @@ export default function ChatbotPage() {
         if (cancelled) return;
         setSessionId(session.id);
         setMessages([]);
+        sessionChangeRef.current = true;
       } catch {
         if (!cancelled) {
           setMessages([]);
@@ -399,6 +437,11 @@ export default function ChatbotPage() {
   }, [materialId, refreshSessionHistory]);
 
   useEffect(() => {
+    const savedModel = localStorage.getItem("chat_model");
+    if (savedModel) setChatModel(savedModel);
+  }, []);
+
+  useEffect(() => {
     if (!materialId || !sessionId) {
       return;
     }
@@ -406,7 +449,39 @@ export default function ChatbotPage() {
   }, [materialId, sessionId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scrollToBottom = () => {
+      if (!messagesEndRef.current) return;
+
+      const container = messagesEndRef.current.parentElement;
+      if (container) {
+        // Always scroll to bottom on session change/initial load
+        if (sessionChangeRef.current) {
+          sessionChangeRef.current = false;
+          container.scrollTop = container.scrollHeight;
+          return;
+        }
+
+        // During streaming, only scroll if user is near bottom
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+        if (isNearBottom) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+    };
+
+    const now = Date.now();
+    // Throttle scroll to max once every 100ms
+    if (now - lastScrollTimeRef.current > 100) {
+      scrollToBottom();
+      lastScrollTimeRef.current = now;
+    } else {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(scrollToBottom, 100);
+    }
+
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
   }, [messages]);
 
   useEffect(() => {
@@ -450,8 +525,9 @@ export default function ChatbotPage() {
       setMessages([]);
       setInput("");
       setImages([]);
+      sessionChangeRef.current = true;
       await refreshSessionHistory();
-      inputRef.current?.focus();
+      
     } catch {
       alert("Không thể tạo đoạn chat mới");
     } finally {
@@ -492,6 +568,7 @@ export default function ChatbotPage() {
         setMessages([]);
         setInput("");
         setImages([]);
+        sessionChangeRef.current = true;
       }
 
       await refreshSessionHistory();
@@ -515,6 +592,7 @@ export default function ChatbotPage() {
       setMessages([]);
       setInput("");
       setImages([]);
+      sessionChangeRef.current = true;
       await refreshSessionHistory();
       setIsDeleteAllDialogOpen(false);
     } catch {
@@ -626,15 +704,58 @@ export default function ChatbotPage() {
            setMessages((prev) => [...prev, searchMessage]);
          }
        } else {
-         const assistantMessage = await sendChatMessage(sessionId, question, currentImages);
-         setMessages((prev) => [...prev, assistantMessage]);
+         setMessages((prev) => [
+           ...prev,
+           {
+             id: `tmp-bot-${Date.now()}`,
+             role: "assistant",
+             session_id: sessionId,
+             message: "",
+             citations: [],
+             created_at: new Date().toISOString(),
+             reasoning_details: reasoningEnabled ? { reasoning: "" } : null
+           } as ChatMessage,
+         ]);
+
+         await streamChatMessage(
+           sessionId,
+           question,
+           (chunk) => {
+             setMessages((prev) => {
+               const next = [...prev];
+               const last = { ...next[next.length - 1] };
+               if (chunk.content) {
+                 last.message = (last.message || "") + chunk.content;
+               }
+               if (chunk.reasoning && reasoningEnabled) {
+                 last.reasoning_details = {
+                   reasoning: (last.reasoning_details?.reasoning || "") + chunk.reasoning
+                 };
+               }
+               if (Array.isArray(chunk.citations)) {
+                 last.citations = chunk.citations;
+               }
+               // Handle model information from the done chunk
+               if (chunk.model) {
+                 last.model_used = chunk.model;
+               }
+               next[next.length - 1] = last;
+               return next;
+             });
+           },
+           currentImages,
+           {
+             model: chatModel,
+             reasoningEnabled,
+           }
+         );
        }
      } catch (err: any) {
        console.error(err);
        alert(err.message || "Đã xảy ra lỗi trong quá trình tìm kiếm!");
      } finally {
        setLoading(false);
-       inputRef.current?.focus();
+       
      }
    }
 
@@ -735,7 +856,6 @@ export default function ChatbotPage() {
         try {
           const result = await transcribeChatAudio(blob, sttModel);
           setInput((prev) => (prev.trim() ? `${prev.trim()} ${result.text}` : result.text));
-          inputRef.current?.focus();
         } catch {
           alert("Không thể chuyển giọng nói thành văn bản");
         } finally {
@@ -856,7 +976,9 @@ export default function ChatbotPage() {
           )}
 
           <AnimatePresence>
-            {messages.map((msg) => (
+            {messages.map((msg, idx) => {
+              const isStreamingPlaceholder = msg.role === "assistant" && loading && idx === messages.length - 1 && !msg.message.trim();
+              return (
               <motion.div
                 key={msg.id}
                 initial={{ opacity: 0, y: 12 }}
@@ -887,12 +1009,25 @@ export default function ChatbotPage() {
                     : "bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-primary)] rounded-tl-sm"
                   }
                 `}>
+                   {msg.role === "assistant" && msg.reasoning_details && reasoningEnabled && (
+                     <ReasoningBlock
+                       isStreaming={loading && idx === messages.length - 1}
+                       reasoning={msg.reasoning_details.reasoning || msg.reasoning_details.reasoning_content || JSON.stringify(msg.reasoning_details)}
+                     />
+                   )}
                    {msg.role === "user" ? (
                      <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
                        {msg.message}
                      </p>
                    ) : (
-                     <Markdown content={msg.message} />
+                     isStreamingPlaceholder ? (
+                       <div className="inline-flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                         <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-500" />
+                         <span>AI đang tạo câu trả lời...</span>
+                       </div>
+                     ) : (
+                       <Markdown content={msg.message} />
+                     )
                    )}
 
                    {/* Image preview */}
@@ -912,14 +1047,22 @@ export default function ChatbotPage() {
                      </div>
                    )}
 
-                    {msg.role === "assistant" && (
-                      <div className="mt-2 flex items-center justify-end gap-2">
-                        {msg.fallback_applied && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                            <AlertCircle className="w-3 h-3" />
-                            {`Đã chuyển sang model dự phòng: ${msg.model_used || "không xác định"}`}
-                          </span>
-                        )}
+                    {msg.role === "assistant" && !!msg.message.trim() && (
+                      <div className="mt-2 flex items-center justify-between gap-2 overflow-hidden">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {msg.model_used && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-brand-50/50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-900/50">
+                              <Bot className="w-2.5 h-2.5" />
+                              Model: {msg.model_used}
+                            </span>
+                          )}
+                          {msg.fallback_applied && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-600 border border-amber-200/50">
+                              <AlertCircle className="w-2.5 h-2.5" />
+                              Dự phòng
+                            </span>
+                          )}
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleToggleSpeak(msg.id, msg.message)}
@@ -962,11 +1105,12 @@ export default function ChatbotPage() {
                   )}
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
           </AnimatePresence>
 
           {/* Typing indicator */}
-          {loading && (
+          {loading && messages.length > 0 && messages[messages.length - 1].role !== "assistant" && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1042,6 +1186,18 @@ export default function ChatbotPage() {
                 <option value="es">Spanish</option>
               </select>
             </div>
+            {(chatModel?.includes("minimax") || chatModel?.includes("deepseek") || chatModel?.includes("qwen")) && (
+              <div className="flex items-center">
+                <label className="text-xs text-[var(--text-tertiary)] mr-2 flex items-center gap-1" title="Bật tính năng Suy luận sâu">Suy luận sâu (Reasoning)</label>
+                <button
+                  type="button"
+                  onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${reasoningEnabled ? 'bg-brand-500' : 'bg-gray-300 dark:bg-gray-700'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`} style={{ transform: reasoningEnabled ? "translateX(18px)" : "translateX(2px)" }} />
+                </button>
+              </div>
+            )}
             <div className="flex items-center">
               <label className="text-xs text-[var(--text-tertiary)] mr-2">Model STT</label>
             <select

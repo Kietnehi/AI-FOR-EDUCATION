@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.api.dependencies import get_database, get_current_user
@@ -123,8 +124,33 @@ async def send_message(
         payload.message,
         payload.images,
         user_id=user.id,
+        model=payload.model,
+        reasoning_enabled=payload.reasoning_enabled,
     )
     return ChatMessageResponse(**assistant_message)
+
+
+@router.post("/chat/sessions/{session_id}/message/stream")
+async def stream_message(
+    session_id: str,
+    payload: ChatMessageRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> StreamingResponse:
+    service = ChatService(db)
+    generator = service.stream_add_user_message_and_answer(
+        session_id,
+        payload.message,
+        payload.images,
+        user_id=user.id,
+        model=payload.model,
+        reasoning_enabled=payload.reasoning_enabled,
+    )
+    return StreamingResponse(
+        generator, 
+        media_type="application/x-ndjson",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"}
+    )
 
 
 @router.delete(
@@ -155,8 +181,35 @@ async def send_mascot_message(
         payload.images,
         use_web_search=payload.use_web_search,
         use_google=payload.use_google,
+        model=payload.model,
+        reasoning_enabled=payload.reasoning_enabled,
     )
     return MascotChatResponse(**response)
+
+
+@router.post("/chat/mascot/message/stream")
+async def stream_mascot_message(
+    payload: MascotChatRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> StreamingResponse:
+    service = ChatService(db)
+    generator = service.stream_answer_mascot_no_rag(
+        payload.message,
+        user.id,
+        payload.session_id,
+        payload.images,
+        use_web_search=payload.use_web_search,
+        use_google=payload.use_google,
+        model=payload.model,
+        reasoning_enabled=payload.reasoning_enabled,
+    )
+    return StreamingResponse(
+        generator, 
+        media_type="application/x-ndjson",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"}
+    )
+
 
 
 @router.delete(

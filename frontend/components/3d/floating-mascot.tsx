@@ -12,6 +12,7 @@ import {
   getMascotChatSession,
   listMascotChatSessions,
   sendMascotChatMessage,
+  streamMascotChatMessage,
   synthesizeChatSpeech,
   transcribeChatAudio,
 } from "@/lib/api";
@@ -19,6 +20,7 @@ import { formatVietnamDateTime } from "@/lib/datetime";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getAudioDurationFromUrl, getSegmentBaseTime, splitTextForTts } from "@/lib/tts";
 import { Markdown } from "@/components/ui/markdown";
+import { ReasoningBlock } from "@/components/ui/reasoning-block";
 import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import type { MascotChatSession, SttModel } from "@/types";
 
@@ -26,6 +28,8 @@ type MiniChatMessage = {
   role: "user" | "assistant";
   content: string;
   images?: string[];
+  reasoning_details?: Record<string, any> | null;
+  model_used?: string;
 };
 
 type PreparedTtsSegment = {
@@ -138,6 +142,8 @@ export function FloatingMascot() {
   const [useGoogleSearch, setUseGoogleSearch] = useState(true);
   const [sttModel, setSttModel] = useState<SttModel>("local-base");
   const [ttsLang, setTtsLang] = useState("vi");
+  const [chatModel, setChatModel] = useState<string | null>(null);
+  const [reasoningEnabled, setReasoningEnabled] = useState(false);
 
   const [mascotSessionId, setMascotSessionId] = useState<string | undefined>(undefined);
   const [sessionHistory, setSessionHistory] = useState<MascotChatSession[]>([]);
@@ -183,6 +189,9 @@ export function FloatingMascot() {
   const ttsSegmentsRef = useRef<PreparedTtsSegment[]>([]);
   const ttsSeekTargetRef = useRef<number | null>(null);
   const ttsShouldAutoplayRef = useRef(false);
+  const lastScrollTimeRef = useRef(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionChangeRef = useRef(false);
 
   const resetTtsState = () => {
     ttsSegmentsRef.current.forEach((segment) => URL.revokeObjectURL(segment.audioUrl));
@@ -290,12 +299,14 @@ export function FloatingMascot() {
             role: message.role,
             content: message.message,
             images: message.images,
+            reasoning_details: message.reasoning_details,
           }))
         : [{ role: "assistant", content: DEFAULT_MASCOT_GREETING }]
     );
     setChatInput("");
     setChatImages([]);
     localStorage.setItem(MASCOT_SESSION_STORAGE_KEY, detail.session.id);
+    sessionChangeRef.current = true;
     await refreshSessionHistory();
   };
 
@@ -386,9 +397,38 @@ export function FloatingMascot() {
   }, []);
 
   useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    const scrollToBottom = () => {
+      if (!messagesRef.current) return;
+      const container = messagesRef.current;
+
+      // Always scroll to bottom on session change/initial load
+      if (sessionChangeRef.current) {
+        sessionChangeRef.current = false;
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
+
+      // During streaming, only scroll if user is near bottom
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      if (isNearBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
+    };
+
+    if (isChatOpen) {
+      const now = Date.now();
+      if (now - lastScrollTimeRef.current > 100) {
+        scrollToBottom();
+        lastScrollTimeRef.current = now;
+      } else {
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(scrollToBottom, 100);
+      }
     }
+
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
   }, [messages, isChatOpen]);
 
   useEffect(() => {
@@ -397,10 +437,15 @@ export function FloatingMascot() {
     if (savedSttModel && STT_MODEL_OPTIONS.includes(savedSttModel as SttModel)) {
       setSttModel(savedSttModel as SttModel);
     }
+    const savedChatModel = localStorage.getItem("chat_model");
+    if (savedChatModel) {
+      setChatModel(savedChatModel);
+    }
 
     void refreshSessionHistory();
 
     if (!savedSessionId) {
+      sessionChangeRef.current = true;
       return;
     }
 
@@ -419,15 +464,18 @@ export function FloatingMascot() {
               role: message.role,
               content: message.message,
               images: message.images,
+              reasoning_details: message.reasoning_details,
             }))
           );
         }
+        sessionChangeRef.current = true;
       })
       .catch(() => {
         localStorage.removeItem(MASCOT_SESSION_STORAGE_KEY);
         if (!cancelled && sessionLoadRequestIdRef.current === requestId) {
           setMascotSessionId(undefined);
           setMessages([{ role: "assistant", content: DEFAULT_MASCOT_GREETING }]);
+          sessionChangeRef.current = true;
         }
       });
 
@@ -631,25 +679,59 @@ export function FloatingMascot() {
     setIsSending(true);
 
     try {
-      const response = await sendMascotChatMessage(trimmed, mascotSessionId, currentImages, {
-        useWebSearch: isWebSearchEnabled,
-        useGoogle: useGoogleSearch,
-      });
+      let currentSessionId = mascotSessionId;
+      setMessages((prev) => [...prev, { role: "assistant", content: "", reasoning_details: reasoningEnabled ? { reasoning: "" } : null }]);
+
+      await streamMascotChatMessage(
+        trimmed,
+        (chunk) => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = { ...next[next.length - 1] };
+            if (chunk.content) {
+              last.content = (last.content || "") + chunk.content;
+            }
+            if (chunk.reasoning && reasoningEnabled) {
+              last.reasoning_details = {
+                reasoning: (last.reasoning_details?.reasoning || "") + chunk.reasoning
+              };
+            }
+            if (chunk.model) {
+              last.model_used = chunk.model;
+            }
+            next[next.length - 1] = last;
+            return next;
+          });
+          if (chunk.session_id) {
+            currentSessionId = chunk.session_id;
+            setMascotSessionId(chunk.session_id);
+          }
+        },
+        mascotSessionId,
+        currentImages,
+        {
+          useWebSearch: isWebSearchEnabled,
+          useGoogle: useGoogleSearch,
+          model: chatModel,
+          reasoningEnabled,
+        }
+      );
+
       const nowIso = new Date().toISOString();
-      setMascotSessionId(response.session_id);
-      setMessages((prev) => [...prev, { role: "assistant", content: response.message }]);
-      setSessionHistory((prev) => {
-        const currentSession = prev.find((session) => session.id === response.session_id);
-        const nextSession: MascotChatSession = {
-          id: response.session_id,
-          user_id: currentSession?.user_id ?? "",
-          session_title: currentSession?.session_title ?? buildSessionTitle(trimmed, "Cuộc trò chuyện mới"),
-          created_at: currentSession?.created_at ?? nowIso,
-          updated_at: nowIso,
-        };
-        return [nextSession, ...prev.filter((session) => session.id !== response.session_id)];
-      });
-      await refreshSessionHistory();
+      if (currentSessionId) {
+        setSessionHistory((prev) => {
+          const currentSession = prev.find((session) => session.id === currentSessionId);
+          const nextSession: MascotChatSession = {
+            id: currentSessionId!,
+            user_id: currentSession?.user_id ?? "",
+            session_title: currentSession?.session_title ?? buildSessionTitle(trimmed, "Cuộc trò chuyện mới"),
+            created_at: currentSession?.created_at ?? nowIso,
+            updated_at: nowIso,
+          };
+          return [nextSession, ...prev.filter((session) => session.id !== currentSessionId)];
+        });
+        await refreshSessionHistory();
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -742,6 +824,7 @@ export function FloatingMascot() {
     setChatImages([]);
     setMascotSessionId(undefined);
     localStorage.removeItem(MASCOT_SESSION_STORAGE_KEY);
+    sessionChangeRef.current = true;
     setMessages([
       {
         role: "assistant",
@@ -929,6 +1012,19 @@ export function FloatingMascot() {
                   <option value="de">German</option>
                   <option value="es">Spanish</option>
                 </select>
+
+                {(chatModel?.includes("minimax") || chatModel?.includes("deepseek") || chatModel?.includes("qwen")) && (
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-light)]">
+                    <label className="text-xs font-semibold text-brand-600 dark:text-brand-400">Suy luận sâu (Reasoning)</label>
+                    <button
+                      type="button"
+                      onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${reasoningEnabled ? 'bg-brand-500' : 'bg-gray-300 dark:bg-gray-700'}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`} style={{ transform: reasoningEnabled ? "translateX(18px)" : "translateX(2px)" }} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1047,6 +1143,7 @@ export function FloatingMascot() {
               <div className="space-y-2 p-3">
               {messages.map((msg, index) => {
                 const messageKey = `${msg.role}-${index}`;
+                const isStreamingPlaceholder = msg.role === "assistant" && isSending && index === messages.length - 1 && !msg.content.trim();
                 return (
                   <div
                     key={messageKey}
@@ -1084,12 +1181,35 @@ export function FloatingMascot() {
                           ))}
                         </div>
                       )}
+                    {msg.role === "assistant" && msg.reasoning_details && reasoningEnabled && (
+                      <ReasoningBlock
+                        isStreaming={isSending && index === messages.length - 1}
+                        reasoning={msg.reasoning_details.reasoning || msg.reasoning_details.reasoning_content || JSON.stringify(msg.reasoning_details)}
+                      />
+                    )}
                     {msg.role === "user" ? (
                       <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
                     ) : (
-                      <Markdown content={msg.content} />
+                      <div className="flex flex-col gap-2">
+                        {isStreamingPlaceholder ? (
+                          <div className="inline-flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-500" />
+                            <span>AI đang tạo câu trả lời...</span>
+                          </div>
+                        ) : (
+                          <Markdown content={msg.content} />
+                        )}
+                        {msg.model_used && (
+                          <div className="flex justify-end">
+                            <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-brand-50/80 dark:bg-brand-900/40 text-brand-500 dark:text-brand-400 border border-brand-100 dark:border-brand-800/60 uppercase tracking-tight">
+                              <BotIcon className="w-2.5 h-2.5" />
+                              Model: {msg.model_used}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     )}
-                    {msg.role === "assistant" && (
+                    {msg.role === "assistant" && !!msg.content.trim() && (
                       <div className="mt-2 flex justify-end">
                         <button
                           type="button"
@@ -1110,11 +1230,6 @@ export function FloatingMascot() {
                 );
               })}
 
-              {isSending && (
-                <div className="max-w-[88%] rounded-xl px-3 py-2 text-sm border border-[var(--border-light)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
-                  Đang trả lời...
-                </div>
-              )}
               {isTranscribing && (
                 <div className="max-w-[88%] rounded-xl px-3 py-2 text-sm border border-[var(--border-light)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] flex items-center gap-2">
                   <Loader2 className="w-3 h-3 animate-spin" />
