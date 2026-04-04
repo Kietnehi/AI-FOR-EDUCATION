@@ -18,12 +18,33 @@ class FileParser:
 
     @staticmethod
     def _parse_pdf(file_path: str) -> str:
-        reader = PdfReader(file_path)
-        parts = []
-        for i, page in enumerate(reader.pages):
-            parts.append(f"\n[PAGE {i+1}]\n")
-            parts.append(page.extract_text() or "")
-        return "".join(parts)
+        try:
+            from docling.document_converter import DocumentConverter, PdfFormatOption
+            from docling.datamodel.base_models import InputFormat
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+
+            pipeline_options = PdfPipelineOptions()
+            pipeline_options.do_formula_enrichment = True
+            pipeline_options.do_ocr = False
+            pipeline_options.do_table_structure = True
+            pipeline_options.generate_picture_images = True
+
+            doc_converter = DocumentConverter(
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+                }
+            )
+
+            result = doc_converter.convert(file_path)
+            doc = result.document
+            return doc.export_to_markdown()
+        except Exception:
+            reader = PdfReader(file_path)
+            parts = []
+            for i, page in enumerate(reader.pages):
+                parts.append(f"\n[PAGE {i+1}]\n")
+                parts.append(page.extract_text() or "")
+            return "".join(parts)
 
     @staticmethod
     def _parse_docx(file_path: str) -> str:

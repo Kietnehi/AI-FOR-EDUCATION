@@ -3,11 +3,42 @@ import shutil
 import re
 import asyncio
 import uuid
+import json
 from pathlib import Path
 from PIL import Image
 import pandas as pd
 import httpx
 import zipfile
+
+
+def _extract_equations_from_markdown(md_content: str) -> list[str]:
+    patterns = [
+        r"\$\$(.*?)\$\$",          # $$...$$
+        r"\\\[(.*?)\\\]",        # \[...\]
+        r"\\\((.*?)\\\)",        # \(...\)
+        r"(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)",  # $...$
+    ]
+
+    raw_equations: list[str] = []
+    for pattern in patterns:
+        raw_equations.extend(re.findall(pattern, md_content, flags=re.DOTALL))
+
+    equations: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_equations:
+        equation = re.sub(r"\s+", " ", raw).strip()
+        if not equation:
+            continue
+        # Skip obvious malformed captures.
+        if equation in {"[", "]", "(", ")", "{", "}"}:
+            continue
+        if len(equation) < 3:
+            continue
+        if equation not in seen:
+            seen.add(equation)
+            equations.append(equation)
+
+    return equations
 
 # Windows-only import
 if os.name == 'nt':
@@ -183,11 +214,14 @@ def extract_from_pdf(pdf_path: str, extract_id: str):
         text_dir = output_base / "text"
         tables_dir = output_base / "tables"
         images_dir = output_base / "images"
+        equations_dir = output_base / "equations"
         text_dir.mkdir(exist_ok=True)
         tables_dir.mkdir(exist_ok=True)
         images_dir.mkdir(exist_ok=True)
+        equations_dir.mkdir(exist_ok=True)
         
         pipeline_options = PdfPipelineOptions()
+        pipeline_options.do_formula_enrichment = True
         pipeline_options.do_ocr = False
         pipeline_options.do_table_structure = True
         pipeline_options.generate_picture_images = True
@@ -205,6 +239,35 @@ def extract_from_pdf(pdf_path: str, extract_id: str):
         text_file = text_dir / "extracted_text.md"
         with open(text_file, "w", encoding="utf-8") as f:
             f.write(md_content)
+
+        # Capture and clean formula snippets from markdown output for frontend rendering.
+        equations = _extract_equations_from_markdown(md_content)
+        equations_file = equations_dir / "equations.json"
+        with open(equations_file, "w", encoding="utf-8") as f:
+            json.dump({"equations": equations}, f, ensure_ascii=False, indent=2)
+
+        equations_md_file = equations_dir / "equations.md"
+        with open(equations_md_file, "w", encoding="utf-8") as f:
+            if equations:
+                lines: list[str] = ["# Extracted Equations", ""]
+                for idx, equation in enumerate(equations, start=1):
+                    lines.append(f"## Equation {idx}")
+                    lines.append("")
+                    lines.append("$$")
+                    lines.append(equation)
+                    lines.append("$$")
+                    lines.append("")
+                f.write("\n".join(lines).strip() + "\n")
+            else:
+                f.write("# Extracted Equations\n\nNo equations detected.\n")
+
+        equations_txt_file = equations_dir / "equations.txt"
+        with open(equations_txt_file, "w", encoding="utf-8") as f:
+            if equations:
+                for idx, equation in enumerate(equations, start=1):
+                    f.write(f"[Equation {idx}]\n{equation}\n\n")
+            else:
+                f.write("No equations detected.\n")
         
         try:
             plain_text = doc.export_to_text()
@@ -249,9 +312,11 @@ def extract_from_pdf(pdf_path: str, extract_id: str):
             "pdf_filename": pdf_p.name,
             "extracted_at": extract_id,
             "text_files": 2,
+            "equation_files": 3,
             "tables_count": table_count,
             "images_count": image_count,
             "images": image_filenames,
+            "equations_count": len(equations),
         }
         
         summary_file = output_base / "summary.txt"
@@ -260,8 +325,10 @@ def extract_from_pdf(pdf_path: str, extract_id: str):
             f.write(f"Source PDF: {summary['pdf_filename']}\n")
             f.write(f"Extraction ID: {summary['extracted_at']}\n\n")
             f.write(f"Text Files: {summary['text_files']}\n")
+            f.write(f"Equation Files: {summary['equation_files']}\n")
             f.write(f"Tables Extracted: {summary['tables_count']}\n")
             f.write(f"Images Extracted: {summary['images_count']}\n")
+            f.write(f"Equations Extracted: {summary['equations_count']}\n")
             
         return {
             "success": True,
