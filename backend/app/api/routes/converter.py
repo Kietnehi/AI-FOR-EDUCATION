@@ -4,6 +4,7 @@ import re
 import os
 import csv
 import asyncio
+import json
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import FileResponse, JSONResponse
@@ -114,6 +115,21 @@ async def get_extracted_text(
         raise HTTPException(status_code=404, detail="Text not found")
     with open(text_file, "r", encoding="utf-8") as f:
         return JSONResponse({"content": f.read()})
+
+@router.get("/extracted/{extract_id}/equations")
+async def get_extracted_equations(
+    extract_id: str,
+    user: AuthUser = Depends(get_current_user),
+):
+    output_base = EXTRACTED_DIR / extract_id
+    equations_file = output_base / "equations" / "equations.json"
+    if not equations_file.exists():
+        # Backward compatibility for extracts created before equations folder existed.
+        equations_file = output_base / "text" / "equations.json"
+    if not equations_file.exists():
+        return JSONResponse({"equations": []})
+    with open(equations_file, "r", encoding="utf-8") as f:
+        return JSONResponse(json.load(f))
 
 @router.get("/extracted/{extract_id}/tables/{filename}")
 async def serve_table(

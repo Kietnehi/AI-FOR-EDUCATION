@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Tabs } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
@@ -37,11 +39,47 @@ interface ExtractionSummary {
   tables_count: number;
   images_count: number;
   images: string[];
+  equations_count?: number;
 }
 
 interface TableData {
   headers: string[];
   rows: Record<string, string>[];
+}
+
+function normalizeEquationForKatex(rawEquation: string): string {
+  let equation = rawEquation.trim();
+
+  // Some extraction outputs use \| between aligned lines; convert it to LaTeX line break.
+  equation = equation.replace(/\\\|/g, "\\\\");
+
+  const hasAlignment = equation.includes("&") || equation.includes("\\\\");
+  const hasAlignedEnvironment = /\\begin\{(aligned|align|array)\}/.test(equation);
+
+  if (hasAlignment && !hasAlignedEnvironment) {
+    equation = `\\begin{aligned} ${equation} \\end{aligned}`;
+  }
+
+  return equation;
+}
+
+function prettifyExtractedMarkdown(markdown: string): string {
+  const compacted = markdown
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^[ \t]+$/gm, "")
+    .trim();
+
+  const normalizeDelimitedMath = (input: string): string => {
+    const normalize = (equation: string) => normalizeEquationForKatex(equation);
+
+    // Normalize display math blocks to reduce KaTeX parse errors from extracted formulas.
+    let output = input.replace(/\$\$([\s\S]*?)\$\$/g, (_full, eq) => `$$\n${normalize(eq)}\n$$`);
+    output = output.replace(/\\\[([\s\S]*?)\\\]/g, (_full, eq) => `\\[${normalize(eq)}\\]`);
+    return output;
+  };
+
+  return normalizeDelimitedMath(compacted);
 }
 
 // ── inline table viewer ──────────────────────────────────────────────
@@ -244,8 +282,11 @@ export function PdfConverter() {
   const [extractId, setExtractId] = useState<string | null>(null);
   const [summary, setSummary] = useState<ExtractionSummary | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
+  const [equations, setEquations] = useState<string[]>([]);
   const [textView, setTextView] = useState<"rendered" | "raw">("rendered");
   const [notice, setNotice] = useState("");
+
+  const renderedMarkdown = useMemo(() => prettifyExtractedMarkdown(extractedText), [extractedText]);
 
   const notifyAuthRequired = () => {
     window.dispatchEvent(new CustomEvent("auth-required"));
@@ -329,7 +370,7 @@ export function PdfConverter() {
     e.preventDefault(); if (!pdfFile) return;
     if (!ensureAuthenticated()) return;
     setLoading(true); setError(null);
-    setExtractId(null); setSummary(null); setExtractedText("");
+    setExtractId(null); setSummary(null); setExtractedText(""); setEquations([]);
 
     try {
       const fd = new FormData(); fd.append("file", pdfFile);
@@ -349,6 +390,16 @@ export function PdfConverter() {
         return;
       }
       if (tr.ok) setExtractedText((await tr.json()).content ?? "");
+
+      const eqRes = await fetchWithAuth(`${API_BASE}/converter/extracted/${data.extract_id}/equations`);
+      if (eqRes.status === 401) {
+        notifyAuthRequired();
+        return;
+      }
+      if (eqRes.ok) {
+        const equationPayload = await eqRes.json();
+        setEquations(Array.isArray(equationPayload?.equations) ? equationPayload.equations : []);
+      }
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -483,7 +534,7 @@ export function PdfConverter() {
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="font-semibold text-emerald-800">Phân tích thành công</span>
                         <span className="text-sm text-emerald-700">
-                          · {summary.tables_count} bảng · {summary.images_count} ảnh
+                          · {summary.tables_count} bảng · {summary.images_count} ảnh · {summary.equations_count ?? equations.length} công thức
                         </span>
                       </div>
                       <a href={`${API_BASE}/converter/extracted/${extractId}/download`} download>
@@ -513,8 +564,13 @@ export function PdfConverter() {
                       </div>
                       <div className="h-[420px] overflow-y-auto p-6">
                         {textView === "rendered" ? (
-                          <div className="prose prose-sm max-w-none text-[var(--text-secondary)]">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{extractedText}</ReactMarkdown>
+                          <div className="markdown-rendered text-[var(--text-secondary)]">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[[rehypeKatex, { strict: "ignore", throwOnError: false }]]}
+                            >
+                              {renderedMarkdown}
+                            </ReactMarkdown>
                           </div>
                         ) : (
                           <pre className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap font-mono leading-relaxed">
@@ -533,6 +589,30 @@ export function PdfConverter() {
                         {Array.from({ length: summary.tables_count }).map((_, i) => (
                           <TableViewer key={i} extractId={extractId} filename={`table_${i + 1}.xlsx`} index={i} />
                         ))}
+                      </Card>
+                    )}
+
+                    {/* Equations */}
+                    {(summary.equations_count ?? equations.length) > 0 && (
+                      <Card className="p-6 border-[var(--border-light)] shadow-sm space-y-3">
+                        <h3 className="font-bold text-base flex items-center gap-2 border-b border-[var(--border-light)] pb-4">
+                          <Code className="w-5 h-5 text-amber-500" /> Công thức ({summary.equations_count ?? equations.length})
+                        </h3>
+                        <div className="space-y-3">
+                          {equations.map((equation, i) => (
+                            <div key={i} className="rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-4">
+                              <div className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Equation {i + 1}</div>
+                              <div className="equation-render text-[var(--text-secondary)] overflow-x-auto">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkMath]}
+                                  rehypePlugins={[[rehypeKatex, { strict: "ignore", throwOnError: false }]]}
+                                >
+                                  {`$$\n${normalizeEquationForKatex(equation)}\n$$`}
+                                </ReactMarkdown>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </Card>
                     )}
 

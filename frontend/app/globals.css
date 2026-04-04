@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
 
 /* ============================================
    AI LEARNING STUDIO — Design System
@@ -216,6 +217,113 @@ h1, h2, h3, h4 {
   background: var(--mint) !important;
   color: #0f172a !important;
   border-radius: 9999px;
+}
+
+.equation-render .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0.25rem 0;
+}
+
+.markdown-rendered {
+  font-size: 0.95rem;
+  line-height: 1.72;
+}
+
+.markdown-rendered > * + * {
+  margin-top: 0.95rem;
+}
+
+.markdown-rendered h1,
+.markdown-rendered h2,
+.markdown-rendered h3,
+.markdown-rendered h4 {
+  color: var(--text-primary);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin-top: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-rendered h1 {
+  font-size: 1.4rem;
+}
+
+.markdown-rendered h2 {
+  font-size: 1.2rem;
+}
+
+.markdown-rendered h3 {
+  font-size: 1.06rem;
+}
+
+.markdown-rendered p,
+.markdown-rendered li {
+  color: var(--text-secondary);
+}
+
+.markdown-rendered ul,
+.markdown-rendered ol {
+  padding-left: 1.2rem;
+}
+
+.markdown-rendered li + li {
+  margin-top: 0.35rem;
+}
+
+.markdown-rendered blockquote {
+  margin: 0.9rem 0;
+  padding: 0.7rem 0.95rem;
+  border-left: 3px solid var(--color-brand-300);
+  background: var(--bg-secondary);
+  border-radius: 0 0.6rem 0.6rem 0;
+}
+
+.markdown-rendered table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.86rem;
+}
+
+.markdown-rendered th,
+.markdown-rendered td {
+  border: 1px solid var(--border-light);
+  padding: 0.45rem 0.55rem;
+}
+
+.markdown-rendered th {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.markdown-rendered code {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 0.35rem;
+  padding: 0.08rem 0.35rem;
+  font-size: 0.82em;
+}
+
+.markdown-rendered pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 0.7rem;
+  padding: 0.8rem;
+  overflow-x: auto;
+}
+
+.markdown-rendered pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.markdown-rendered .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0.75rem 0;
 }
 
 
