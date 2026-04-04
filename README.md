@@ -274,6 +274,7 @@ AI-FOR-EDUCATION/
 │  ├─ CI_SUMMARY_2026-03-28.md  ← CI/CD pipeline summary
 │  ├─ DOCKER_REVIEW_2026-03-27.md← Docker setup review
 │  ├─ LLM_API_FLOW.md           ← LLM API integration flow
+│  ├─ REASONING_STREAMING.md    ← Reasoning & streaming flow guide
 │  ├─ MINIGAME.md               ← Minigame documentation
 │  ├─ NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md
 │  ├─ TOM_TAT_CD_2026-03-28.md  ← CD pipeline summary
@@ -958,6 +959,7 @@ Lưu ý vận hành:
 - **Gemini API:** [Gemini API Quickstart](https://ai.google.dev/gemini-api/docs/quickstart)
 - **Web Search:** [Hướng dẫn Web Search (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
 - **LLM API Flow:** [Luồng xử lý AI & LLM](markdown_docs/LLM_API_FLOW.md)
+- **Reasoning & Streaming:** [Luồng reasoning và streaming trong chatbot](markdown_docs/REASONING_STREAMING.md)
 - **Minigame Design:** [Thiết kế & logic Minigame](markdown_docs/MINIGAME.md)
 - **NotebookLM Media:** [NotebookLM Video & Infographic](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md)
 - **Docker Review bản hiện tại:** [Đánh giá Docker & Hot-reload](markdown_docs/DOCKER_REVIEW.md)
