@@ -132,6 +132,7 @@ export type ChatMessage = {
      search_queries?: string[];
    };
    is_web_search?: boolean;
+   reasoning_details?: Record<string, any> | null;
    };
 
 export type MascotChatResponse = {
@@ -142,6 +143,7 @@ export type MascotChatResponse = {
   fallback_applied?: boolean;
   is_web_search?: boolean;
   search_provider?: string | null;
+  reasoning_details?: Record<string, any> | null;
 };
 
 export type MascotChatMessage = {
@@ -156,6 +158,7 @@ export type MascotChatMessage = {
   is_web_search?: boolean;
   search_provider?: string | null;
   search_results?: Record<string, any> | null;
+  reasoning_details?: Record<string, any> | null;
 };
 
 export type DeleteSessionsResult = {

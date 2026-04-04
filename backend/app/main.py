@@ -70,7 +70,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 if Instrumentator is not None:
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)

@@ -1,12 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Settings, User, Bell, Shield, Palette, Database, Moon, Sun } from "lucide-react";
+import { Settings, User, Bell, Shield, Palette, Database, Moon, Sun, Bot } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useTheme } from "@/components/theme-provider";
 
 export default function SettingsPage() {
   const { theme, toggle } = useTheme();
+  const [chatModel, setChatModel] = useState<string>("openai/gpt-4o-mini");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("chat_model");
+    if (saved) setChatModel(saved);
+  }, []);
+
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setChatModel(e.target.value);
+    localStorage.setItem("chat_model", e.target.value);
+  };
+
   const sections = [
     { title: "Tài khoản", icon: User, desc: "Quản lý thông tin cá nhân và bảo mật" },
     { title: "Thông báo", icon: Bell, desc: "Cấu hình nhận thông báo hệ thống" },
@@ -23,6 +36,23 @@ export default function SettingsPage() {
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           {theme === "dark" ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
         </button>
+      ),
+    },
+    {
+      title: "Mô hình AI",
+      icon: Bot,
+      desc: "Lựa chọn mô hình cho Chatbot",
+      action: (
+        <select
+          value={chatModel}
+          onChange={handleModelChange}
+          className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] cursor-pointer outline-none focus:ring-2 focus:ring-brand-500 min-w-[150px]"
+        >
+          <option value="openai/gpt-4o-mini">GPT-4o Mini (Mặc định)</option>
+          <option value="qwen/qwen3.6-plus:free">Qwen 3.6 Plus (Miễn phí)</option>
+          <option value="deepseek/deepseek-v3.2">DeepSeek V3.2</option>
+          <option value="minimax/minimax-m2.7">MiniMax M2.7</option>
+        </select>
       ),
     },
     { title: "Dữ liệu", icon: Database, desc: "Quản lý dữ liệu và bộ nhớ tạm" },
