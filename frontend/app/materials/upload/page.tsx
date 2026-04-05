@@ -442,8 +442,8 @@ export default function UploadMaterialPage() {
                 className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 placeholder:text-[var(--text-tertiary)] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
               />
             </label>
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Cấp học</span>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-medium text-[var(--text-secondary)]">Cấp học</span>
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-2">
                   {EDUCATION_LEVEL_OPTIONS.map((option) => {
@@ -467,8 +467,8 @@ export default function UploadMaterialPage() {
                         }}
                         className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
                           isSelected
-                            ? "border-brand-300 bg-brand-50 text-brand-700"
-                            : "border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-brand-300 hover:text-[var(--text-primary)]"
+                            ? "border-brand-500 bg-brand-500/10 text-brand-600 shadow-sm"
+                            : "border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:border-brand-300 hover:text-[var(--text-primary)]"
                         }`}
                       >
                         {option}
@@ -486,7 +486,7 @@ export default function UploadMaterialPage() {
                   />
                 ) : null}
               </div>
-            </label>
+            </div>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Từ khóa</span>
               <input

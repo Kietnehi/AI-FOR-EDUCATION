@@ -232,7 +232,7 @@ export default function DashboardPage() {
             </p>
             <div className="flex flex-wrap gap-3 pointer-events-auto w-fit">
               <Link href="/materials/upload">
-                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-bold bg-[#A1E8AF] text-slate-900 border-2 border-[#A1E8AF] hover:brightness-110">
+                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-bold bg-[#A1E8AF] text-white border-2 border-[#A1E8AF] hover:brightness-110">
                   Tải lên học liệu
                 </Button>
               </Link>

@@ -134,8 +134,8 @@ export function QuizMixedPlayer({ title, items, onSubmit, loading, submitting }:
                   ${
                     feedback
                       ? isCorrect
-                        ? "!border-emerald-300 !bg-emerald-50/50"
-                        : "!border-rose-300 !bg-rose-50/50"
+                        ? "!border-emerald-400/70 !bg-emerald-500/12"
+                        : "!border-rose-400/70 !bg-rose-500/12"
                       : ""
                   }
                 `}
@@ -182,13 +182,13 @@ export function QuizMixedPlayer({ title, items, onSubmit, loading, submitting }:
                               ${
                                 result
                                   ? showCorrect
-                                    ? "border-emerald-300 bg-emerald-50"
+                                    ? "border-emerald-400/70 bg-emerald-500/12 text-[var(--text-primary)]"
                                     : showWrong
-                                      ? "border-rose-300 bg-rose-50"
+                                      ? "border-rose-400/70 bg-rose-500/12 text-[var(--text-primary)]"
                                       : "border-[var(--border-light)] bg-[var(--bg-secondary)]"
                                   : isSelected
-                                    ? "border-brand-400 bg-brand-50 text-brand-700"
-                                    : "border-[var(--border-light)] bg-[var(--bg-secondary)] hover:border-brand-300"
+                                    ? "border-brand-400/70 bg-brand-500/15 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18)]"
+                                    : "border-[var(--border-light)] bg-[var(--bg-secondary)] hover:border-brand-300 hover:bg-[var(--bg-elevated)]"
                               }
                             `}
                           >
