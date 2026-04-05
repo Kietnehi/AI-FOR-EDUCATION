@@ -189,7 +189,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    command: npm run dev -- -H 0.0.0.0 -p 3000
+    command: sh -c "npm install && npm run dev -- -H 0.0.0.0 -p 3000"
 
   celery-worker:
     gpus: all

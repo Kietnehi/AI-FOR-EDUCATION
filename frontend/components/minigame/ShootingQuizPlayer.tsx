@@ -89,7 +89,7 @@ const PLAYER_ANCHOR_Y_OFFSET = 0;
 const PLAYER_X = ARENA_WIDTH / 2 + PLAYER_ANCHOR_X_OFFSET;
 const PLAYER_Y = ARENA_HEIGHT - PLAYER_AVATAR_BOTTOM - PLAYER_AVATAR_SIZE / 2 + PLAYER_ANCHOR_Y_OFFSET;
 const BULLET_SPEED = 16;
-const CHICKEN_HIT_RADIUS = 34;
+const CHICKEN_HIT_RADIUS = 75;
 const PHYSICS_SUBSTEPS = 4;
 
 function clamp(value: number, min: number, max: number): number {
@@ -126,6 +126,17 @@ function didBulletHitEnemy(prevX: number, prevY: number, nextX: number, nextY: n
   }
 
   return false;
+}
+
+function isPointInsideEnemy(pointX: number, pointY: number, enemy: EnemyChicken): boolean {
+  const halfW = CHICKEN_WIDTH / 2;
+  const halfH = CHICKEN_HEIGHT / 2;
+  return (
+    pointX >= enemy.x - halfW &&
+    pointX <= enemy.x + halfW &&
+    pointY >= enemy.y - halfH &&
+    pointY <= enemy.y + halfH
+  );
 }
 
 function createRoundEnemies(answers: QuizAnswer[]): EnemyChicken[] {
@@ -485,6 +496,19 @@ export function ShootingQuizPlayer({ payload, onSubmit, sessionKey }: Props) {
     });
   }
 
+  function findEnemyAtPoint(pointX: number, pointY: number): EnemyChicken | null {
+    const candidates = enemiesRef.current.filter((enemy) => isPointInsideEnemy(pointX, pointY, enemy));
+    if (candidates.length === 0) return null;
+
+    candidates.sort((a, b) => {
+      const distA = (a.x - pointX) * (a.x - pointX) + (a.y - pointY) * (a.y - pointY);
+      const distB = (b.x - pointX) * (b.x - pointX) + (b.y - pointY) * (b.y - pointY);
+      return distA - distB;
+    });
+
+    return candidates[0] || null;
+  }
+
   function handleShoot(targetPoint?: { x: number; y: number }) {
     if (screen !== "playing" || lockedRound || isPaused) return;
 
@@ -771,6 +795,8 @@ export function ShootingQuizPlayer({ payload, onSubmit, sessionKey }: Props) {
               y: clamp(targetY, 0, ARENA_HEIGHT),
             };
             setAim(clampedTarget);
+
+            // Always shoot, don't insta-resolve so bullets always fly to target
             handleShoot(clampedTarget);
           }}
           onKeyDown={(event) => {

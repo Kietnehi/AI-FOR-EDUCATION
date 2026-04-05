@@ -331,8 +331,8 @@ export default function WebSearchPage() {
                 onClick={() => setSearchType(tab.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition ${
                   searchType === tab.id
-                    ? "bg-brand-50 text-brand-700 border-brand-200"
-                    : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-light)] hover:bg-[var(--bg-secondary)]"
+                    ? "bg-brand-500/15 text-[var(--text-primary)] border-brand-400/70 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18)]"
+                    : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-light)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {tab.icon}
