@@ -168,7 +168,7 @@ export function FlashcardPlayer({ title, items, onSubmit, loading }: FlashcardPl
                 className="cursor-pointer"
               >
                 <Card
-                  className="!border-brand-400 !shadow-lg h-64 flex flex-col items-center justify-center text-center p-8 bg-gradient-to-br from-brand-50 to-accent-50 hover:shadow-xl transition-all"
+                  className="!border-brand-400/60 !shadow-lg h-64 flex flex-col items-center justify-center text-center p-8 bg-[linear-gradient(145deg,var(--bg-elevated),var(--bg-secondary))] hover:shadow-xl transition-all"
                 >
                   <div className="text-sm text-[var(--text-tertiary)] mb-4">
                     {isFlipped ? "Đáp án" : "Câu hỏi"} &bull; {currentIndex + 1}/{items.length}
@@ -224,7 +224,7 @@ export function FlashcardPlayer({ title, items, onSubmit, loading }: FlashcardPl
               <Button
                 variant="secondary"
                 onClick={handleKnown}
-                className="text-brand-700 border-brand-300 hover:bg-brand-50"
+                className="text-[var(--text-primary)] border-brand-400/60 hover:bg-brand-500/15"
               >
                 Biết rồi
               </Button>
