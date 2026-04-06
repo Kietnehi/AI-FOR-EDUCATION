@@ -100,3 +100,10 @@ TESTING_CODE/
 test-results/
 playwright-report/
 blob-report/
+
+
+# Dont Add Initial FIle for Coding CLI Agents
+GEMINI.md
+QWEN.md
+AGENTS.md
+p;p[]
