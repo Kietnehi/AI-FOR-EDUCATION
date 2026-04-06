@@ -232,7 +232,7 @@ export default function DashboardPage() {
             </p>
             <div className="flex flex-wrap gap-3 pointer-events-auto w-fit">
               <Link href="/materials/upload">
-                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-bold bg-[#A1E8AF] text-white border-2 border-[#A1E8AF] hover:brightness-110">
+                <Button variant="secondary" size="lg" icon={<Upload className="w-5 h-5" />} className="h-12 px-6 rounded-full font-bold !bg-[#A1E8AF] !text-slate-900 !border-[#A1E8AF] hover:brightness-110 dark:!bg-[#A1E8AF] dark:!text-slate-900 dark:hover:brightness-105">
                   Tải lên học liệu
                 </Button>
               </Link>
@@ -241,7 +241,7 @@ export default function DashboardPage() {
                   variant="ghost"
                   size="lg"
                   icon={<ArrowRight className="w-5 h-5" />}
-                  className="!text-white/90 hover:!bg-slate-800 h-12 px-6 rounded-full border-2 border-slate-700 font-bold"
+                  className="h-12 px-6 rounded-full border-2 border-white/20 bg-white/10 font-bold text-white/90 hover:bg-white/15 dark:border-slate-700 dark:bg-slate-900/40 dark:text-white/90 dark:hover:bg-slate-800/70"
                 >
                   Xem tất cả
                 </Button>
