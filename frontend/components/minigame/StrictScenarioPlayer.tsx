@@ -307,7 +307,7 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
               className={`
                 group w-full text-left bg-[var(--bg-elevated)] border border-[var(--border-light)] rounded-2xl p-5 sm:p-6
                 flex items-center justify-between transition-all duration-300 relative overflow-hidden
-                ${isSelected ? "ring-2 ring-brand-500 shadow-brand border-transparent" : "hover:border-brand-300 hover:shadow-md cursor-pointer"}
+                ${isSelected ? "ring-2 ring-brand-400/70 border-brand-400/70 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18)]" : "hover:border-brand-300 hover:shadow-md cursor-pointer"}
                 ${isProcessing && !isSelected ? "opacity-50 cursor-not-allowed" : ""}
               `}
             >
@@ -328,7 +328,7 @@ export function StrictScenarioPlayer({ game, onSubmit }: StrictScenarioPlayerPro
                 {isSelected ? <CheckCircle2 className="w-6 h-6 text-brand-500" /> : <ArrowRight className="w-5 h-5" />}
               </div>
 
-              {isSelected && <div className="absolute inset-0 bg-brand-50/50 z-0" />}
+              {isSelected && <div className="absolute inset-0 bg-brand-500/12 z-0" />}
             </motion.button>
           );
         })}

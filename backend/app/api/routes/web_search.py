@@ -38,13 +38,25 @@ def _search_wikimedia_images(query: str, max_results: int) -> list[dict[str, Any
         "iiprop": "url",
         "iiurlwidth": "640",
         "inprop": "url",
+        "origin": "*",
         "format": "json",
     }
 
-    with httpx.Client(timeout=10.0) as client:
-        response = client.get("https://commons.wikimedia.org/w/api.php", params=params)
-        response.raise_for_status()
-        pages = response.json().get("query", {}).get("pages", {})
+    headers = {
+        # Wikimedia may reject generic/default clients from datacenter networks.
+        "User-Agent": "AI-Learning-Studio/1.0 (web-search-image-fallback)",
+        "Accept": "application/json",
+    }
+
+    try:
+        with httpx.Client(timeout=10.0, headers=headers, follow_redirects=True) as client:
+            response = client.get("https://commons.wikimedia.org/w/api.php", params=params)
+            response.raise_for_status()
+            pages = response.json().get("query", {}).get("pages", {})
+    except httpx.HTTPStatusError as exc:
+        if exc.response is not None and exc.response.status_code == 403:
+            return _search_openverse_images(query, max_results)
+        raise
 
     results: list[dict[str, Any]] = []
     for page in pages.values():
@@ -68,6 +80,106 @@ def _search_wikimedia_images(query: str, max_results: int) -> list[dict[str, Any
         )
 
     return results
+
+
+def _search_wikipedia_images(query: str, max_results: int) -> list[dict[str, Any]]:
+    """Secondary fallback for image search using Wikipedia page thumbnails."""
+    params = {
+        "action": "query",
+        "generator": "search",
+        "gsrsearch": query,
+        "gsrlimit": str(max_results),
+        "prop": "pageimages|info|extracts",
+        "pithumbsize": "640",
+        "inprop": "url",
+        "exintro": "1",
+        "explaintext": "1",
+        "origin": "*",
+        "format": "json",
+    }
+
+    headers = {
+        "User-Agent": "AI-Learning-Studio/1.0 (web-search-image-fallback)",
+        "Accept": "application/json",
+    }
+
+    with httpx.Client(timeout=10.0, headers=headers, follow_redirects=True) as client:
+        response = client.get("https://en.wikipedia.org/w/api.php", params=params)
+        response.raise_for_status()
+        pages = response.json().get("query", {}).get("pages", {})
+
+    results: list[dict[str, Any]] = []
+    for page in pages.values():
+        thumb = (page.get("thumbnail") or {}).get("source")
+        page_url = page.get("fullurl")
+        title = page.get("title") or "Wikipedia image"
+        snippet = page.get("extract") or ""
+
+        if not thumb:
+            continue
+
+        results.append(
+            {
+                "title": title,
+                "image": thumb,
+                "thumbnail": thumb,
+                "url": page_url or thumb,
+                "body": snippet,
+                "source": "Wikipedia",
+            }
+        )
+
+    return results
+
+
+def _search_openverse_images(query: str, max_results: int) -> list[dict[str, Any]]:
+    """Final fallback for image search using Openverse (no API key required)."""
+    params = {
+        "q": query,
+        "page_size": str(max_results),
+    }
+
+    with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+        response = client.get("https://api.openverse.org/v1/images/", params=params)
+        response.raise_for_status()
+        items = response.json().get("results", [])
+
+    results: list[dict[str, Any]] = []
+    for item in items:
+        image_url = item.get("url")
+        thumb = item.get("thumbnail") or image_url
+        page_url = item.get("foreign_landing_url") or image_url
+        title = item.get("title") or item.get("creator") or "Openverse image"
+
+        if not image_url:
+            continue
+
+        results.append(
+            {
+                "title": title,
+                "image": image_url,
+                "thumbnail": thumb,
+                "url": page_url,
+                "source": "Openverse",
+            }
+        )
+
+    return results
+
+
+def _search_image_fallback(query: str, max_results: int) -> list[dict[str, Any]]:
+    """Try multiple image providers and return best-effort results instead of failing hard."""
+    providers = (_search_wikimedia_images, _search_wikipedia_images, _search_openverse_images)
+
+    for provider in providers:
+        try:
+            results = provider(query, max_results)
+            if results:
+                return results
+        except Exception:
+            continue
+
+    return []
 
 
 def _looks_like_network_error(exc: Exception) -> bool:
@@ -323,7 +435,7 @@ def _run_ddgs_search(query: str, search_type: str, max_results: int) -> list[dic
             return list(ddgs.text(query, max_results=max_results))
     except Exception:
         if search_type == "images":
-            return _search_wikimedia_images(query, max_results)
+            return _search_image_fallback(query, max_results)
         raise
 
 @router.get("/duckduckgo")

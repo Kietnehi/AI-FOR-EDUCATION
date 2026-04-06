@@ -1296,8 +1296,8 @@ export default function MaterialDetailPage() {
                           }}
                           className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
                             isSelected
-                              ? "border-brand-300 bg-brand-50 text-brand-700"
-                              : "border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-brand-300 hover:text-[var(--text-primary)]"
+                              ? "border-brand-400/70 bg-brand-500/15 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18)]"
+                              : "border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-border)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-secondary)]"
                           }`}
                         >
                           {option}
