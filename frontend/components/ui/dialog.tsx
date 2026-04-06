@@ -56,18 +56,18 @@ export function Dialog({ open, onClose, children, title, maxWidth = "md" }: Dial
           />
 
           {/* Dialog */}
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            onClick={onClose}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", duration: 0.3 }}
-              className={`relative w-full ${maxWidthClass} bg-[var(--bg-primary)] rounded-2xl shadow-xl border border-[var(--border-default)] overflow-hidden`}
+          <div className="fixed inset-0 z-50 p-4" onClick={onClose}>
+            <div
+              className={`fixed left-1/2 top-1/2 z-[60] w-[calc(100vw-2rem)] ${maxWidthClass} max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2`}
               onClick={(e) => e.stopPropagation()}
             >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", duration: 0.3 }}
+                className="max-h-[calc(100vh-2rem)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-primary)] shadow-xl"
+              >
               {/* Header */}
               {title && (
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)]">
@@ -84,10 +84,11 @@ export function Dialog({ open, onClose, children, title, maxWidth = "md" }: Dial
               )}
 
               {/* Content */}
-              <div className="p-6">
+              <div className="max-h-[calc(100vh-8rem)] overflow-y-auto p-6">
                 {children}
               </div>
-            </motion.div>
+              </motion.div>
+            </div>
           </div>
         </>
       )}
