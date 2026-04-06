@@ -11,6 +11,52 @@ import httpx
 import zipfile
 
 
+def _has_balanced_braces(value: str) -> bool:
+    balance = 0
+    escaped = False
+    for char in value:
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == "{":
+            balance += 1
+        elif char == "}":
+            balance -= 1
+            if balance < 0:
+                return False
+    return balance == 0
+
+
+def _has_balanced_environments(value: str) -> bool:
+    begins = re.findall(r"\\begin\{([a-zA-Z*]+)\}", value)
+    ends = re.findall(r"\\end\{([a-zA-Z*]+)\}", value)
+    if not begins and not ends:
+        return True
+    for env in set(begins + ends):
+        if begins.count(env) != ends.count(env):
+            return False
+    return True
+
+
+def _looks_like_renderable_equation(value: str) -> bool:
+    if len(value) < 3:
+        return False
+    # Common OCR/formula-enrichment noise: prose split into single letters.
+    if re.search(r"(?:\b[A-Za-z]\b\s+){8,}\b[A-Za-z]\b", value):
+        return False
+    if not _has_balanced_braces(value):
+        return False
+    if not _has_balanced_environments(value):
+        return False
+
+    has_latex_command = bool(re.search(r"\\[A-Za-z]+", value))
+    has_math_symbol = bool(re.search(r"[=+\-*/^_<>]", value))
+    return has_latex_command or has_math_symbol
+
+
 def _extract_equations_from_markdown(md_content: str) -> list[str]:
     patterns = [
         r"\$\$(.*?)\$\$",          # $$...$$
@@ -32,7 +78,7 @@ def _extract_equations_from_markdown(md_content: str) -> list[str]:
         # Skip obvious malformed captures.
         if equation in {"[", "]", "(", ")", "{", "}"}:
             continue
-        if len(equation) < 3:
+        if not _looks_like_renderable_equation(equation):
             continue
         if equation not in seen:
             seen.add(equation)
