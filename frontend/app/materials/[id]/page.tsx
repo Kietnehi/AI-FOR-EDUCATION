@@ -342,8 +342,15 @@ export default function MaterialDetailPage() {
   }
 
   async function handleDeleteGeneratedItem(item: GeneratedContent) {
+    const difficultyLabel =
+      item.difficulty === "easy"
+        ? "Dễ"
+        : item.difficulty === "hard"
+          ? "Khó"
+          : "Trung bình";
+    const minigameName = minigameTypeLabels[item.game_type || ""] || "Minigame";
     const label = item.content_type === "minigame"
-      ? `minigame v${item.version}`
+      ? `${minigameName} (${difficultyLabel})`
       : `${item.content_type} v${item.version}`;
     const confirmed = window.confirm(`Bạn có chắc muốn xóa ${label}?`);
     if (!confirmed) return;
@@ -603,6 +610,12 @@ export default function MaterialDetailPage() {
     quiz_mixed: "Quiz hỗn hợp",
     flashcard: "Flashcard",
     shooting_quiz: "Bắn gà ôn tập",
+  };
+
+  const difficultyLabels: Record<string, string> = {
+    easy: "Dễ",
+    medium: "Trung bình",
+    hard: "Khó",
   };
 
   const libraryItems = libraryModalType ? getContentsByType(libraryModalType) : [];
@@ -1095,7 +1108,9 @@ export default function MaterialDetailPage() {
                   {libraryTypeLabels[libraryModalType]}
                 </h3>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  Chọn phiên bản đã tạo để mở lại, hoặc tạo phiên bản mới.
+                  {libraryModalType === "minigame"
+                    ? "Chọn game đã tạo để mở lại, hoặc tạo game mới."
+                    : "Chọn phiên bản đã tạo để mở lại, hoặc tạo phiên bản mới."}
                 </p>
               </div>
 
@@ -1106,7 +1121,7 @@ export default function MaterialDetailPage() {
                   disabled={busyAction.length > 0 || deletingGeneratedId.length > 0}
                   icon={<RefreshCw className="w-4 h-4" />}
                 >
-                  Tạo phiên bản mới
+                  {libraryModalType === "minigame" ? "Tạo game mới" : "Tạo phiên bản mới"}
                 </Button>
               </div>
 
@@ -1120,11 +1135,12 @@ export default function MaterialDetailPage() {
                 )}
 
                 {libraryItems.map((item) => {
+                  const minigameDifficultyLabel = difficultyLabels[(item.difficulty || "medium").toLowerCase()] || (item.difficulty || "medium");
                   const title =
                     item.content_type === "podcast"
                       ? item.json_content?.title || `Podcast v${item.version}`
                       : item.content_type === "minigame"
-                        ? `${minigameTypeLabels[item.game_type || ""] || "Minigame"} v${item.version}`
+                        ? `${minigameTypeLabels[item.game_type || ""] || "Minigame"} • ${minigameDifficultyLabel}`
                         : `Slides v${item.version}`;
 
                   return (
@@ -1133,8 +1149,12 @@ export default function MaterialDetailPage() {
                         <div>
                           <h4 className="m-0 text-sm font-semibold text-[var(--text-primary)]">{title}</h4>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
-                            <span>Phiên bản {item.version}</span>
-                            <span>•</span>
+                            {item.content_type !== "minigame" && (
+                              <>
+                                <span>Phiên bản {item.version}</span>
+                                <span>•</span>
+                              </>
+                            )}
                             <span>{DATE_FORMATTER.format(new Date(item.created_at))}</span>
                             {item.model_used ? (
                               <>

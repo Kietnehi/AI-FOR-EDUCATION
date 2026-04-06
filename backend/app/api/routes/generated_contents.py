@@ -85,6 +85,7 @@ async def generate_minigame(
     result = await service.generate_minigame(
         material_id, 
         game_type=payload.game_type,
+        difficulty=payload.difficulty,
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
     )
@@ -143,7 +144,7 @@ async def queue_generate_minigame(
 ) -> GenerationTaskQueuedResponse:
     material_service = MaterialService(db)
     await material_service.get_material(material_id, user_id=user.id)
-    task = generate_minigame_task.delay(material_id, payload.game_type)
+    task = generate_minigame_task.delay(material_id, payload.game_type, payload.difficulty)
     return GenerationTaskQueuedResponse(
         task_id=task.id,
         message="Minigame generation task queued",

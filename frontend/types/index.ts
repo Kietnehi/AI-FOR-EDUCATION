@@ -32,6 +32,7 @@ export type GeneratedContent = {
     | "video"
     | "infographic";
   game_type?: "quiz_mixed" | "flashcard" | "shooting_quiz";
+  difficulty?: "easy" | "medium" | "hard" | string;
   version: number;
   outline: string[];
   json_content: Record<string, any>;
@@ -42,6 +43,26 @@ export type GeneratedContent = {
   fallback_applied?: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type GameTypePersonalizationStat = {
+  game_type: "quiz_mixed" | "flashcard" | "shooting_quiz" | string;
+  attempts: number;
+  average_accuracy: number;
+  recommended_difficulty: "easy" | "medium" | "hard" | string;
+  last_played_difficulty: "easy" | "medium" | "hard" | string;
+};
+
+export type MinigamePersonalization = {
+  material_id: string;
+  total_attempts: number;
+  average_accuracy: number;
+  suggested_game_type: "quiz_mixed" | "flashcard" | "shooting_quiz" | string;
+  recommended_difficulty: "easy" | "medium" | "hard" | string;
+  streak_days: number;
+  game_type_stats: GameTypePersonalizationStat[];
+  weak_points: string[];
+  next_actions: string[];
 };
 
 export type NotebookLMMediaFile = {

@@ -458,6 +458,7 @@ class GenerationService:
         self,
         material_id: str,
         game_type: str = "quiz_mixed",
+        difficulty: str = "medium",
         user_id: str | None = None,
         force_regenerate: bool = False,
     ) -> dict:
@@ -483,6 +484,7 @@ class GenerationService:
                 self.minigame_generator.generate,
                 text,
                 game_type=selected_game_type,
+                difficulty=difficulty,
             ),
             self._next_version(material_id, "minigame", user_id=user_id),
         )
@@ -511,6 +513,7 @@ class GenerationService:
             "material_id": material_id,
             "content_type": "minigame",
             "game_type": selected_game_type,
+            "difficulty": difficulty,
             "version": version,
             "outline": outline,
             "json_content": game_payload,

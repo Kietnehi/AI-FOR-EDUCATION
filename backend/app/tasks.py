@@ -59,11 +59,11 @@ async def _run_generate_podcast(
         await close_mongo()
 
 
-async def _run_generate_minigame(material_id: str, game_type: str) -> dict:
+async def _run_generate_minigame(material_id: str, game_type: str, difficulty: str) -> dict:
     await connect_mongo()
     try:
         service = GenerationService(get_db())
-        return await service.generate_minigame(material_id=material_id, game_type=game_type)
+        return await service.generate_minigame(material_id=material_id, game_type=game_type, difficulty=difficulty)
     finally:
         await close_mongo()
 
@@ -115,11 +115,11 @@ def generate_podcast_task(
 
 
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
-def generate_minigame_task(self, material_id: str, game_type: str) -> dict:
+def generate_minigame_task(self, material_id: str, game_type: str, difficulty: str = "medium") -> dict:
     configure_logging()
     logger.info("Queue generate minigame task material_id=%s", material_id)
     try:
-        return asyncio.run(_run_generate_minigame(material_id=material_id, game_type=game_type))
+        return asyncio.run(_run_generate_minigame(material_id=material_id, game_type=game_type, difficulty=difficulty))
     except Exception as exc:
         logger.exception("Generate minigame task failed for material_id=%s", material_id)
         raise self.retry(exc=exc)
