@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -43,3 +43,30 @@ class MinigamePersonalizationResponse(BaseModel):
     game_type_stats: list[GameTypePersonalizationStat] = Field(default_factory=list)
     weak_points: list[str] = Field(default_factory=list)
     next_actions: list[str] = Field(default_factory=list)
+
+
+class RemediationQuickStartRequest(BaseModel):
+    difficulty: Literal["easy", "medium", "hard"] | None = None
+    top_k_wrong_questions: int = Field(default=10, ge=3, le=20)
+
+
+class RemediationQuickStartItem(BaseModel):
+    game_type: Literal["quiz_mixed"]
+    generated_content_id: str
+    difficulty: Literal["easy", "medium", "hard"]
+    title: str
+
+
+class RemediationWrongQuestion(BaseModel):
+    question: str
+    wrong_count: int
+    correct_answer: str | None = None
+
+
+class RemediationQuickStartResponse(BaseModel):
+    material_id: str
+    weak_points: list[str] = Field(default_factory=list)
+    top_wrong_questions: list[RemediationWrongQuestion] = Field(default_factory=list)
+    recommended_difficulty: Literal["easy", "medium", "hard"] = "medium"
+    generated_items: list[RemediationQuickStartItem] = Field(default_factory=list)
+    message: str

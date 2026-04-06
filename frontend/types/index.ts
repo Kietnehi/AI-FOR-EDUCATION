@@ -65,6 +65,28 @@ export type MinigamePersonalization = {
   next_actions: string[];
 };
 
+export type RemediationQuickStartItem = {
+  game_type: "quiz_mixed" | string;
+  generated_content_id: string;
+  difficulty: "easy" | "medium" | "hard" | string;
+  title: string;
+};
+
+export type RemediationWrongQuestion = {
+  question: string;
+  wrong_count: number;
+  correct_answer?: string | null;
+};
+
+export type RemediationQuickStart = {
+  material_id: string;
+  weak_points: string[];
+  top_wrong_questions: RemediationWrongQuestion[];
+  recommended_difficulty: "easy" | "medium" | "hard" | string;
+  generated_items: RemediationQuickStartItem[];
+  message: string;
+};
+
 export type NotebookLMMediaFile = {
   file_name: string;
   file_url: string;
