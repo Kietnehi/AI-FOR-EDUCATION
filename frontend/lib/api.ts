@@ -2,6 +2,7 @@ import {
   ChatMessage,
   ChatSession,
   DeleteSessionsResult,
+  MinigamePersonalization,
   GeneratedContent,
   Material,
   MascotChatMessage,
@@ -306,11 +307,12 @@ export async function generatePodcast(id: string, force_regenerate: boolean = fa
 export async function generateMinigame(
   id: string, 
   gameType: "quiz_mixed" | "flashcard" | "shooting_quiz" = "quiz_mixed",
+  difficulty: "easy" | "medium" | "hard" = "medium",
   force_regenerate: boolean = false
 ): Promise<GeneratedContent> {
   const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
     method: "POST",
-    body: JSON.stringify({ game_type: gameType, force_regenerate }),
+    body: JSON.stringify({ game_type: gameType, difficulty, force_regenerate }),
     cacheTtlMs: gameType === "shooting_quiz" ? 180000 : 60000,
   });
   invalidateCache(`/materials/${id}/generated-contents`);
@@ -712,6 +714,12 @@ export async function submitGameAttempt(
   return apiFetch<any>(`/games/${generatedContentId}/submit`, {
     method: "POST",
     body: JSON.stringify({ answers }),
+  });
+}
+
+export async function getMinigamePersonalization(materialId: string): Promise<MinigamePersonalization> {
+  return apiFetch<MinigamePersonalization>(`/games/materials/${materialId}/personalization`, {
+    skipCache: true,
   });
 }
 

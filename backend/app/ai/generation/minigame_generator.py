@@ -5,22 +5,30 @@ class MinigameGenerator:
     def __init__(self) -> None:
         self.llm = LLMClient()
 
-    def generate(self, context: str, game_type: str) -> dict:
+    def generate(self, context: str, game_type: str, difficulty: str = "medium") -> dict:
         """Generate minigame with specified type."""
         if game_type == "quiz_mixed":
-            return self.generate_quiz_mixed(context)
+            return self.generate_quiz_mixed(context, difficulty)
         elif game_type == "flashcard":
-            return self.generate_flashcard(context)
+            return self.generate_flashcard(context, difficulty)
         elif game_type == "shooting_quiz":
-            return self.generate_shooting_quiz(context)
+            return self.generate_shooting_quiz(context, difficulty)
         else:
             # Fallback to quiz_mixed
-            return self.generate_quiz_mixed(context)
+            return self.generate_quiz_mixed(context, difficulty)
 
-    def generate_quiz_mixed(self, context: str) -> dict:
+    def generate_quiz_mixed(self, context: str, difficulty: str = "medium") -> dict:
         """Generate 10 mixed quiz questions (true/false, mcq, multiple select, fill blank)."""
+        diff_instruction = ""
+        if difficulty == "easy":
+            diff_instruction = "Mức độ: DỄ (Easy). Câu hỏi nhận biết, ghi nhớ cơ bản. Lựa chọn đáp án rõ ràng."
+        elif difficulty == "hard":
+            diff_instruction = "Mức độ: KHÓ (Hard). Câu hỏi vận dụng cao, suy luận logic. Lựa chọn đáp án dễ nhầm lẫn."
+        else:
+            diff_instruction = "Mức độ: TRUNG BÌNH (Medium). Câu hỏi hiểu biết, phân tích, có chút gài bẫy."
+
         system_prompt = (
-            "Bạn là chuyên gia tạo trò chơi giáo dục. Tạo 10 câu hỏi đa dạng với 4 dạng (mỗi dạng ~2-3 câu):\n"
+            f"Bạn là chuyên gia tạo trò chơi giáo dục. {diff_instruction} Tạo 10 câu hỏi đa dạng với 4 dạng (mỗi dạng ~2-3 câu):\n"
             "1. **true_false**: Câu hỏi đúng/sai\n"
             "2. **mcq**: Multiple choice (1 đáp án đúng, 4 lựa chọn)\n"
             "3. **multiple_select**: Chọn nhiều đáp án đúng (2-3 đáp án đúng)\n"
@@ -90,10 +98,18 @@ class MinigameGenerator:
             return result
         return fallback
 
-    def generate_flashcard(self, context: str) -> dict:
+    def generate_flashcard(self, context: str, difficulty: str = "medium") -> dict:
         """Generate 10 flashcard pairs."""
+        diff_instruction = ""
+        if difficulty == "easy":
+            diff_instruction = "Mức độ: DỄ (Easy). Khái niệm cốt lõi, giải thích ngắn gọn, dễ hiểu."
+        elif difficulty == "hard":
+            diff_instruction = "Mức độ: KHÓ (Hard). Khái niệm phức tạp, giải thích chi tiết có liên hệ logic."
+        else:
+            diff_instruction = "Mức độ: TRUNG BÌNH (Medium). Khái niệm quan trọng, giải thích rõ ràng."
+
         system_prompt = (
-            "Bạn là chuyên gia tạo flashcard học ngoại ngữ. Tạo 10 cặp flashcard gồm từ/khái niệm ở mặt trước và giải thích ở mặt sau. "
+            f"Bạn là chuyên gia tạo flashcard học ngoại ngữ. {diff_instruction} Tạo 10 cặp flashcard gồm từ/khái niệm ở mặt trước và giải thích ở mặt sau. "
             "Bắt buộc dùng tiếng Việt có dấu chuẩn xác. Return strict JSON."
         )
         user_prompt = (
@@ -131,11 +147,19 @@ class MinigameGenerator:
             return result
         return fallback
 
-    def generate_shooting_quiz(self, context: str) -> dict:
+    def generate_shooting_quiz(self, context: str, difficulty: str = "medium") -> dict:
         """Generate a 10-round shooting quiz game payload."""
+        diff_instruction = ""
+        if difficulty == "easy":
+            diff_instruction = "Mức độ: DỄ (Easy). Câu hỏi nhận biết, từ khóa rõ ràng, đáp án sai dễ nhận diện."
+        elif difficulty == "hard":
+            diff_instruction = "Mức độ: KHÓ (Hard). Suy luận phức tạp, đáp án sai rất giống đáp án đúng để đánh lừa."
+        else:
+            diff_instruction = "Mức độ: TRUNG BÌNH (Medium). Kiểm tra mức độ hiểu bài, đáp án có độ nhiễu vừa phải."
+
         system_prompt = (
             "Bạn là AI Agent trong hệ thống AI Learning Studio. "
-            "Nhiệm vụ: tạo minigame BẮN GÀ để ôn tập kiến thức từ tài liệu đầu vào. "
+            f"Nhiệm vụ: tạo minigame BẮN GÀ để ôn tập kiến thức từ tài liệu đầu vào. {diff_instruction} "
             "BẮT BUỘC trả về DUY NHẤT JSON hợp lệ, không markdown, không text thừa. "
             "BẮT BUỘC: đúng 10 câu, mỗi câu đúng 4 đáp án A/B/C/D, chỉ 1 đáp án đúng. "
             "Nội dung ngắn gọn, rõ ràng, có giá trị học tập, bám sát tài liệu (RAG)."
@@ -146,7 +170,7 @@ class MinigameGenerator:
             '  "game_type": "shooting_quiz",\n'
             '  "metadata": {\n'
             '    "topic": "",\n'
-            '    "difficulty": "easy | medium | hard"\n'
+            f'    "difficulty": "{difficulty}"\n'
             "  },\n"
             '  "game": {\n'
             '    "total_rounds": 10,\n'

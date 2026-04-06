@@ -22,11 +22,12 @@ interface QuizMixedPlayerProps {
   title: string;
   items: QuizItem[];
   onSubmit: (answers: Array<{ id: string; answer: string }>) => Promise<any>;
+  difficulty?: string;
   loading?: boolean;
   submitting?: boolean;
 }
 
-export function QuizMixedPlayer({ title, items, onSubmit, loading, submitting }: QuizMixedPlayerProps) {
+export function QuizMixedPlayer({ title, items, difficulty, onSubmit, loading, submitting }: QuizMixedPlayerProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +72,14 @@ export function QuizMixedPlayer({ title, items, onSubmit, loading, submitting }:
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       {/* Title */}
       <div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)]">{title}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">{title}</h2>
+          {difficulty && (
+            <Badge variant="default" className="capitalize">
+              Độ khó: {difficulty === "easy" ? "Dễ" : difficulty === "hard" ? "Khó" : "Trung bình"}
+            </Badge>
+          )}
+        </div>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
           {items.length} câu hỏi &bull; Mix từ 4 dạng
         </p>
