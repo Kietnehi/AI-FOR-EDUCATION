@@ -3,6 +3,7 @@ import {
   ChatSession,
   DeleteSessionsResult,
   MinigamePersonalization,
+  RemediationQuickStart,
   GeneratedContent,
   Material,
   MascotChatMessage,
@@ -720,6 +721,22 @@ export async function submitGameAttempt(
 export async function getMinigamePersonalization(materialId: string): Promise<MinigamePersonalization> {
   return apiFetch<MinigamePersonalization>(`/games/materials/${materialId}/personalization`, {
     skipCache: true,
+  });
+}
+
+export async function generateRemediationQuickStart(
+  materialId: string,
+  payload?: {
+    difficulty?: "easy" | "medium" | "hard";
+    top_k_wrong_questions?: number;
+  }
+): Promise<RemediationQuickStart> {
+  return apiFetch<RemediationQuickStart>(`/games/materials/${materialId}/remediation-quick-start`, {
+    method: "POST",
+    body: JSON.stringify({
+      difficulty: payload?.difficulty,
+      top_k_wrong_questions: payload?.top_k_wrong_questions ?? 10,
+    }),
   });
 }
 
