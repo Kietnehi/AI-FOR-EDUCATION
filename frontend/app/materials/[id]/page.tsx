@@ -29,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Tabs } from "@/components/ui/tabs";
 import { Toast } from "@/components/ui/toast";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -101,12 +102,14 @@ export default function MaterialDetailPage() {
   const [notebookGenerated, setNotebookGenerated] = useState<NotebookLMMediaResult | null>(null);
   const [isArtifactGenerating, setIsArtifactGenerating] = useState(false);
   const [notebookSaved, setNotebookSaved] = useState<NotebookLMSavedResult | null>(null);
+  const [notebookForceRegenerate, setNotebookForceRegenerate] = useState(false);
   const [notebookConfirmation, setNotebookConfirmation] = useState<NotebookLMConfirmationResult | null>(null);
   const [selectedInfographic, setSelectedInfographic] = useState<{ file_name: string; file_url: string } | null>(null);
   const [isEditingMaterial, setIsEditingMaterial] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingGeneratedId, setDeletingGeneratedId] = useState("");
   const [libraryModalType, setLibraryModalType] = useState<"slides" | "podcast" | "minigame" | null>(null);
+  const [showNotebookLibraryModal, setShowNotebookLibraryModal] = useState(false);
   const [forceRegenerateSlides, setForceRegenerateSlides] = useState(false);
   const [isCustomEducationLevel, setIsCustomEducationLevel] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -360,7 +363,7 @@ export default function MaterialDetailPage() {
     }
   }
 
-  async function handleGenerateNotebookMedia(confirm: boolean = false) {
+  async function handleGenerateNotebookMedia(confirm: boolean = false, forceRegenerate: boolean = false) {
     if (!confirm && !ensureMaterialProcessed("tạo video + infographic")) {
       return;
     }
@@ -368,6 +371,7 @@ export default function MaterialDetailPage() {
     setBusyAction("notebooklm");
     try {
       if (!confirm) {
+        setNotebookForceRegenerate(forceRegenerate);
         setNotebookGenerated(null);
         setNotebookArtifactPending(null);
         setNotebookSaved(null);
@@ -384,7 +388,12 @@ export default function MaterialDetailPage() {
         });
       }
 
-      const payload = await generateNotebookLMMediaFromMaterial(materialId, undefined, confirm);
+      const payload = await generateNotebookLMMediaFromMaterial(
+        materialId,
+        undefined,
+        confirm,
+        confirm ? notebookForceRegenerate : forceRegenerate
+      );
 
       if ("status" in payload && payload.status === "awaiting_confirmation") {
         setNotebookConfirmation(payload);
@@ -397,6 +406,13 @@ export default function MaterialDetailPage() {
         setNotebookArtifactPending(null);
         setNotebookGenerated(payload as NotebookLMMediaResult);
         setToast({ message: payload.message || "Đã tạo xong! Vui lòng xác nhận để tải xuống.", type: "success" });
+      } else if ("status" in payload && payload.status === "saved") {
+        setNotebookConfirmation(null);
+        setNotebookArtifactPending(null);
+        setNotebookGenerated(null);
+        setNotebookSaved(payload as NotebookLMSavedResult);
+        setShowNotebookLibraryModal(true);
+        setToast({ message: "Đã tìm thấy nội dung đã tạo trước đó.", type: "info" });
       }
     } catch (error) {
       setToast({ message: String(error), type: "error" });
@@ -442,6 +458,7 @@ export default function MaterialDetailPage() {
     setBusyAction("confirm-download");
     try {
       const result = await confirmNotebookLMDownload(notebookGenerated.session_id);
+      await refreshGeneratedContents();
       setNotebookSaved(result);
       setNotebookGenerated(null);
       setNotebookArtifactPending(null);
@@ -606,6 +623,18 @@ export default function MaterialDetailPage() {
   };
 
   const libraryItems = libraryModalType ? getContentsByType(libraryModalType) : [];
+  const notebookVideoItems = generatedContents.filter((content) => content.content_type === "video");
+  const notebookInfographicItems = generatedContents.filter((content) => content.content_type === "infographic");
+
+  // Get only the latest version for preview (highest version number)
+  const latestVideo = notebookVideoItems.length > 0 
+    ? notebookVideoItems.reduce((latest, current) => (current.version > latest.version ? current : latest))
+    : null;
+  const latestInfographic = notebookInfographicItems.length > 0
+    ? notebookInfographicItems.reduce((latest, current) => (current.version > latest.version ? current : latest))
+    : null;
+  
+  const hasNotebookMedia = notebookVideoItems.length > 0 || notebookInfographicItems.length > 0;
 
   return (
     <motion.div
@@ -787,13 +816,34 @@ export default function MaterialDetailPage() {
             </div>
             {!notebookConfirmation ? (
               !notebookArtifactPending ? (
-              <Button
-                onClick={() => handleGenerateNotebookMedia(false)}
-                loading={busyAction === "notebooklm"}
-                disabled={busyAction.length > 0}
-              >
-                {busyAction === "notebooklm" ? "Đang upload học liệu lên NotebookLM..." : "Tạo Video + Infographic"}
-              </Button>
+              hasNotebookMedia ? (
+                <div className="flex flex-col items-stretch sm:items-end gap-2">
+                  <Button
+                      onClick={() => setShowNotebookLibraryModal(true)}
+                    disabled={busyAction.length > 0 || deletingGeneratedId.length > 0}
+                    icon={<Eye className="w-4 h-4" />}
+                  >
+                    Xem danh sách đã tạo
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateNotebookMedia(false, true)}
+                    disabled={busyAction.length > 0}
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto h-10 px-4 rounded-xl border border-[var(--border-light)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${busyAction === "notebooklm" ? "animate-spin" : ""}`} />
+                    {busyAction === "notebooklm" ? "Đang upload lên NotebookLM..." : "Tạo phiên bản mới"}
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => handleGenerateNotebookMedia(false)}
+                  loading={busyAction === "notebooklm"}
+                  disabled={busyAction.length > 0}
+                >
+                  {busyAction === "notebooklm" ? "Đang upload học liệu lên NotebookLM..." : "Tạo Video + Infographic"}
+                </Button>
+              )
               ) : (
                 <div className="flex flex-col items-end gap-2">
                   <p className="text-sm text-blue-700 font-medium bg-blue-50 p-2 rounded max-w-sm text-right">
@@ -835,7 +885,7 @@ export default function MaterialDetailPage() {
                     Hủy
                   </Button>
                   <Button
-                    onClick={() => handleGenerateNotebookMedia(true)}
+                      onClick={() => handleGenerateNotebookMedia(true, notebookForceRegenerate)}
                     loading={busyAction === "notebooklm"}
                     disabled={busyAction.length > 0}
                   >
@@ -879,150 +929,161 @@ export default function MaterialDetailPage() {
         </Card>
       )}
 
-      {/* Persistent NotebookLM Media */}
-      {(!notebookSaved && generatedContents.some(c => c.content_type === "video" || c.content_type === "infographic")) && (
-        <div className="grid lg:grid-cols-2 gap-4 mt-6">
-          <Card>
-            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-              <Presentation className="w-4 h-4 text-brand-500" />
-              Video đã tạo
-            </h3>
-            <div className="space-y-4">
-              {generatedContents.filter(c => c.content_type === "video").length === 0 && (
-                <p className="text-sm text-[var(--text-secondary)] italic">Chưa có video cho học liệu này.</p>
-              )}
-              {generatedContents.filter(c => c.content_type === "video").map((item) => (
-                <div key={item.id} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)]">
-                  <video controls preload="metadata" className="w-full rounded-lg mb-2" src={apiPreviewUrl(item.file_url || "")} />
-                  <div className="flex flex-col gap-2 mt-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-brand-600 uppercase tracking-wider">Phiên bản {item.version}</span>
-                      <span className="text-[10px] text-[var(--text-tertiary)]">{DATE_FORMATTER.format(new Date(item.created_at))}</span>
-                    </div>
-                    <button
-                      onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `video_v${item.version}.mp4`)}
-                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
-                    >
-                      <Download className="w-4 h-4" />
-                      Tải Video v{item.version}
-                    </button>
-                  </div>
-                </div>
-              ))}
+      {notebookSaved && (
+        <Card className="bg-[var(--bg-secondary)] border-[var(--border-light)]">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">Đã lưu nội dung NotebookLM vào thư viện</h3>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
+                Video: {notebookSaved.videos.length} • Infographic: {notebookSaved.infographics.length}
+              </p>
             </div>
-          </Card>
-
-          <Card>
-            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-accent-500" />
-              Infographic đã tạo
-            </h3>
-            <div className="space-y-4">
-              {generatedContents.filter(c => c.content_type === "infographic").length === 0 && (
-                <p className="text-sm text-[var(--text-secondary)] italic">Chưa có infographic cho học liệu này.</p>
-              )}
-              {generatedContents.filter(c => c.content_type === "infographic").map((item) => (
-                <div key={item.id} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)]">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedInfographic({ file_name: `infographic_v${item.version}`, file_url: item.file_url || "" })}
-                    className="group block w-full cursor-zoom-in rounded-xl border-0 bg-transparent p-0 text-left"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={apiPreviewUrl(item.file_url || "")}
-                      alt={`Infographic v${item.version}`}
-                      loading="lazy"
-                      className="w-full rounded-lg mb-2 transition-transform duration-300 group-hover:scale-[1.01]"
-                    />
-                  </button>
-                  <div className="flex flex-col gap-2 mt-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-accent-600 uppercase tracking-wider">Phiên bản {item.version}</span>
-                      <span className="text-[10px] text-[var(--text-tertiary)]">{DATE_FORMATTER.format(new Date(item.created_at))}</span>
-                    </div>
-                    <button
-                      onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `infographic_v${item.version}.png`)}
-                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-light)] hover:bg-[var(--bg-tertiary)] rounded-xl transition-all font-medium text-sm cursor-pointer"
-                    >
-                      <Download className="w-4 h-4" />
-                      Tải Infographic v{item.version}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
+            <Button
+              onClick={() => setShowNotebookLibraryModal(true)}
+              disabled={busyAction.length > 0 || deletingGeneratedId.length > 0}
+              icon={<Eye className="w-4 h-4" />}
+            >
+              Mở thư viện Video + Infographic
+            </Button>
+          </div>
+        </Card>
       )}
 
-      {notebookSaved && (
-        <div className="grid lg:grid-cols-2 gap-4">
-          <Card>
-            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3">Video từ NotebookLM</h3>
-            <div className="space-y-3">
-              {notebookSaved.videos.length === 0 && (
-                <p className="text-sm text-[var(--text-secondary)]">Chưa có video được tải về.</p>
-              )}
-              {notebookSaved.videos.map((item) => (
-                <div key={item.file_name} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)]">
-                  <video controls preload="metadata" className="w-full rounded-lg mb-2" src={apiPreviewUrl(item.file_url)} />
-                  <div className="flex flex-col gap-2 mt-3">
-                    <span className="text-xs font-medium text-[var(--text-tertiary)] truncate px-1" title={item.file_name}>
-                      {item.file_name}
-                    </span>
-                    <button
-                      onClick={() => handleForceDownload(apiDownloadUrl(item.file_url), item.file_name)}
-                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-brand-600 to-accent-500 text-white shadow-sm hover:shadow-md hover:shadow-brand-500/25 rounded-xl transition-all font-medium text-sm border-none cursor-pointer"
-                    >
-                      <Download className="w-4 h-4" />
-                      Tải Video về máy
-                    </button>
+      {/* Preview Video và Infographic mới nhất */}
+      {(latestVideo || latestInfographic) && (
+        <Card className="relative overflow-hidden border border-[var(--border-light)] bg-[var(--bg-elevated)] shadow-lg">
+          {/* Gradient overlay background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-500/[0.03] via-transparent to-accent-500/[0.03] dark:from-brand-500/[0.08] dark:to-accent-500/[0.08] pointer-events-none" />
+          
+          <div className="relative">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4 border-b border-[var(--border-light)]">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 shadow-md">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
+                      Video + Infographic
+                    </h3>
+                    <p className="text-xs text-[var(--text-tertiary)] font-medium">
+                      Phiên bản mới nhất
+                    </p>
                   </div>
                 </div>
-              ))}
+                <p className="text-sm text-[var(--text-secondary)] mt-2">
+                  Xem trước nội dung mới nhất được tạo từ học liệu này.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowNotebookLibraryModal(true)}
+                icon={<Eye className="w-4 h-4" />}
+                className="flex-shrink-0"
+              >
+                Xem tất cả
+              </Button>
             </div>
-          </Card>
 
-          <Card>
-            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3">Infographic từ NotebookLM</h3>
-            <div className="space-y-3">
-              {notebookSaved.infographics.length === 0 && (
-                <p className="text-sm text-[var(--text-secondary)]">Chưa có infographic được tải về.</p>
-              )}
-              {notebookSaved.infographics.map((item) => (
-                <div key={item.file_name} className="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-secondary)] mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedInfographic(item)}
-                    className="group block w-full cursor-zoom-in rounded-xl border-0 bg-transparent p-0 text-left"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={apiPreviewUrl(item.file_url)}
-                      alt={item.file_name}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full rounded-lg mb-2 transition-transform duration-300 group-hover:scale-[1.01]"
-                    />
-                  </button>
-                  <div className="flex flex-col gap-2 mt-3">
-                    <span className="text-xs font-medium text-[var(--text-tertiary)] truncate px-1" title={item.file_name}>
-                      {item.file_name}
+            {/* Content */}
+            <div className="grid gap-5 p-5 md:grid-cols-2">
+              {/* Video Preview */}
+              {latestVideo && (
+                <div className="group space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-500/10 dark:bg-brand-500/20">
+                        <Presentation className="w-4 h-4 text-brand-500" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-bold text-[var(--text-primary)]">
+                          Video
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-[var(--text-tertiary)]">
+                            v{latestVideo.version}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-500 text-white shadow-sm">
+                            MỚI
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                      {DATE_FORMATTER.format(new Date(latestVideo.created_at))}
                     </span>
+                  </div>
+                  
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 to-black dark:from-gray-950 dark:to-black shadow-lg ring-1 ring-[var(--border-light)] group-hover:shadow-xl transition-all duration-300">
+                    <video 
+                      controls 
+                      preload="metadata" 
+                      playsInline
+                      className="w-full aspect-video" 
+                      src={apiPreviewUrl(latestVideo.file_url || "")} 
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Infographic Preview */}
+              {latestInfographic && (
+                <div className="group space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent-500/10 dark:bg-accent-500/20">
+                        <Sparkles className="w-4 h-4 text-accent-500" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-bold text-[var(--text-primary)]">
+                          Infographic
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-[var(--text-tertiary)]">
+                            v{latestInfographic.version}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent-500 text-white shadow-sm">
+                            MỚI
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                      {DATE_FORMATTER.format(new Date(latestInfographic.created_at))}
+                    </span>
+                  </div>
+                  
+                  <div className="relative overflow-hidden rounded-xl bg-[var(--bg-secondary)] shadow-lg ring-1 ring-[var(--border-light)] group-hover:shadow-xl transition-all duration-300">
                     <button
-                      onClick={() => handleForceDownload(apiDownloadUrl(item.file_url), item.file_name)}
-                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-brand-600 to-accent-500 text-white shadow-sm hover:shadow-md hover:shadow-brand-500/25 rounded-xl transition-all font-medium text-sm border-none cursor-pointer"
+                      type="button"
+                      onClick={() => setSelectedInfographic({ file_name: `infographic_v${latestInfographic.version}`, file_url: latestInfographic.file_url || "" })}
+                      className="group/btn relative block w-full overflow-hidden rounded-xl"
                     >
-                      <Download className="w-4 h-4" />
-                      Tải Infographic về máy
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={apiPreviewUrl(latestInfographic.file_url || "")}
+                        alt={`Infographic v${latestInfographic.version}`}
+                        loading="lazy"
+                        className="w-full aspect-auto transition-all duration-300 group-hover/btn:scale-[1.02] brightness-[0.98] dark:brightness-[0.95]"
+                      />
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/95 dark:bg-white/10 backdrop-blur-sm">
+                          <Eye className="w-4 h-4 text-gray-900 dark:text-white" />
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Xem phóng to
+                          </span>
+                        </div>
+                      </div>
                     </button>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
       )}
 
       {selectedInfographic &&
@@ -1176,6 +1237,262 @@ export default function MaterialDetailPage() {
           document.body,
         )}
 
+      {showNotebookLibraryModal &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm"
+            onClick={() => setShowNotebookLibraryModal(false)}
+          >
+            <div
+              className="relative w-full max-w-6xl max-h-[90vh] flex flex-col rounded-[28px] border border-[var(--border-light)] bg-[var(--bg-elevated)] shadow-[0_30px_80px_rgba(2,6,23,0.45)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="relative flex-shrink-0 px-6 pt-6 pb-4 border-b border-[var(--border-light)]">
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-500/[0.05] via-transparent to-accent-500/[0.05] dark:from-brand-500/[0.1] dark:to-accent-500/[0.1] pointer-events-none rounded-t-[28px]" />
+                <button
+                  type="button"
+                  onClick={() => setShowNotebookLibraryModal(false)}
+                  className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-secondary)] transition-all hover:text-[var(--text-primary)] hover:scale-105"
+                  aria-label="Đóng thư viện video và infographic"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 shadow-md">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
+                        Thư viện Video + Infographic
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        Quản lý và xem lại tất cả phiên bản đã tạo
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions Bar */}
+              <div className="flex-shrink-0 flex items-center justify-between gap-3 px-6 py-4 bg-[var(--bg-secondary)]/50 border-b border-[var(--border-light)]">
+                <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)]">
+                  <Presentation className="w-4 h-4" />
+                  <span className="font-medium">{notebookVideoItems.length} video{notebookVideoItems.length !== 1 ? 's' : ''}</span>
+                  <span className="text-[var(--border-light)]">•</span>
+                  <Sparkles className="w-4 h-4" />
+                  <span className="font-medium">{notebookInfographicItems.length} infographic{notebookInfographicItems.length !== 1 ? 's' : ''}</span>
+                </div>
+                <Button
+                  onClick={() => {
+                    setShowNotebookLibraryModal(false);
+                    handleGenerateNotebookMedia(false, true);
+                  }}
+                  loading={busyAction === "notebooklm"}
+                  disabled={busyAction.length > 0}
+                  icon={<RefreshCw className="w-4 h-4" />}
+                  size="sm"
+                >
+                  Tạo phiên bản mới
+                </Button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-5">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {/* Video Column */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2.5 pb-2 border-b border-[var(--border-light)]">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-brand-500/10 dark:bg-brand-500/20">
+                        <Presentation className="w-4 h-4 text-brand-500" />
+                      </div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                        Video
+                      </h4>
+                      <span className="ml-auto text-xs font-semibold text-[var(--text-tertiary)] bg-[var(--bg-secondary)] px-2 py-1 rounded-full">
+                        {notebookVideoItems.length}
+                      </span>
+                    </div>
+
+                    {notebookVideoItems.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Presentation className="w-12 h-12 text-[var(--text-tertiary)] opacity-30 mb-3" />
+                        <p className="text-sm text-[var(--text-secondary)] font-medium">Chưa có video</p>
+                        <p className="text-xs text-[var(--text-tertiary)] mt-1">Tạo phiên bản đầu tiên để bắt đầu</p>
+                      </div>
+                    )}
+
+                    {notebookVideoItems
+                      .sort((a, b) => b.version - a.version)
+                      .map((item, index) => (
+                        <Card 
+                          key={item.id} 
+                          className={`relative overflow-hidden border transition-all duration-200 ${
+                            index === 0 
+                              ? 'border-brand-500 shadow-md bg-gradient-to-br from-brand-500/[0.05] to-transparent dark:from-brand-500/[0.1]' 
+                              : 'border-[var(--border-light)] bg-[var(--bg-secondary)] opacity-80 hover:opacity-100'
+                          }`}
+                        >
+                          {index === 0 && (
+                            <div className="absolute top-3 right-3 z-10">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
+                                <Sparkles className="w-3 h-3" />
+                                MỚI NHẤT
+                              </span>
+                            </div>
+                          )}
+                          
+                          <div className="space-y-3 p-4">
+                            <div className="overflow-hidden rounded-lg bg-black">
+                              <video 
+                                controls 
+                                preload="metadata" 
+                                playsInline
+                                className="w-full aspect-video" 
+                                src={apiPreviewUrl(item.file_url || "")} 
+                              />
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-sm font-bold text-[var(--text-primary)]">
+                                  Phiên bản {item.version}
+                                </span>
+                                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                                  {DATE_FORMATTER.format(new Date(item.created_at))}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                icon={<Download className="w-3.5 h-3.5" />}
+                                onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `video_v${item.version}.mp4`)}
+                                className="flex-1"
+                              >
+                                Tải xuống
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                icon={<Trash2 className="w-3.5 h-3.5" />}
+                                onClick={() => handleDeleteGeneratedItem(item)}
+                                loading={deletingGeneratedId === item.id}
+                                disabled={busyAction.length > 0}
+                              >
+                                Xóa
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                  </div>
+
+                  {/* Infographic Column */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2.5 pb-2 border-b border-[var(--border-light)]">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-accent-500/10 dark:bg-accent-500/20">
+                        <Sparkles className="w-4 h-4 text-accent-500" />
+                      </div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                        Infographic
+                      </h4>
+                      <span className="ml-auto text-xs font-semibold text-[var(--text-tertiary)] bg-[var(--bg-secondary)] px-2 py-1 rounded-full">
+                        {notebookInfographicItems.length}
+                      </span>
+                    </div>
+
+                    {notebookInfographicItems.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Sparkles className="w-12 h-12 text-[var(--text-tertiary)] opacity-30 mb-3" />
+                        <p className="text-sm text-[var(--text-secondary)] font-medium">Chưa có infographic</p>
+                        <p className="text-xs text-[var(--text-tertiary)] mt-1">Tạo phiên bản đầu tiên để bắt đầu</p>
+                      </div>
+                    )}
+
+                    {notebookInfographicItems
+                      .sort((a, b) => b.version - a.version)
+                      .map((item, index) => (
+                        <Card 
+                          key={item.id} 
+                          className={`relative overflow-hidden border transition-all duration-200 ${
+                            index === 0 
+                              ? 'border-accent-500 shadow-md bg-gradient-to-br from-accent-500/[0.05] to-transparent dark:from-accent-500/[0.1]' 
+                              : 'border-[var(--border-light)] bg-[var(--bg-secondary)] opacity-80 hover:opacity-100'
+                          }`}
+                        >
+                          {index === 0 && (
+                            <div className="absolute top-3 right-3 z-10">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-accent-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
+                                <Sparkles className="w-3 h-3" />
+                                MỚI NHẤT
+                              </span>
+                            </div>
+                          )}
+                          
+                          <div className="space-y-3 p-4">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedInfographic({ file_name: `infographic_v${item.version}`, file_url: item.file_url || "" })}
+                              className="group block w-full overflow-hidden rounded-lg"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={apiPreviewUrl(item.file_url || "")}
+                                alt={`Infographic v${item.version}`}
+                                loading="lazy"
+                                className="w-full transition-transform duration-300 group-hover:scale-[1.02]"
+                              />
+                            </button>
+                            
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-sm font-bold text-[var(--text-primary)]">
+                                  Phiên bản {item.version}
+                                </span>
+                                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                                  {DATE_FORMATTER.format(new Date(item.created_at))}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                icon={<Download className="w-3.5 h-3.5" />}
+                                onClick={() => handleForceDownload(apiDownloadUrl(item.file_url || ""), `infographic_v${item.version}.png`)}
+                                className="flex-1"
+                              >
+                                Tải xuống
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                icon={<Trash2 className="w-3.5 h-3.5" />}
+                                onClick={() => handleDeleteGeneratedItem(item)}
+                                loading={deletingGeneratedId === item.id}
+                                disabled={busyAction.length > 0}
+                              >
+                                Xóa
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
       {/* Chat CTA */}
       <Card className="relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-200/30 to-accent-200/30 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl" />
@@ -1239,21 +1556,21 @@ export default function MaterialDetailPage() {
         progress={slideProgress}
       />
 
-      {isEditingMaterial ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-2xl">
-            <div className="mb-4 flex items-center justify-between">
+      <Dialog
+        open={isEditingMaterial}
+        onClose={() => {
+          if (!savingEdit) setIsEditingMaterial(false);
+        }}
+        title="Chỉnh sửa học liệu"
+        maxWidth="xl"
+      >
+        <div className="material-edit-dialog space-y-4">
+          <style jsx>{`
+            .material-edit-dialog > h3 {
+              display: none;
+            }
+          `}</style>
               <h3 className="text-lg font-semibold text-[var(--text-primary)]">Chỉnh sửa học liệu</h3>
-              <button
-                type="button"
-                onClick={() => !savingEdit && setIsEditingMaterial(false)}
-                className="rounded-lg border border-[var(--border-light)] p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
-                disabled={savingEdit}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block sm:col-span-2">
                 <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Tiêu đề *</span>
@@ -1349,9 +1666,8 @@ export default function MaterialDetailPage() {
                 Lưu thay đổi
               </Button>
             </div>
-          </Card>
         </div>
-      ) : null}
+      </Dialog>
     </motion.div>
   );
 }
