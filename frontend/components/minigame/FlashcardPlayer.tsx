@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, RotateCcw, Trophy, Sparkles, BookOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 interface FlashcardItem {
@@ -19,9 +20,10 @@ interface FlashcardPlayerProps {
   items: FlashcardItem[];
   onSubmit: (answers: Array<{ id: string; answer: string }>) => Promise<any>;
   loading?: boolean;
+  difficulty?: string;
 }
 
-export function FlashcardPlayer({ title, items, onSubmit, loading }: FlashcardPlayerProps) {
+export function FlashcardPlayer({ title, items, onSubmit, loading, difficulty }: FlashcardPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -129,7 +131,14 @@ export function FlashcardPlayer({ title, items, onSubmit, loading }: FlashcardPl
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       {/* Title */}
       <div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)]">{title}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">{title}</h2>
+          {difficulty && (
+            <Badge variant="default" className="capitalize">
+              Độ khó: {difficulty === "easy" ? "Dễ" : difficulty === "hard" ? "Khó" : "Trung bình"}
+            </Badge>
+          )}
+        </div>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
           {items.length} thẻ &bull; Lật để xem đáp án
         </p>

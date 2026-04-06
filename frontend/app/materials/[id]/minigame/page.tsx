@@ -19,8 +19,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { deleteGeneratedContent, getGeneratedContent, generateMinigame, listGeneratedContents, submitGameAttempt } from "@/lib/api";
-import { GeneratedContent } from "@/types";
+import {
+  deleteGeneratedContent,
+  getGeneratedContent,
+  generateMinigame,
+  getMinigamePersonalization,
+  listGeneratedContents,
+  submitGameAttempt,
+} from "@/lib/api";
+import { GeneratedContent, MinigamePersonalization } from "@/types";
 import { QuizMixedPlayer } from "@/components/minigame/QuizMixedPlayer";
 import { FlashcardPlayer } from "@/components/minigame/FlashcardPlayer";
 import { ShootingQuizPlayer } from "@/components/minigame/ShootingQuizPlayer";
@@ -29,6 +36,23 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "short",
   timeStyle: "short",
 });
+
+const GAME_TYPE_LABELS: Record<string, string> = {
+  quiz_mixed: "Trắc nghiệm hỗn hợp",
+  flashcard: "Flashcard",
+  shooting_quiz: "Bắn gà ôn tập",
+};
+
+const DIFFICULTY_LABELS: Record<string, string> = {
+  easy: "Dễ",
+  medium: "Trung bình",
+  hard: "Khó",
+};
+
+function toDifficultyLabel(difficulty?: string): string {
+  if (!difficulty) return "Trung bình";
+  return DIFFICULTY_LABELS[difficulty.toLowerCase()] || difficulty;
+}
 
 export default function MinigamePage() {
   const searchParams = useSearchParams();
@@ -45,6 +69,9 @@ export default function MinigamePage() {
   const [generatingGame, setGeneratingGame] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [gameLibrary, setGameLibrary] = useState<GeneratedContent[]>([]);
+  const [personalization, setPersonalization] = useState<MinigamePersonalization | null>(null);
+  const [personalizationLoading, setPersonalizationLoading] = useState(true);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
 
   useEffect(() => {
     setSelectingGameType(mode === "create");
@@ -54,16 +81,23 @@ export default function MinigamePage() {
     let mounted = true;
 
     async function fetchLibrary() {
+      setLibraryLoading(true);
+      setPersonalizationLoading(true);
       try {
-        const items = await listGeneratedContents(materialId, "minigame");
+        const [items, summary] = await Promise.all([
+          listGeneratedContents(materialId, "minigame"),
+          getMinigamePersonalization(materialId).catch(() => null),
+        ]);
         if (mounted) {
           setGameLibrary(items.sort((a, b) => Number(b.version || 0) - Number(a.version || 0)));
+          setPersonalization(summary);
         }
       } catch (error) {
         console.error("Error fetching minigame library:", error);
       } finally {
         if (mounted) {
           setLibraryLoading(false);
+          setPersonalizationLoading(false);
         }
       }
     }
@@ -95,7 +129,7 @@ export default function MinigamePage() {
   ) {
     setGeneratingGame(true);
     try {
-      const generated = await generateMinigame(materialId, gameType, true);
+      const generated = await generateMinigame(materialId, gameType, difficulty, true);
       router.push(`/materials/${materialId}/minigame?contentId=${generated.id}`);
     } catch (error) {
       console.error(error);
@@ -109,7 +143,7 @@ export default function MinigamePage() {
       : content.game_type === "flashcard"
         ? "Flashcard"
         : "Quiz hỗn hợp";
-    const confirmed = window.confirm(`Bạn có chắc muốn xóa ${label} v${content.version}?`);
+    const confirmed = window.confirm(`Bạn có chắc muốn xóa ${label} (${toDifficultyLabel(content.difficulty)})?`);
     if (!confirmed) return;
 
     setDeletingId(content.id);
@@ -132,19 +166,19 @@ export default function MinigamePage() {
 
   const gameTypeConfig = {
     quiz_mixed: {
-      title: "Trắc nghiệm hỗn hợp",
+      title: GAME_TYPE_LABELS.quiz_mixed,
       description: "Mix 4 dạng: trắc nghiệm, đúng/sai, chọn nhiều, điền từ",
       icon: BookOpen,
       color: "from-brand-500 to-brand-600",
     },
     flashcard: {
-      title: "Flashcard",
+      title: GAME_TYPE_LABELS.flashcard,
       description: "Lật thẻ để học & nhớ siêu mạnh",
       icon: Brain,
       color: "from-amber-500 to-amber-600",
     },
     shooting_quiz: {
-      title: "Bắn gà ôn tập",
+      title: GAME_TYPE_LABELS.shooting_quiz,
       description: "Aim + bắn đáp án đúng theo từng round",
       icon: Zap,
       color: "from-accent-500 to-accent-600",
@@ -181,6 +215,70 @@ export default function MinigamePage() {
 
       {!loading && !contentId && (
         <>
+          {personalizationLoading && <CardSkeleton />}
+
+          {!personalizationLoading && personalization && (
+            <Card className="border border-[var(--border-light)]">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="m-0 text-base font-semibold text-[var(--text-primary)]">Cá nhân hóa cho bạn</h3>
+                  <p className="m-0 mt-1 text-sm text-[var(--text-secondary)]">
+                    Gợi ý được tạo từ lịch sử chơi minigame của bạn trên học liệu này.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-3">
+                    <p className="m-0 text-xs text-[var(--text-tertiary)]">Số lượt chơi</p>
+                    <p className="m-0 mt-1 text-lg font-bold text-[var(--text-primary)]">{personalization.total_attempts}</p>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-3">
+                    <p className="m-0 text-xs text-[var(--text-tertiary)]">Độ chính xác trung bình</p>
+                    <p className="m-0 mt-1 text-lg font-bold text-[var(--text-primary)]">{personalization.average_accuracy}%</p>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-3">
+                    <p className="m-0 text-xs text-[var(--text-tertiary)]">Số ngày đã học</p>
+                    <p className="m-0 mt-1 text-lg font-bold text-[var(--text-primary)]">{personalization.streak_days}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-3 text-sm text-[var(--text-secondary)]">
+                  <span className="font-medium text-[var(--text-primary)]">Gợi ý lượt tiếp theo:</span>{" "}
+                  {GAME_TYPE_LABELS[personalization.suggested_game_type] || personalization.suggested_game_type}
+                  {" • "}
+                  {toDifficultyLabel(personalization.recommended_difficulty)}
+                </div>
+
+                {personalization.weak_points.length > 0 && (
+                  <div>
+                    <p className="m-0 text-sm font-medium text-[var(--text-primary)]">Điểm yếu cần ôn lại</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {personalization.weak_points.slice(0, 4).map((point) => (
+                        <span
+                          key={point}
+                          className="rounded-lg border border-[var(--border-light)] bg-[var(--bg-secondary)] px-2 py-1 text-xs text-[var(--text-secondary)]"
+                        >
+                          {point}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {personalization.next_actions.length > 0 && (
+                  <div>
+                    <p className="m-0 text-sm font-medium text-[var(--text-primary)]">Hành động đề xuất</p>
+                    <ul className="mt-2 space-y-1 pl-4 text-sm text-[var(--text-secondary)]">
+                      {personalization.next_actions.slice(0, 2).map((action) => (
+                        <li key={action}>{action}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
           {selectingGameType ? (
             <div className="space-y-6">
               <div>
@@ -190,6 +288,44 @@ export default function MinigamePage() {
                 <p className="text-sm text-[var(--text-secondary)] mt-2">
                   Lựa chọn cách học tập phù hợp với bạn
                 </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-[var(--text-primary)]">
+                  Mức độ khó
+                </label>
+                <div className="flex bg-[var(--bg-secondary)] rounded-xl p-1 gap-1 max-w-sm">
+                  <button
+                    onClick={() => setDifficulty("easy")}
+                    className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg text-sm transition-all ${
+                      difficulty === "easy"
+                        ? "bg-white shadow-sm font-semibold text-brand-600"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium"
+                    }`}
+                  >
+                    <span>Dễ</span>
+                  </button>
+                  <button
+                    onClick={() => setDifficulty("medium")}
+                    className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg text-sm transition-all ${
+                      difficulty === "medium"
+                        ? "bg-white shadow-sm font-semibold text-brand-600"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium"
+                    }`}
+                  >
+                    <span>Trung bình</span>
+                  </button>
+                  <button
+                    onClick={() => setDifficulty("hard")}
+                    className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg text-sm transition-all ${
+                      difficulty === "hard"
+                        ? "bg-white shadow-sm font-semibold text-brand-600"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium"
+                    }`}
+                  >
+                    <span>Khó</span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid sm:grid-cols-3 gap-4">
@@ -245,11 +381,11 @@ export default function MinigamePage() {
                 <div>
                   <h3 className="m-0 text-base font-semibold text-[var(--text-primary)]">Danh sách minigame đã tạo</h3>
                   <p className="m-0 mt-1 text-sm text-[var(--text-secondary)]">
-                    Chọn game đã tạo để chơi lại hoặc tiếp tục phiên đang dở.
+                    Chọn game đã tạo để mở lại, hoặc tạo game mới.
                   </p>
                 </div>
                 <Button onClick={() => setSelectingGameType(true)} icon={<Sparkles className="w-4 h-4" />}>
-                  Tạo phiên bản mới
+                  Tạo game mới
                 </Button>
               </div>
 
@@ -284,19 +420,14 @@ export default function MinigamePage() {
               {!libraryLoading && gameLibrary.length > 0 && (
                 <div className="space-y-3">
                   {gameLibrary.map((game) => {
-                    const gameTitle =
-                      game.game_type === "shooting_quiz"
-                        ? "Bắn gà ôn tập"
-                        : game.game_type === "flashcard"
-                          ? "Flashcard"
-                          : "Trắc nghiệm hỗn hợp";
+                    const gameTitle = GAME_TYPE_LABELS[game.game_type || ""] || "Minigame";
 
                     return (
                       <Card key={game.id} className="border border-[var(--border-light)]">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <h4 className="m-0 text-sm font-semibold text-[var(--text-primary)]">
-                              {gameTitle} v{game.version}
+                              {gameTitle} • {toDifficultyLabel(game.difficulty)}
                             </h4>
                             <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
                               <Clock className="h-3.5 w-3.5" />
@@ -340,6 +471,7 @@ export default function MinigamePage() {
           {content.game_type === "quiz_mixed" && (
             <QuizMixedPlayer
               title={content.json_content?.title || "Quiz hỗn hợp"}
+              difficulty={content.difficulty || "medium"}
               items={content.json_content?.items || []}
               onSubmit={handleSubmitAttempt}
             />
@@ -348,6 +480,7 @@ export default function MinigamePage() {
           {content.game_type === "flashcard" && (
             <FlashcardPlayer
               title={content.json_content?.title || "Flashcard"}
+              difficulty={content.difficulty || "medium"}
               items={content.json_content?.items || []}
               onSubmit={handleSubmitAttempt}
             />
@@ -356,6 +489,7 @@ export default function MinigamePage() {
           {content.game_type === "shooting_quiz" && (
             <ShootingQuizPlayer
               payload={content.json_content || {}}
+              difficulty={content.difficulty || "medium"}
               onSubmit={handleSubmitAttempt}
               sessionKey={content.id}
             />
