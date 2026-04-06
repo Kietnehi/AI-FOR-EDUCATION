@@ -21,6 +21,7 @@ class GameService:
             raise HTTPException(status_code=400, detail="generated_content_id must be a minigame")
 
         game_type = generated.get("game_type", "quiz_mixed")
+        difficulty = generated.get("difficulty", "medium")
         json_content = generated.get("json_content", {})
 
         if game_type == "scenario_branching":
@@ -45,6 +46,7 @@ class GameService:
             "material_id": generated["material_id"],
             "generated_content_id": generated_content_id,
             "game_type": game_type,
+            "difficulty": difficulty,
             "answers": answers,
             "score": score,
             "max_score": max_score,
@@ -65,6 +67,113 @@ class GameService:
         if not attempt:
             raise HTTPException(status_code=404, detail="Attempt not found")
         return attempt
+
+    async def get_personalization_summary(self, material_id: str, user_id: str) -> dict:
+        attempts = await self.repo.list_attempts_for_user_material(user_id=user_id, material_id=material_id, limit=60)
+
+        if not attempts:
+            return {
+                "material_id": material_id,
+                "total_attempts": 0,
+                "average_accuracy": 0.0,
+                "suggested_game_type": "quiz_mixed",
+                "recommended_difficulty": "easy",
+                "streak_days": 0,
+                "game_type_stats": [],
+                "weak_points": [],
+                "next_actions": [
+                    "Bắt đầu với mức Dễ để hệ thống học thói quen làm bài của bạn.",
+                    "Sau 2-3 lượt chơi, hệ thống sẽ tự đưa ra gợi ý cá nhân hóa chính xác hơn.",
+                ],
+            }
+
+        accuracies: list[float] = []
+        grouped: dict[str, list[dict]] = {}
+        weak_count: dict[str, int] = {}
+        played_days: set[str] = set()
+
+        for attempt in attempts:
+            max_score = float(attempt.get("max_score") or 0)
+            score = float(attempt.get("score") or 0)
+            accuracy = (score / max_score) if max_score > 0 else 0.0
+            accuracy = max(0.0, min(1.0, accuracy))
+            accuracies.append(accuracy)
+
+            game_type = str(attempt.get("game_type") or "quiz_mixed")
+            grouped.setdefault(game_type, []).append(attempt)
+
+            completed_at = attempt.get("completed_at")
+            if completed_at is not None:
+                played_days.add(str(completed_at)[:10])
+
+            for row in attempt.get("feedback", []):
+                if not isinstance(row, dict):
+                    continue
+                if row.get("is_correct") is True:
+                    continue
+                text = row.get("question") or row.get("knowledge_point") or row.get("id")
+                if isinstance(text, str) and text.strip():
+                    key = text.strip()[:100]
+                    weak_count[key] = weak_count.get(key, 0) + 1
+
+        overall_accuracy = round((sum(accuracies) / len(accuracies)) * 100, 1) if accuracies else 0.0
+
+        def infer_difficulty(avg_percent: float) -> str:
+            if avg_percent >= 85:
+                return "hard"
+            if avg_percent >= 60:
+                return "medium"
+            return "easy"
+
+        game_type_stats: list[dict] = []
+        for game_type, game_attempts in grouped.items():
+            game_accuracies: list[float] = []
+            for game_attempt in game_attempts:
+                game_max = float(game_attempt.get("max_score") or 0)
+                game_score = float(game_attempt.get("score") or 0)
+                game_acc = (game_score / game_max) if game_max > 0 else 0.0
+                game_accuracies.append(max(0.0, min(1.0, game_acc)))
+
+            average_percent = round((sum(game_accuracies) / len(game_accuracies)) * 100, 1) if game_accuracies else 0.0
+            last_played_difficulty = str(game_attempts[0].get("difficulty") or "medium")
+            game_type_stats.append(
+                {
+                    "game_type": game_type,
+                    "attempts": len(game_attempts),
+                    "average_accuracy": average_percent,
+                    "recommended_difficulty": infer_difficulty(average_percent),
+                    "last_played_difficulty": last_played_difficulty,
+                }
+            )
+
+        game_type_stats.sort(key=lambda row: row["average_accuracy"])
+        suggested_game_type = game_type_stats[0]["game_type"] if game_type_stats else "quiz_mixed"
+        recommended_difficulty = infer_difficulty(overall_accuracy)
+        weak_points = [item for item, _ in sorted(weak_count.items(), key=lambda pair: pair[1], reverse=True)[:5]]
+
+        next_actions: list[str] = []
+        if overall_accuracy < 60:
+            next_actions.append("Bạn nên ưu tiên mức Dễ hoặc Trung bình, tập trung sửa các câu sai lặp lại.")
+        elif overall_accuracy < 85:
+            next_actions.append("Bạn đang tiến bộ tốt, giữ mức Trung bình và tăng dần lên Khó ở lượt kế tiếp.")
+        else:
+            next_actions.append("Hiệu suất rất cao, nên chuyển sang mức Khó để tăng độ thử thách.")
+
+        if weak_points:
+            next_actions.append("Ôn lại 2-3 điểm yếu đầu danh sách trước khi bắt đầu lượt chơi mới.")
+        next_actions.append(f"Game được gợi ý hiện tại: {suggested_game_type}.")
+
+        return {
+            "material_id": material_id,
+            "total_attempts": len(attempts),
+            "average_accuracy": overall_accuracy,
+            "suggested_game_type": suggested_game_type,
+            "recommended_difficulty": recommended_difficulty,
+            "streak_days": len(played_days),
+            "game_type_stats": game_type_stats,
+            "weak_points": weak_points,
+            "next_actions": next_actions,
+        }
 
     def _score_quiz(self, json_content: dict, answers: list[dict], game_type: str) -> list[dict]:
         """Score quiz_mixed or flashcard."""

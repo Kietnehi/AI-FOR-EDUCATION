@@ -21,5 +21,20 @@ class GameRepository:
             await self.collection.find_one({"_id": attempt_id, "user_id": user_id})
         )
 
+    async def list_attempts_for_user_material(
+        self,
+        user_id: str,
+        material_id: str,
+        limit: int = 50,
+    ) -> list[dict]:
+        cursor = (
+            self.collection
+            .find({"user_id": user_id, "material_id": material_id})
+            .sort("completed_at", -1)
+            .limit(limit)
+        )
+        items = [serialize_document(doc) async for doc in cursor]
+        return [item for item in items if item]
+
     async def delete_by_material_id(self, material_id: str) -> None:
         await self.collection.delete_many({"material_id": material_id})

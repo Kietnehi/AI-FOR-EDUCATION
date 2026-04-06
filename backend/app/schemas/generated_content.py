@@ -28,6 +28,7 @@ class GeneratePodcastRequest(BaseModel):
 
 class GenerateMinigameRequest(BaseModel):
     game_type: Literal["quiz_mixed", "flashcard", "shooting_quiz"] = "quiz_mixed"
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
     force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
 
 
@@ -102,6 +103,7 @@ class GeneratedContentResponse(BaseModel):
     material_id: str
     content_type: ContentType
     game_type: str | None = None
+    difficulty: str | None = None
     version: int
     outline: list[str] = Field(default_factory=list)
     json_content: dict[str, Any] = Field(default_factory=dict)

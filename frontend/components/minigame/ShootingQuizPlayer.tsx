@@ -61,6 +61,7 @@ type UserShotAnswer = { id: string; answer: string };
 
 type Props = {
   payload: ShootingPayload;
+  difficulty?: string;
   onSubmit: (answers: UserShotAnswer[]) => Promise<any>;
   sessionKey?: string;
 };
@@ -157,7 +158,7 @@ function createRoundEnemies(answers: QuizAnswer[]): EnemyChicken[] {
   });
 }
 
-export function ShootingQuizPlayer({ payload, onSubmit, sessionKey }: Props) {
+export function ShootingQuizPlayer({ payload, difficulty, onSubmit, sessionKey }: Props) {
   const questions = useMemo(() => {
     const source = Array.isArray(payload?.game?.questions) ? payload.game?.questions || [] : [];
     return source.slice(0, 10).map((question, qIndex) => {
@@ -724,9 +725,16 @@ export function ShootingQuizPlayer({ payload, onSubmit, sessionKey }: Props) {
           <Target className="w-4 h-4 text-amber-300" />
           Arcade Learning Mode
         </div>
-        <h2 className="text-3xl sm:text-4xl font-black tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-          Bắn Gà Ôn Tập
-        </h2>
+        <div className="flex justify-center items-center gap-3">
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+            Bắn Gà Ôn Tập
+          </h2>
+          {difficulty && (
+            <div className="px-3 py-1 rounded-lg text-sm font-bold bg-white/20 border border-white/30 capitalize">
+              Độ khó: {difficulty === "easy" ? "Dễ" : difficulty === "hard" ? "Khó" : "Trung bình"}
+            </div>
+          )}
+        </div>
         <p className="text-sm sm:text-base text-slate-200 max-w-2xl mx-auto">
           Mỗi round có 1 câu hỏi và 4 con gà là 4 đáp án. Di chuyển chuột để aim, click để bắn đáp án đúng.
         </p>
