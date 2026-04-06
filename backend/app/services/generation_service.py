@@ -461,6 +461,7 @@ class GenerationService:
         difficulty: str = "medium",
         user_id: str | None = None,
         force_regenerate: bool = False,
+        focus_context: str | None = None,
     ) -> dict:
         if not force_regenerate:
             existing = await self.generated_repo.list_by_material_and_type(
@@ -477,12 +478,19 @@ class GenerationService:
 
         material = await self._prepare_material(material_id, user_id=user_id)
         text = self._get_material_text(material)
+        generation_context = text
+        if focus_context:
+            generation_context = (
+                f"{text}\n\n"
+                "=== MUC TIEU ON TAP CA NHAN HOA ===\n"
+                f"{focus_context[:3000]}"
+            )
         valid_game_types = {"quiz_mixed", "flashcard", "shooting_quiz"}
         selected_game_type = game_type if game_type in valid_game_types else "quiz_mixed"
         game_payload, version = await asyncio.gather(
             asyncio.to_thread(
                 self.minigame_generator.generate,
-                text,
+                generation_context,
                 game_type=selected_game_type,
                 difficulty=difficulty,
             ),

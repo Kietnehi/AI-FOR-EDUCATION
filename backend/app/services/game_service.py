@@ -175,6 +175,129 @@ class GameService:
             "next_actions": next_actions,
         }
 
+    async def generate_remediation_quick_start(
+        self,
+        material_id: str,
+        user_id: str,
+        difficulty: str | None = None,
+        top_k_wrong_questions: int = 10,
+    ) -> dict:
+        summary = await self.get_personalization_summary(material_id=material_id, user_id=user_id)
+        attempts = await self.repo.list_attempts_for_user_material(
+            user_id=user_id,
+            material_id=material_id,
+            limit=120,
+        )
+        top_wrong_questions = self._collect_top_wrong_questions(attempts, limit=top_k_wrong_questions)
+        weak_points = [item["question"] for item in top_wrong_questions[:5]]
+
+        recommended_difficulty = str(summary.get("recommended_difficulty") or "medium").lower()
+        if recommended_difficulty not in {"easy", "medium", "hard"}:
+            recommended_difficulty = "medium"
+
+        selected_difficulty = str(difficulty or recommended_difficulty).lower()
+        if selected_difficulty not in {"easy", "medium", "hard"}:
+            selected_difficulty = recommended_difficulty
+
+        if top_wrong_questions:
+            wrong_questions_text = "\n".join(
+                f"{index}. {item['question']}"
+                + (f" | Đáp án đúng tham chiếu: {item['correct_answer']}" if item.get("correct_answer") else "")
+                for index, item in enumerate(top_wrong_questions, start=1)
+            )
+            remediation_focus = (
+                "Mục tiêu ôn tập cá nhân hóa cho QUIZ_MIXED: tập trung sửa top câu sai nhiều nhất của người học.\n"
+                "BẮT BUỘC tạo đúng 10 câu hỏi, ưu tiên phủ toàn bộ danh sách câu sai bên dưới theo thứ tự ưu tiên.\n"
+                "Mỗi câu cần có giải thích ngắn gọn để người học hiểu vì sao sai trước đó.\n"
+                f"{wrong_questions_text}"
+            )
+        else:
+            remediation_focus = (
+                "Người học chưa có đủ dữ liệu lỗi sai cụ thể. "
+                "Hãy tạo bộ câu hỏi nền tảng để phát hiện lỗ hổng kiến thức và củng cố các khái niệm quan trọng nhất."
+            )
+
+        try:
+            generated_quiz = await self.generation_service.generate_minigame(
+                material_id,
+                game_type="quiz_mixed",
+                difficulty=selected_difficulty,
+                user_id=user_id,
+                force_regenerate=True,
+                focus_context=remediation_focus,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="Không thể tạo bộ ôn tập AI ở thời điểm hiện tại. Vui lòng thử lại sau.",
+            ) from exc
+
+        generated_items = [
+            {
+                "game_type": "quiz_mixed",
+                "generated_content_id": generated_quiz["id"],
+                "difficulty": selected_difficulty,
+                "title": "Trắc nghiệm hỗn hợp",
+            }
+        ]
+
+        if top_wrong_questions:
+            message = "Đã tạo quiz ôn tập từ top 10 câu sai nhiều nhất của bạn."
+        else:
+            message = "Đã tạo quiz ôn tập nền tảng vì chưa đủ dữ liệu câu sai trước đó."
+
+        return {
+            "material_id": material_id,
+            "weak_points": weak_points,
+            "top_wrong_questions": top_wrong_questions,
+            "recommended_difficulty": selected_difficulty,
+            "generated_items": generated_items,
+            "message": message,
+        }
+
+    @staticmethod
+    def _collect_top_wrong_questions(attempts: list[dict], limit: int = 10) -> list[dict]:
+        normalized_limit = max(1, min(limit, 20))
+        question_map: dict[str, dict] = {}
+
+        for attempt in attempts:
+            for row in attempt.get("feedback", []):
+                if not isinstance(row, dict):
+                    continue
+                if row.get("is_correct") is True:
+                    continue
+
+                question_text = row.get("question") or row.get("knowledge_point") or row.get("id")
+                if not isinstance(question_text, str):
+                    continue
+
+                normalized_question = question_text.strip()
+                if not normalized_question:
+                    continue
+
+                key = normalized_question[:220]
+                entry = question_map.get(key)
+                if entry is None:
+                    entry = {
+                        "question": key,
+                        "wrong_count": 0,
+                        "correct_answer": None,
+                    }
+                    question_map[key] = entry
+
+                entry["wrong_count"] += 1
+
+                if entry["correct_answer"] is None:
+                    correct_answer = row.get("correct_answer") or row.get("correct_answer_text")
+                    if isinstance(correct_answer, str) and correct_answer.strip():
+                        entry["correct_answer"] = correct_answer.strip()[:120]
+
+        ranked = sorted(
+            question_map.values(),
+            key=lambda item: (-int(item["wrong_count"]), str(item["question"])),
+        )
+        return ranked[:normalized_limit]
+
     def _score_quiz(self, json_content: dict, answers: list[dict], game_type: str) -> list[dict]:
         """Score quiz_mixed or flashcard."""
         items = json_content.get("items", [])

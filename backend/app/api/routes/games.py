@@ -3,7 +3,13 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.api.dependencies import get_database, get_current_user
 from app.schemas.auth import AuthUser
-from app.schemas.games import GameAttemptResponse, GameSubmitRequest, MinigamePersonalizationResponse
+from app.schemas.games import (
+    GameAttemptResponse,
+    GameSubmitRequest,
+    MinigamePersonalizationResponse,
+    RemediationQuickStartRequest,
+    RemediationQuickStartResponse,
+)
 from app.services.game_service import GameService
 
 router = APIRouter()
@@ -41,3 +47,23 @@ async def get_personalization(
     service = GameService(db)
     result = await service.get_personalization_summary(material_id=material_id, user_id=user.id)
     return MinigamePersonalizationResponse(**result)
+
+
+@router.post(
+    "/games/materials/{material_id}/remediation-quick-start",
+    response_model=RemediationQuickStartResponse,
+)
+async def remediation_quick_start(
+    material_id: str,
+    payload: RemediationQuickStartRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> RemediationQuickStartResponse:
+    service = GameService(db)
+    result = await service.generate_remediation_quick_start(
+        material_id=material_id,
+        user_id=user.id,
+        difficulty=payload.difficulty,
+        top_k_wrong_questions=payload.top_k_wrong_questions,
+    )
+    return RemediationQuickStartResponse(**result)
