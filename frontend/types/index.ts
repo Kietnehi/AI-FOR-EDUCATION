@@ -53,6 +53,12 @@ export type GameTypePersonalizationStat = {
   last_played_difficulty: "easy" | "medium" | "hard" | string;
 };
 
+export type DifficultyPersonalizationStat = {
+  difficulty: "easy" | "medium" | "hard" | string;
+  attempts: number;
+  average_accuracy: number;
+};
+
 export type MinigamePersonalization = {
   material_id: string;
   total_attempts: number;
@@ -61,8 +67,15 @@ export type MinigamePersonalization = {
   recommended_difficulty: "easy" | "medium" | "hard" | string;
   streak_days: number;
   game_type_stats: GameTypePersonalizationStat[];
+  difficulty_stats: DifficultyPersonalizationStat[];
   weak_points: string[];
   next_actions: string[];
+  is_first_time_user: boolean;
+  auto_assigned_difficulty?: "easy" | "medium" | "hard" | string | null;
+  first_time_level_plan: Array<"easy" | "medium" | "hard" | string>;
+  first_time_allocation_reason?: string | null;
+  has_tried_all_difficulties: boolean;
+  knowledge_notes: Record<string, string>;
 };
 
 export type RemediationQuickStartItem = {

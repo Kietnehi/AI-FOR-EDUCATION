@@ -55,6 +55,7 @@ type Bullet = {
   y: number;
   vx: number;
   vy: number;
+  targetAnswerId?: string;
 };
 
 type UserShotAnswer = { id: string; answer: string };
@@ -90,7 +91,8 @@ const PLAYER_ANCHOR_Y_OFFSET = 0;
 const PLAYER_X = ARENA_WIDTH / 2 + PLAYER_ANCHOR_X_OFFSET;
 const PLAYER_Y = ARENA_HEIGHT - PLAYER_AVATAR_BOTTOM - PLAYER_AVATAR_SIZE / 2 + PLAYER_ANCHOR_Y_OFFSET;
 const BULLET_SPEED = 16;
-const CHICKEN_HIT_RADIUS = 75;
+const BULLET_SIZE = 14;
+const BULLET_RADIUS = BULLET_SIZE / 2;
 const PHYSICS_SUBSTEPS = 4;
 
 function clamp(value: number, min: number, max: number): number {
@@ -106,32 +108,51 @@ function yToPercent(y: number): string {
 }
 
 function didBulletHitEnemy(prevX: number, prevY: number, nextX: number, nextY: number, enemy: EnemyChicken): boolean {
+  // Swept AABB collision against the enemy card box (expanded by bullet radius)
+  // to reduce missed hits and avoid accidental hit on nearby options.
+  const halfW = CHICKEN_WIDTH / 2 + BULLET_RADIUS;
+  const halfH = CHICKEN_HEIGHT / 2 + BULLET_RADIUS;
+  const minX = enemy.x - halfW;
+  const maxX = enemy.x + halfW;
+  const minY = enemy.y - halfH;
+  const maxY = enemy.y + halfH;
+
   const dx = nextX - prevX;
   const dy = nextY - prevY;
-  const segmentLengthSq = dx * dx + dy * dy;
 
-  if (!segmentLengthSq) {
-    const distX = prevX - enemy.x;
-    const distY = prevY - enemy.y;
-    return distX * distX + distY * distY <= CHICKEN_HIT_RADIUS * CHICKEN_HIT_RADIUS;
+  let tMin = 0;
+  let tMax = 1;
+
+  if (Math.abs(dx) < 1e-6) {
+    if (prevX < minX || prevX > maxX) return false;
+  } else {
+    const invDx = 1 / dx;
+    let tx1 = (minX - prevX) * invDx;
+    let tx2 = (maxX - prevX) * invDx;
+    if (tx1 > tx2) [tx1, tx2] = [tx2, tx1];
+    tMin = Math.max(tMin, tx1);
+    tMax = Math.min(tMax, tx2);
+    if (tMin > tMax) return false;
   }
 
-  const t = clamp(((enemy.x - prevX) * dx + (enemy.y - prevY) * dy) / segmentLengthSq, 0, 1);
-  const closestX = prevX + dx * t;
-  const closestY = prevY + dy * t;
-  const distToCenterX = closestX - enemy.x;
-  const distToCenterY = closestY - enemy.y;
-
-  if (distToCenterX * distToCenterX + distToCenterY * distToCenterY <= CHICKEN_HIT_RADIUS * CHICKEN_HIT_RADIUS) {
-    return true;
+  if (Math.abs(dy) < 1e-6) {
+    if (prevY < minY || prevY > maxY) return false;
+  } else {
+    const invDy = 1 / dy;
+    let ty1 = (minY - prevY) * invDy;
+    let ty2 = (maxY - prevY) * invDy;
+    if (ty1 > ty2) [ty1, ty2] = [ty2, ty1];
+    tMin = Math.max(tMin, ty1);
+    tMax = Math.min(tMax, ty2);
+    if (tMin > tMax) return false;
   }
 
-  return false;
+  return tMax >= 0 && tMin <= 1;
 }
 
-function isPointInsideEnemy(pointX: number, pointY: number, enemy: EnemyChicken): boolean {
-  const halfW = CHICKEN_WIDTH / 2;
-  const halfH = CHICKEN_HEIGHT / 2;
+function isPointInsideEnemy(pointX: number, pointY: number, enemy: EnemyChicken, padding = 0): boolean {
+  const halfW = CHICKEN_WIDTH / 2 + padding;
+  const halfH = CHICKEN_HEIGHT / 2 + padding;
   return (
     pointX >= enemy.x - halfW &&
     pointX <= enemy.x + halfW &&
@@ -296,13 +317,26 @@ export function ShootingQuizPlayer({ payload, difficulty, onSubmit, sessionKey }
           .filter((bullet) => {
             if (hitEnemy) return false;
 
-            const enemy = simulatedEnemies
-              .filter((candidate) => didBulletHitEnemy(bullet.prevX, bullet.prevY, bullet.x, bullet.y, candidate))
-              .sort((a, b) => {
-                const distA = (a.x - bullet.prevX) * (a.x - bullet.prevX) + (a.y - bullet.prevY) * (a.y - bullet.prevY);
-                const distB = (b.x - bullet.prevX) * (b.x - bullet.prevX) + (b.y - bullet.prevY) * (b.y - bullet.prevY);
-                return distA - distB;
-              })[0];
+            let enemy: EnemyChicken | undefined;
+            if (bullet.targetAnswerId) {
+              const preferred = simulatedEnemies.find((candidate) => candidate.answerId === bullet.targetAnswerId);
+              if (preferred && didBulletHitEnemy(bullet.prevX, bullet.prevY, bullet.x, bullet.y, preferred)) {
+                enemy = preferred;
+              }
+              // Target-locked bullets are only allowed to hit the intended answer.
+              // This prevents accidental resolution to another nearby option.
+              if (!enemy) {
+                return true;
+              }
+            } else {
+              enemy = simulatedEnemies
+                .filter((candidate) => didBulletHitEnemy(bullet.prevX, bullet.prevY, bullet.x, bullet.y, candidate))
+                .sort((a, b) => {
+                  const distA = (a.x - bullet.prevX) * (a.x - bullet.prevX) + (a.y - bullet.prevY) * (a.y - bullet.prevY);
+                  const distB = (b.x - bullet.prevX) * (b.x - bullet.prevX) + (b.y - bullet.prevY) * (b.y - bullet.prevY);
+                  return distA - distB;
+                })[0];
+            }
 
             if (enemy) {
               hitEnemy = enemy;
@@ -498,7 +532,7 @@ export function ShootingQuizPlayer({ payload, difficulty, onSubmit, sessionKey }
   }
 
   function findEnemyAtPoint(pointX: number, pointY: number): EnemyChicken | null {
-    const candidates = enemiesRef.current.filter((enemy) => isPointInsideEnemy(pointX, pointY, enemy));
+    const candidates = enemiesRef.current.filter((enemy) => isPointInsideEnemy(pointX, pointY, enemy, 18));
     if (candidates.length === 0) return null;
 
     candidates.sort((a, b) => {
@@ -510,7 +544,7 @@ export function ShootingQuizPlayer({ payload, difficulty, onSubmit, sessionKey }
     return candidates[0] || null;
   }
 
-  function handleShoot(targetPoint?: { x: number; y: number }) {
+  function handleShoot(targetPoint?: { x: number; y: number; targetAnswerId?: string }) {
     if (screen !== "playing" || lockedRound || isPaused) return;
 
     const targetX = targetPoint?.x ?? aim.x;
@@ -528,6 +562,7 @@ export function ShootingQuizPlayer({ payload, difficulty, onSubmit, sessionKey }
       y: PLAYER_Y,
       vx: (dx / length) * BULLET_SPEED,
       vy: (dy / length) * BULLET_SPEED,
+      targetAnswerId: targetPoint?.targetAnswerId,
     };
 
     setBullets((prev) => [...prev.slice(-8), bullet]);
@@ -548,8 +583,13 @@ export function ShootingQuizPlayer({ payload, difficulty, onSubmit, sessionKey }
     return bullets.map((bullet) => (
       <div
         key={bullet.id}
-        className="absolute w-3 h-3 rounded-full bg-cyan-100 border border-cyan-700 shadow-[0_0_10px_rgba(34,211,238,0.95)] pointer-events-none"
-        style={{ left: `calc(${xToPercent(bullet.x)} - 6px)`, top: `calc(${yToPercent(bullet.y)} - 6px)` }}
+        className="absolute rounded-full bg-cyan-100 border border-cyan-700 shadow-[0_0_10px_rgba(34,211,238,0.95)] pointer-events-none"
+        style={{
+          left: `calc(${xToPercent(bullet.x)} - ${BULLET_RADIUS}px)`,
+          top: `calc(${yToPercent(bullet.y)} - ${BULLET_RADIUS}px)`,
+          width: `${BULLET_SIZE}px`,
+          height: `${BULLET_SIZE}px`,
+        }}
       />
     ));
   }
@@ -802,10 +842,19 @@ export function ShootingQuizPlayer({ payload, difficulty, onSubmit, sessionKey }
               x: clamp(targetX, 0, ARENA_WIDTH),
               y: clamp(targetY, 0, ARENA_HEIGHT),
             };
-            setAim(clampedTarget);
+            const clickedEnemy = findEnemyAtPoint(clampedTarget.x, clampedTarget.y);
+            const lockedTarget = clickedEnemy
+              ? {
+                  x: clickedEnemy.x,
+                  y: clickedEnemy.y,
+                  targetAnswerId: clickedEnemy.answerId,
+                }
+              : clampedTarget;
 
-            // Always shoot, don't insta-resolve so bullets always fly to target
-            handleShoot(clampedTarget);
+            setAim({ x: lockedTarget.x, y: lockedTarget.y });
+
+            // Keep bullet animation, but lock target when user clicks on an answer card.
+            handleShoot(lockedTarget);
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
