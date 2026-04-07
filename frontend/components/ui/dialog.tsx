@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "@/components/theme-provider";
 
 interface DialogProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface DialogProps {
 
 export function Dialog({ open, onClose, children, title, maxWidth = "md" }: DialogProps) {
   const [mounted, setMounted] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -71,7 +73,13 @@ export function Dialog({ open, onClose, children, title, maxWidth = "md" }: Dial
               {/* Header */}
               {title && (
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)]">
-                  <h2 className="text-lg font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+                  <h2
+                    className="text-lg font-bold"
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      color: theme === "dark" ? "#ffffff" : "#111827",
+                    }}
+                  >
                     {title}
                   </h2>
                   <button

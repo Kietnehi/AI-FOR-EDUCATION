@@ -33,6 +33,12 @@ class GameTypePersonalizationStat(BaseModel):
     last_played_difficulty: str
 
 
+class DifficultyPersonalizationStat(BaseModel):
+    difficulty: Literal["easy", "medium", "hard"]
+    attempts: int
+    average_accuracy: float
+
+
 class MinigamePersonalizationResponse(BaseModel):
     material_id: str
     total_attempts: int = 0
@@ -41,8 +47,15 @@ class MinigamePersonalizationResponse(BaseModel):
     recommended_difficulty: str = "medium"
     streak_days: int = 0
     game_type_stats: list[GameTypePersonalizationStat] = Field(default_factory=list)
+    difficulty_stats: list[DifficultyPersonalizationStat] = Field(default_factory=list)
     weak_points: list[str] = Field(default_factory=list)
     next_actions: list[str] = Field(default_factory=list)
+    is_first_time_user: bool = False
+    auto_assigned_difficulty: Literal["easy", "medium", "hard"] | None = None
+    first_time_level_plan: list[Literal["easy", "medium", "hard"]] = Field(default_factory=list)
+    first_time_allocation_reason: str | None = None
+    has_tried_all_difficulties: bool = False
+    knowledge_notes: dict[str, str] = Field(default_factory=dict)
 
 
 class RemediationQuickStartRequest(BaseModel):

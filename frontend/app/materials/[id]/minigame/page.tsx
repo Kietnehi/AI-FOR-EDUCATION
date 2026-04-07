@@ -75,6 +75,10 @@ function normalizeGameType(input?: string): GameType {
   return "quiz_mixed";
 }
 
+function toDifficultyKey(input?: string): DifficultyLevel {
+  return normalizeDifficulty(input);
+}
+
 function toDifficultyLabel(difficulty?: string): string {
   if (!difficulty) return "Trung bình";
   return DIFFICULTY_LABELS[difficulty.toLowerCase()] || difficulty;
@@ -87,6 +91,7 @@ export default function MinigamePage() {
   const contentId = searchParams.get("contentId") || "";
   const mode = searchParams.get("mode") || "";
   const materialId = params.id;
+  const backHref = contentId ? `/materials/${materialId}/minigame` : `/materials/${materialId}`;
 
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +106,17 @@ export default function MinigamePage() {
   const [remediationLoading, setRemediationLoading] = useState(false);
   const [remediationModalOpen, setRemediationModalOpen] = useState(false);
   const [remediationData, setRemediationData] = useState<RemediationQuickStart | null>(null);
+  const hasAttemptHistory = (personalization?.total_attempts || 0) > 0;
+  const isFirstTimeAutoMode = Boolean(personalization?.is_first_time_user);
+  const hasTriedAllDifficulties = Boolean(personalization?.has_tried_all_difficulties);
+  const selectedKnowledgeNote = personalization?.knowledge_notes?.[toDifficultyKey(difficulty)] || "";
+
+  useEffect(() => {
+    if (!personalization) return;
+    if (personalization.is_first_time_user && personalization.auto_assigned_difficulty) {
+      setDifficulty(normalizeDifficulty(personalization.auto_assigned_difficulty));
+    }
+  }, [personalization]);
 
   useEffect(() => {
     setSelectingGameType(mode === "create");
@@ -159,7 +175,11 @@ export default function MinigamePage() {
   ) {
     setGeneratingGame(true);
     try {
-      const selectedDifficulty = overrideDifficulty || difficulty;
+      const autoDifficulty =
+        isFirstTimeAutoMode && personalization?.auto_assigned_difficulty
+          ? normalizeDifficulty(personalization.auto_assigned_difficulty)
+          : undefined;
+      const selectedDifficulty = autoDifficulty || overrideDifficulty || difficulty;
       const generated = await generateMinigame(materialId, gameType, selectedDifficulty, true);
       router.push(`/materials/${materialId}/minigame?contentId=${generated.id}`);
     } catch (error) {
@@ -196,7 +216,7 @@ export default function MinigamePage() {
   }
 
   async function handleCreateRemediationSet() {
-    if (remediationLoading) return;
+    if (remediationLoading || !hasAttemptHistory) return;
 
     setRemediationLoading(true);
     try {
@@ -265,7 +285,7 @@ export default function MinigamePage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)]">
           <Link
-            href={`/materials/${materialId}`}
+            href={backHref}
             className="no-underline text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
           >
             <span className="flex items-center gap-1.5">
@@ -379,6 +399,27 @@ export default function MinigamePage() {
                       ))}
                     </ul>
 
+                    {isFirstTimeAutoMode && personalization.first_time_level_plan.length > 0 && (
+                      <div className="rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-4">
+                        <p className="m-0 text-sm font-semibold text-[var(--text-primary)]">Phân bổ level tự động cho lần đầu</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          {personalization.first_time_level_plan.map((level, idx) => (
+                            <span
+                              key={`${level}-${idx}`}
+                              className="rounded-lg border border-[var(--border-light)] bg-[var(--bg-elevated)] px-2 py-1 text-[var(--text-secondary)]"
+                            >
+                              {idx + 1}. {toDifficultyLabel(level)}
+                            </span>
+                          ))}
+                        </div>
+                        {personalization.first_time_allocation_reason && (
+                          <p className="m-0 mt-2 text-xs text-[var(--text-secondary)]">
+                            {personalization.first_time_allocation_reason}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <div className="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-start gap-3">
@@ -392,6 +433,11 @@ export default function MinigamePage() {
                             <p className="m-0 mt-1 text-sm text-[var(--text-secondary)]">
                               Tạo nhanh 1 quiz cá nhân hóa từ top 10 câu bạn làm sai nhiều nhất để ôn tập ngay.
                             </p>
+                            {!hasAttemptHistory && (
+                              <p className="m-0 mt-1 text-xs text-[var(--text-tertiary)]">
+                                Chưa có dữ liệu chơi. Hãy hoàn thành ít nhất 1 lượt minigame để mở tính năng này.
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -399,7 +445,7 @@ export default function MinigamePage() {
                           size="md"
                           icon={<Zap className="h-4 w-4" />}
                           loading={remediationLoading}
-                          disabled={remediationLoading || generatingGame || deletingId.length > 0}
+                          disabled={remediationLoading || generatingGame || deletingId.length > 0 || !hasAttemptHistory}
                           onClick={handleCreateRemediationSet}
                         >
                           Ôn tập ngay
@@ -468,6 +514,11 @@ export default function MinigamePage() {
                   <Target className="w-4 h-4 text-[var(--text-secondary)]" />
                   Mức độ khó
                 </label>
+                {isFirstTimeAutoMode && (
+                  <p className="m-0 text-xs text-[var(--text-secondary)]">
+                    AI đang tự động phân bổ level cho lần đầu chơi. Bạn sẽ bắt đầu ở mức {toDifficultyLabel(personalization?.auto_assigned_difficulty || undefined)}.
+                  </p>
+                )}
                 <div className="flex w-full max-w-sm gap-1 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-1">
                   {[
                     { id: "easy", label: "Dễ" },
@@ -476,7 +527,11 @@ export default function MinigamePage() {
                   ].map((lvl) => (
                     <button
                       key={lvl.id}
-                      onClick={() => setDifficulty(lvl.id as "easy" | "medium" | "hard")}
+                      onClick={() => {
+                        if (isFirstTimeAutoMode) return;
+                        setDifficulty(lvl.id as "easy" | "medium" | "hard");
+                      }}
+                      disabled={isFirstTimeAutoMode}
                       className={`flex-1 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                         difficulty === lvl.id
                           ? "border border-[var(--border-light)] bg-[var(--bg-elevated)] font-semibold text-[var(--text-primary)] shadow-sm"
@@ -487,6 +542,13 @@ export default function MinigamePage() {
                     </button>
                   ))}
                 </div>
+
+                {hasTriedAllDifficulties && selectedKnowledgeNote && (
+                  <div className="rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-3 text-sm text-[var(--text-secondary)]">
+                    <span className="font-semibold text-[var(--text-primary)]">Lưu ý kiến thức cho mức {toDifficultyLabel(difficulty)}:</span>{" "}
+                    {selectedKnowledgeNote}
+                  </div>
+                )}
               </div>
 
               <div className="grid sm:grid-cols-3 gap-5">

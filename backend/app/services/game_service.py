@@ -1,8 +1,10 @@
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.ai.generation.llm_client import LLMClient
 from app.repositories.game_repository import GameRepository
 from app.services.generation_service import GenerationService
+from app.services.material_service import MaterialService
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
@@ -11,6 +13,8 @@ class GameService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.repo = GameRepository(db)
         self.generation_service = GenerationService(db)
+        self.material_service = MaterialService(db)
+        self.llm = LLMClient()
 
     async def submit_attempt(self, generated_content_id: str, user_id: str, answers: list[dict]) -> dict:
         generated = await self.generation_service.get_generated_content(
@@ -72,23 +76,39 @@ class GameService:
         attempts = await self.repo.list_attempts_for_user_material(user_id=user_id, material_id=material_id, limit=60)
 
         if not attempts:
+            material = await self.material_service.get_material(material_id, user_id=user_id)
+            first_time_level_plan, allocation_reason = self._build_first_time_level_plan(material)
+            auto_assigned_difficulty = first_time_level_plan[0] if first_time_level_plan else "easy"
             return {
                 "material_id": material_id,
                 "total_attempts": 0,
                 "average_accuracy": 0.0,
                 "suggested_game_type": "quiz_mixed",
-                "recommended_difficulty": "easy",
+                "recommended_difficulty": auto_assigned_difficulty,
                 "streak_days": 0,
                 "game_type_stats": [],
+                "difficulty_stats": [
+                    {"difficulty": "easy", "attempts": 0, "average_accuracy": 0.0},
+                    {"difficulty": "medium", "attempts": 0, "average_accuracy": 0.0},
+                    {"difficulty": "hard", "attempts": 0, "average_accuracy": 0.0},
+                ],
                 "weak_points": [],
                 "next_actions": [
+                    f"Lần đầu chơi: AI đã phân bổ lộ trình mức độ {', '.join(first_time_level_plan)}.",
                     "Bắt đầu với mức Dễ để hệ thống học thói quen làm bài của bạn.",
                     "Sau 2-3 lượt chơi, hệ thống sẽ tự đưa ra gợi ý cá nhân hóa chính xác hơn.",
                 ],
+                "is_first_time_user": True,
+                "auto_assigned_difficulty": auto_assigned_difficulty,
+                "first_time_level_plan": first_time_level_plan,
+                "first_time_allocation_reason": allocation_reason,
+                "has_tried_all_difficulties": False,
+                "knowledge_notes": {},
             }
 
         accuracies: list[float] = []
         grouped: dict[str, list[dict]] = {}
+        grouped_by_difficulty: dict[str, list[dict]] = {"easy": [], "medium": [], "hard": []}
         weak_count: dict[str, int] = {}
         played_days: set[str] = set()
 
@@ -101,6 +121,10 @@ class GameService:
 
             game_type = str(attempt.get("game_type") or "quiz_mixed")
             grouped.setdefault(game_type, []).append(attempt)
+
+            played_difficulty = str(attempt.get("difficulty") or "medium").lower()
+            if played_difficulty in grouped_by_difficulty:
+                grouped_by_difficulty[played_difficulty].append(attempt)
 
             completed_at = attempt.get("completed_at")
             if completed_at is not None:
@@ -151,6 +175,29 @@ class GameService:
         recommended_difficulty = infer_difficulty(overall_accuracy)
         weak_points = [item for item, _ in sorted(weak_count.items(), key=lambda pair: pair[1], reverse=True)[:5]]
 
+        difficulty_stats: list[dict] = []
+        for difficulty_key in ("easy", "medium", "hard"):
+            difficulty_attempts = grouped_by_difficulty.get(difficulty_key, [])
+            difficulty_accuracies: list[float] = []
+            for attempt in difficulty_attempts:
+                game_max = float(attempt.get("max_score") or 0)
+                game_score = float(attempt.get("score") or 0)
+                game_acc = (game_score / game_max) if game_max > 0 else 0.0
+                difficulty_accuracies.append(max(0.0, min(1.0, game_acc)))
+
+            difficulty_stats.append(
+                {
+                    "difficulty": difficulty_key,
+                    "attempts": len(difficulty_attempts),
+                    "average_accuracy": round((sum(difficulty_accuracies) / len(difficulty_accuracies)) * 100, 1)
+                    if difficulty_accuracies
+                    else 0.0,
+                }
+            )
+
+        has_tried_all_difficulties = all(item["attempts"] > 0 for item in difficulty_stats)
+        knowledge_notes = self._build_knowledge_notes(difficulty_stats=difficulty_stats, weak_points=weak_points)
+
         next_actions: list[str] = []
         if overall_accuracy < 60:
             next_actions.append("Bạn nên ưu tiên mức Dễ hoặc Trung bình, tập trung sửa các câu sai lặp lại.")
@@ -162,6 +209,8 @@ class GameService:
         if weak_points:
             next_actions.append("Ôn lại 2-3 điểm yếu đầu danh sách trước khi bắt đầu lượt chơi mới.")
         next_actions.append(f"Game được gợi ý hiện tại: {suggested_game_type}.")
+        if has_tried_all_difficulties:
+            next_actions.append("Bạn đã thử đủ 3 mức độ. Hãy đọc lưu ý kiến thức theo level trước khi chọn game mới.")
 
         return {
             "material_id": material_id,
@@ -171,8 +220,87 @@ class GameService:
             "recommended_difficulty": recommended_difficulty,
             "streak_days": len(played_days),
             "game_type_stats": game_type_stats,
+            "difficulty_stats": difficulty_stats,
             "weak_points": weak_points,
             "next_actions": next_actions,
+            "is_first_time_user": False,
+            "auto_assigned_difficulty": None,
+            "first_time_level_plan": [],
+            "first_time_allocation_reason": None,
+            "has_tried_all_difficulties": has_tried_all_difficulties,
+            "knowledge_notes": knowledge_notes if has_tried_all_difficulties else {},
+        }
+
+    def _build_first_time_level_plan(self, material: dict) -> tuple[list[str], str]:
+        fallback_plan = ["easy", "medium", "hard"]
+        fallback_reason = "AI đề xuất bắt đầu từ Dễ, sau đó Trung bình và Khó để tăng dần độ thử thách."
+
+        title = str(material.get("title") or "")[:200]
+        subject = str(material.get("subject") or "")[:120]
+        education_level = str(material.get("education_level") or "")[:120]
+        description = str(material.get("description") or "")[:400]
+
+        system_prompt = (
+            "Bạn là AI tư vấn lộ trình học minigame. "
+            "Nhiệm vụ: phân bổ thứ tự 3 mức độ easy/medium/hard cho người mới chơi lần đầu. "
+            "Trả về JSON hợp lệ dạng: {\"level_plan\":[\"easy\",\"medium\",\"hard\"],\"reason\":\"...\"}. "
+            "BẮT BUỘC level_plan gồm đúng 3 phần tử, không lặp, chỉ dùng easy/medium/hard."
+        )
+        user_prompt = (
+            f"Tiêu đề học liệu: {title}\n"
+            f"Môn/chủ đề: {subject}\n"
+            f"Cấp độ học: {education_level}\n"
+            f"Mô tả: {description}\n"
+            "Hãy đề xuất lộ trình chơi 3 level cho lần đầu."
+        )
+
+        response = self.llm.json_response(
+            system_prompt,
+            user_prompt,
+            fallback={"level_plan": fallback_plan, "reason": fallback_reason},
+        )
+
+        raw_plan = response.get("level_plan") if isinstance(response, dict) else None
+        reason = response.get("reason") if isinstance(response, dict) else None
+
+        normalized_plan: list[str] = []
+        if isinstance(raw_plan, list):
+            for item in raw_plan:
+                difficulty = str(item).lower().strip()
+                if difficulty in {"easy", "medium", "hard"} and difficulty not in normalized_plan:
+                    normalized_plan.append(difficulty)
+
+        for difficulty in fallback_plan:
+            if difficulty not in normalized_plan:
+                normalized_plan.append(difficulty)
+
+        final_plan = normalized_plan[:3]
+        final_reason = str(reason).strip() if isinstance(reason, str) and reason.strip() else fallback_reason
+        return final_plan, final_reason
+
+    @staticmethod
+    def _build_knowledge_notes(difficulty_stats: list[dict], weak_points: list[str]) -> dict[str, str]:
+        stats_map = {str(item.get("difficulty")): item for item in difficulty_stats}
+        top_weak_points = weak_points[:3]
+        weak_points_text = ", ".join(top_weak_points) if top_weak_points else "các khái niệm cốt lõi"
+
+        easy_acc = float(stats_map.get("easy", {}).get("average_accuracy", 0.0))
+        medium_acc = float(stats_map.get("medium", {}).get("average_accuracy", 0.0))
+        hard_acc = float(stats_map.get("hard", {}).get("average_accuracy", 0.0))
+
+        return {
+            "easy": (
+                f"Lưu ý mức Dễ: ôn chắc nền tảng trước, tập trung vào {weak_points_text}. "
+                f"Độ chính xác hiện tại ở mức Dễ là {easy_acc:.1f}% - ưu tiên làm đúng ổn định."
+            ),
+            "medium": (
+                f"Lưu ý mức Trung bình: sau khi nắm nền tảng, hãy luyện các câu có bẫy nhẹ về {weak_points_text}. "
+                f"Độ chính xác mức Trung bình là {medium_acc:.1f}%."
+            ),
+            "hard": (
+                f"Lưu ý mức Khó: tập trung suy luận và tránh lặp lỗi ở {weak_points_text}. "
+                f"Độ chính xác mức Khó là {hard_acc:.1f}% - nên đọc kỹ giải thích trước khi chọn đáp án."
+            ),
         }
 
     async def generate_remediation_quick_start(
