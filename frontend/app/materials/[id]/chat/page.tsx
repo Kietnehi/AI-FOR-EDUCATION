@@ -35,6 +35,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { ReasoningBlock } from "@/components/ui/reasoning-block";
 import { TtsMarkdown } from "@/components/ui/tts-markdown";
 import { WebSearchResult } from "@/components/ui/web-search-result";
+import { useTheme } from "@/components/theme-provider";
 import {
   createChatSession,
   deleteChatSession,
@@ -228,6 +229,8 @@ ChatMessageItem.displayName = "ChatMessageItem";
 export default function ChatbotPage() {
   const params = useParams<{ id: string }>();
   const materialId = params.id;
+  const { theme } = useTheme();
+  const isDarkTheme = theme === "dark";
 
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -905,7 +908,7 @@ export default function ChatbotPage() {
             type="button"
             onClick={handleOpenHistory}
             disabled={initializing}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-light)] bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-light)] bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <History className="w-3.5 h-3.5" />
             Lịch sử
@@ -914,7 +917,7 @@ export default function ChatbotPage() {
             type="button"
             onClick={handleNewChat}
             disabled={initializing || isStartingNewChat || loading}
-            className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-light)] bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isStartingNewChat ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1576,14 +1579,14 @@ export default function ChatbotPage() {
       <Dialog open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} title="Lịch sử chatbot" maxWidth="lg">
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-[var(--text-primary)]">
               Chọn cuộc trò chuyện cũ để mở lại hoặc xóa lịch sử của tài liệu này.
             </p>
             <button
               type="button"
               onClick={() => setIsDeleteAllDialogOpen(true)}
               disabled={isDeletingAllHistory || sessionHistory.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-600 bg-rose-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-rose-700 hover:border-rose-700 dark:bg-rose-700 dark:border-rose-700 dark:hover:bg-rose-800 dark:hover:border-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isDeletingAllHistory ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
               Xóa toàn bộ
@@ -1607,7 +1610,7 @@ export default function ChatbotPage() {
                 return (
                   <div
                     key={session.id}
-                    className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 ${isActive ? "border-brand-300 bg-brand-50" : "border-[var(--border-light)] bg-[var(--bg-secondary)]"}`}
+                    className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 ${isActive ? (isDarkTheme ? "border-emerald-700/80 bg-emerald-900/35" : "border-slate-300 bg-slate-100") : "border-[var(--border-light)] bg-[var(--bg-secondary)]"}`}
                   >
                     <button
                       type="button"
@@ -1623,12 +1626,18 @@ export default function ChatbotPage() {
                       </p>
                     </button>
                     <div className="flex items-center gap-2">
-                      {isActive && <span className="rounded-full bg-brand-100 px-2 py-1 text-[10px] font-semibold text-brand-700">Hiện tại</span>}
+                      {isActive && (
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold ${isDarkTheme ? "bg-emerald-900/50 text-emerald-200" : "bg-slate-200 text-slate-700"}`}
+                        >
+                          Hiện tại
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => setSessionPendingDelete(session)}
                         disabled={isBusy}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/30 disabled:cursor-not-allowed disabled:opacity-60"
                         aria-label={`Xóa ${session.session_title}`}
                       >
                         {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
