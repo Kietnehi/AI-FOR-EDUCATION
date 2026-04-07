@@ -32,6 +32,46 @@ export function QuizMixedPlayer({ title, items, difficulty, onSubmit, loading, s
   const [result, setResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function parseMultipleAnswers(raw?: string): string[] {
+    if (!raw) return [];
+    return raw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function getMaxSelectable(item: QuizItem): number {
+    if (item.question_type !== "multiple_select") return 1;
+    const count = Array.isArray(item.correct_answers) ? item.correct_answers.length : 0;
+    return count > 0 ? count : 2;
+  }
+
+  function toggleMultipleOption(item: QuizItem, option: string): void {
+    const maxSelectable = getMaxSelectable(item);
+
+    setAnswers((prev) => {
+      const selected = parseMultipleAnswers(prev[item.id]);
+      let nextSelected: string[];
+
+      if (selected.includes(option)) {
+        nextSelected = selected.filter((value) => value !== option);
+      } else {
+        if (selected.length >= maxSelectable) {
+          return prev;
+        }
+        nextSelected = [...selected, option];
+      }
+
+      const nextAnswers = { ...prev };
+      if (nextSelected.length === 0) {
+        delete nextAnswers[item.id];
+      } else {
+        nextAnswers[item.id] = nextSelected.join(",");
+      }
+      return nextAnswers;
+    });
+  }
+
   const gameTypeLabels: Record<string, string> = {
     true_false: "Đúng/Sai",
     mcq: "Trắc nghiệm",
@@ -162,6 +202,11 @@ export function QuizMixedPlayer({ title, items, difficulty, onSubmit, loading, s
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] text-[var(--text-tertiary)]">
                           {gameTypeLabels[item.question_type] || item.question_type}
                         </span>
+                        {item.question_type === "multiple_select" && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-md border border-[var(--border-light)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
+                            Có {getMaxSelectable(item)} đáp án đúng
+                          </span>
+                        )}
                         {feedback &&
                           (isCorrect ? (
                             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
@@ -176,16 +221,40 @@ export function QuizMixedPlayer({ title, items, difficulty, onSubmit, loading, s
                   {/* Options */}
                   {Array.isArray(item.options) && item.options.length > 0 ? (
                     <div className="grid gap-2 ml-11">
-                      {item.options.map((opt) => {
-                        const isSelected = answers[item.id] === opt;
-                        const showCorrect = feedback && opt === feedback.correct_answer;
-                        const showWrong = feedback && isSelected && !isCorrect;
+                      {(() => {
+                        const isMultipleSelect = item.question_type === "multiple_select";
+                        const maxSelectable = getMaxSelectable(item);
+                        const selectedOptions = isMultipleSelect ? parseMultipleAnswers(answers[item.id]) : [];
+                        const reachedSelectionLimit = selectedOptions.length >= maxSelectable;
+                        const correctOptionSet = new Set<string>();
 
-                        return (
-                          <label
-                            key={opt}
-                            className={`
-                              flex items-center gap-3 p-3 rounded-xl cursor-pointer
+                        if (feedback) {
+                          if (isMultipleSelect) {
+                            const fromFeedback = parseMultipleAnswers(feedback.correct_answer);
+                            if (fromFeedback.length > 0) {
+                              fromFeedback.forEach((answer) => correctOptionSet.add(answer));
+                            } else if (Array.isArray(item.correct_answers)) {
+                              item.correct_answers.forEach((answer) => correctOptionSet.add(answer));
+                            }
+                          } else if (typeof feedback.correct_answer === "string") {
+                            correctOptionSet.add(feedback.correct_answer);
+                          }
+                        }
+
+                        return item.options.map((opt) => {
+                          const isSelected = isMultipleSelect
+                            ? selectedOptions.includes(opt)
+                            : answers[item.id] === opt;
+                          const showCorrect = feedback && correctOptionSet.has(opt);
+                          const showWrong = feedback && isSelected && !showCorrect;
+                          const disabledBecauseLimit =
+                            !result && isMultipleSelect && reachedSelectionLimit && !isSelected;
+
+                          return (
+                            <label
+                              key={opt}
+                              className={`
+                              flex items-center gap-3 p-3 rounded-xl
                               border transition-all duration-200
                               ${
                                 result
@@ -196,25 +265,40 @@ export function QuizMixedPlayer({ title, items, difficulty, onSubmit, loading, s
                                       : "border-[var(--border-light)] bg-[var(--bg-secondary)]"
                                   : isSelected
                                     ? "border-brand-400/70 bg-brand-500/15 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18)]"
-                                    : "border-[var(--border-light)] bg-[var(--bg-secondary)] hover:border-brand-300 hover:bg-[var(--bg-elevated)]"
+                                    : disabledBecauseLimit
+                                      ? "border-[var(--border-light)] bg-[var(--bg-secondary)] opacity-55 cursor-not-allowed"
+                                      : "border-[var(--border-light)] bg-[var(--bg-secondary)] hover:border-brand-300 hover:bg-[var(--bg-elevated)] cursor-pointer"
                               }
                             `}
-                          >
-                            <input
-                              type="radio"
-                              name={item.id}
-                              value={opt}
-                              checked={isSelected}
-                              onChange={() =>
-                                setAnswers((prev) => ({ ...prev, [item.id]: opt }))
-                              }
-                              disabled={!!result}
-                              className="w-4 h-4 accent-[var(--color-brand-500)]"
-                            />
-                            <span className="text-sm text-[var(--text-primary)]">{opt}</span>
-                          </label>
+                            >
+                              <input
+                                type={isMultipleSelect ? "checkbox" : "radio"}
+                                name={isMultipleSelect ? `${item.id}-${opt}` : item.id}
+                                value={opt}
+                                checked={isSelected}
+                                onChange={() =>
+                                  isMultipleSelect
+                                    ? toggleMultipleOption(item, opt)
+                                    : setAnswers((prev) => ({ ...prev, [item.id]: opt }))
+                                }
+                                disabled={!!result || disabledBecauseLimit}
+                                className="w-4 h-4 accent-[var(--color-brand-500)]"
+                              />
+                              <span className="text-sm text-[var(--text-primary)]">{opt}</span>
+                            </label>
+                          );
+                        });
+                      })()}
+
+                      {item.question_type === "multiple_select" && !result && (() => {
+                        const maxSelectable = getMaxSelectable(item);
+                        const selectedCount = parseMultipleAnswers(answers[item.id]).length;
+                        return (
+                          <p className="m-0 text-xs text-[var(--text-tertiary)]">
+                            Đã chọn {selectedCount}/{maxSelectable} đáp án. Khi đủ số lượng, các đáp án còn lại sẽ tạm khóa.
+                          </p>
                         );
-                      })}
+                      })()}
                     </div>
                   ) : (
                     <div className="ml-11">
