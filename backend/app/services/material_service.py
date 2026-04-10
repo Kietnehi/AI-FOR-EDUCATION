@@ -316,13 +316,22 @@ class MaterialService:
         force_reprocess: bool = False,
         user_id: str | None = None,
     ) -> None:
-        asyncio.create_task(
+        task = asyncio.create_task(
             self.process_material(
                 material_id,
                 force_reprocess=force_reprocess,
                 user_id=user_id,
             )
         )
+        task.add_done_callback(self._consume_background_exception)
+
+    @staticmethod
+    def _consume_background_exception(task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except Exception:
+            # process_material already logs and updates job/material status.
+            return
 
     async def _ensure_guardrail_approved(
         self, material_id: str, material: dict

@@ -367,6 +367,8 @@ class NotebookLMService:
             "headless": settings.notebooklm_headless,
             "args": ["--start-maximized", "--disable-blink-features=AutomationControlled"],
         }
+        fallback_launch_kwargs = dict(launch_kwargs)
+        fallback_launch_kwargs.pop("channel", None)
         # Pre-clean orphan locks from previous crashed/stale browser runs.
         self._force_release_profile_lock(user_data_dir)
         try:
@@ -399,10 +401,13 @@ class NotebookLMService:
                     "Đã thử tự dọn nhưng chưa thành công, hãy restart backend rồi thử lại."
                 ) from exc
             if "Chromium distribution 'chrome' is not found" in str(exc):
-                raise RuntimeError(
-                    "Thiếu Chrome cho Playwright trong container backend. "
-                    "Với Docker Compose, build lại backend với INSTALL_PLAYWRIGHT_BROWSER=1."
-                ) from exc
+                try:
+                    return await playwright.chromium.launch_persistent_context(**fallback_launch_kwargs)
+                except Exception as fallback_exc:
+                    raise RuntimeError(
+                        "Thiếu browser cho Playwright trong container backend (Chrome/Chromium). "
+                        "Với Docker Compose, build lại backend với INSTALL_PLAYWRIGHT_BROWSER=1."
+                    ) from fallback_exc
             raise
 
     def _launch_sync_context_with_recovery(self, playwright, user_data_dir: Path):
@@ -412,6 +417,8 @@ class NotebookLMService:
             "headless": settings.notebooklm_headless,
             "args": ["--start-maximized", "--disable-blink-features=AutomationControlled"],
         }
+        fallback_launch_kwargs = dict(launch_kwargs)
+        fallback_launch_kwargs.pop("channel", None)
         # Pre-clean orphan locks from previous crashed/stale browser runs.
         self._force_release_profile_lock(user_data_dir)
         try:
@@ -448,11 +455,14 @@ class NotebookLMService:
                     "Đã thử tự dọn nhưng chưa thành công, hãy restart backend rồi thử lại."
                 ) from exc
             if "Chromium distribution 'chrome' is not found" in str(exc):
-                playwright.stop()
-                raise RuntimeError(
-                    "Thiếu Chrome cho Playwright trong container backend. "
-                    "Với Docker Compose, build lại backend với INSTALL_PLAYWRIGHT_BROWSER=1."
-                ) from exc
+                try:
+                    return playwright.chromium.launch_persistent_context(**fallback_launch_kwargs)
+                except Exception as fallback_exc:
+                    playwright.stop()
+                    raise RuntimeError(
+                        "Thiếu browser cho Playwright trong container backend (Chrome/Chromium). "
+                        "Với Docker Compose, build lại backend với INSTALL_PLAYWRIGHT_BROWSER=1."
+                    ) from fallback_exc
             playwright.stop()
             raise
 

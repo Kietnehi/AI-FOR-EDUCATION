@@ -277,9 +277,217 @@ docker exec any2-minio mc mb myminio/ai-learning-storage --ignore-existing
 
 ---
 
+## 🔍 Trong project này, 3 thành phần hoạt động như thế nào?
+
+### 💡 Analogy: Nhà hàng AI
+
+```
+👤 Khách gọi món "Tạo slides"
+    ↓
+🧑‍💼 Backend API nhận order → ghi vào giấy → dán lên bảng (Redis)
+📋 Nói khách: "Mã order của bạn: task_abc123"
+    ↓  
+👨‍🍳 Celery Worker thấy order trên bảng → vào bếp làm
+    ↓
+📦 MinIO = tủ lạnh → lưu nguyên liệu (file upload) + thành phẩm (slides PPTX)
+    ↓
+✅ Làm xong → dán kết quả lên bảng (Redis)
+    ↓
+👤 Khách quay lại check → "Đã xong! Đây là slides của bạn"
+```
+
+**Tại sao không làm luôn?** Vì gọi AI Gemini tạo slides mất **10-30 giây** → user không thể chờ HTTP request lâu vậy.
+
+---
+
+### 📮 Redis trong project này
+
+**Vai trò:** Cái bảng order trong nhà hàng
+
+**Cụ thể:**
+- **db0** = nơi backend dán task chờ (queue)
+- **db1** = nơi celery dán kết quả xong
+
+**Trong code:**
+```python
+# Backend đẩy task vào Redis (db0)
+task = generate_slides_task.delay(material_id, tone, max_slides)
+# → Trả về task_id ngay cho user, không cần chờ!
+
+# Celery làm xong, lưu kết quả vào Redis (db1)
+# → User check status qua task_id này
+```
+
+**Config trong docker-compose.yml:**
+```yaml
+backend:
+  CELERY_BROKER_URL: redis://redis:6379/0      # db0 - đẩy task vào đây
+
+celery-worker:
+  CELERY_BROKER_URL: redis://redis:6379/0       # db0 - lấy task từ đây
+  CELERY_RESULT_BACKEND: redis://redis:6379/1   # db1 - lưu kết quả vào đây
+```
+
+---
+
+### 🔄 Celery trong project này
+
+**Vai trò:** Đầu bếp AI, process chạy độc lập
+
+**Có 3 tasks chính:**
+```python
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_slides_task(self, material_id, tone, max_slides, skip_refine):
+    """Tạo slides PPTX từ tài liệu"""
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_podcast_task(self, material_id, style, duration):
+    """Tạo kịch bản podcast"""
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_minigame_task(self, material_id, game_type, difficulty):
+    """Tạo quiz/minigame"""
+```
+
+**Mỗi task làm gì?**
+1. Kết nối MongoDB → lấy tài liệu
+2. Tải file từ MinIO (hoặc local storage)
+3. Gọi Gemini API → sinh nội dung (10-30s)
+4. Tạo file (PPTX, JSON, ...)
+5. Upload file lên MinIO
+6. Lưu metadata vào MongoDB
+7. Lưu kết quả vào Redis (db1) → user biết đã xong
+
+**Retry:** Nếu lỗi (hết API key, timeout...) → tự thử lại sau 30s, tối đa 2 lần.
+
+**Chạy trong docker-compose.yml:**
+```yaml
+celery-worker:
+  command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+  # --pool=solo: chạy 1 task tại 1 thời điểm (tránh xung đột GPU)
+  # --concurrency=4: tối đa 4 threads
+```
+
+---
+
+### 📦 MinIO trong project này
+
+**Vai trò:** Kho lưu trữ file (S3-compatible)
+
+**Lưu gì?**
+```
+uploads/                    # File user upload
+  ├─ abc-123.pdf
+  ├─ def-456.docx
+  └─ ...
+
+generated/                  # File AI tạo ra
+  ├─ slides/
+  │   └─ material-xyz.pptx
+  └─ podcasts/
+      └─ material-abc.json
+```
+
+**3 chế độ lưu (config qua .env):**
+
+| USE_OBJECT_STORAGE | USE_R2 | Lưu ở đâu? |
+|-------------------|--------|------------|
+| `false` | - | **Local** (`./storage/`) - mặc định dev |
+| `true` | `false` | **MinIO** (localhost:9000) |
+| `true` | `true` | **Cloudflare R2** (cloud) |
+
+**Trong code:**
+```python
+# Upload file
+await storage_service.upload_file(
+    file_path="/tmp/slides.pptx",
+    object_name="generated/slides/material-123.pptx",
+    content_type="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+)
+# → Trả về URL: http://minio:9000/ai-learning-storage/generated/slides/material-123.pptx
+
+# Download file
+file_bytes = await storage_service.download_file_obj(
+    object_name="generated/slides/material-123.pptx"
+)
+
+# MongoDB lưu storage_type để biết file ở đâu
+{
+  "storage_type": "minio",  # hoặc "local", "r2"
+  "file_url": "http://minio:9000/..."
+}
+```
+
+---
+
+### 🎯 Luồng hoạt động thực tế
+
+**Ví dụ: User click "Generate Slides"**
+
+```
+1️⃣ FRONTEND → Backend API
+   POST /api/generated/materials/{id}/generate/slides/async
+   
+2️⃣ BACKEND → Redis
+   - Tạo task, push vào Redis db0
+   - Trả user: {"task_id": "abc123", "status": "PENDING"}
+   
+3️⃣ CELERY WORKER → Redis → Làm việc
+   - Poll Redis db0, thấy task mới
+   - Tải file từ MinIO
+   - Gọi Gemini API → sinh nội dung slides
+   - Tạo file PPTX
+   - Upload PPTX lên MinIO
+   - Lưu metadata vào MongoDB
+   - Push kết quả vào Redis db1: {"status": "SUCCESS", "file_url": "..."}
+   
+4️⃣ FRONTEND → Backend → Redis (poll mỗi 2s)
+   GET /api/tasks/abc123/status
+   → {"status": "SUCCESS", "result": {"file_url": "http://minio:9000/..."}}
+   
+5️⃣ User click "Download"
+   FRONTEND → Backend → MinIO
+   GET /api/generated/{content_id}/download
+   → Stream file PPTX về cho user
+```
+
+---
+
+### 🔧 Kiểm tra nhanh
+
+```bash
+# Redis có chạy không?
+docker exec any2-redis redis-cli ping
+# → PONG
+
+# Celery có đang xử lý task không?
+docker logs any2-celery-worker --tail=20
+# → "Task generate_slides_task[abc123] succeeded"
+
+# Files trong MinIO?
+docker exec any2-minio mc ls myminio/ai-learning-storage/generated/slides/
+
+# Xem tasks trên Flower UI
+# → http://localhost:5555
+```
+
+---
+
+### 📊 Tóm tắt vai trò
+
+| Thành phần | Vai trò trong project | Giống như |
+|-----------|----------------------|-----------|
+| **Redis** | Trung gian liên lạc giữa Backend ↔ Celery | Bảng order |
+| **Celery Worker** | Chạy background tasks (gọi AI, tạo file) | Đầu bếp |
+| **MinIO** | Lưu files (upload + generated) | Tủ lạnh/kho |
+| **Flower** | UI giám sát tasks | Camera bếp |
+| **Redis Insight** | UI xem dữ liệu Redis | Sổ theo dõi |
+
+---
+
 ## Integration Flow
 
-### Luồng Generate Slides
+Tóm tắt nhanh:
 
 ```
 1. User upload file

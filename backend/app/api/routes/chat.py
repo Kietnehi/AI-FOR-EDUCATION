@@ -126,6 +126,7 @@ async def send_message(
         user_id=user.id,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
     )
     return ChatMessageResponse(**assistant_message)
 
@@ -145,6 +146,7 @@ async def stream_message(
         user_id=user.id,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
     )
     return StreamingResponse(
         generator, 
@@ -183,6 +185,7 @@ async def send_mascot_message(
         use_google=payload.use_google,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
     )
     return MascotChatResponse(**response)
 
@@ -203,6 +206,7 @@ async def stream_mascot_message(
         use_google=payload.use_google,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
     )
     return StreamingResponse(
         generator, 
@@ -355,6 +359,9 @@ async def web_search(
         payload.query,
         payload.use_google,
         user_id=user.id,
+        model=payload.model,
+        use_gemini_rotation=payload.use_gemini_rotation,
+        reasoning_enabled=payload.reasoning_enabled,
     )
 
     # Trích xuất kết quả tìm kiếm từ siêu dữ liệu tin nhắn
@@ -386,4 +393,28 @@ async def web_search(
         search_provider=search_results.get("search_provider", "unknown"),
         model=result.get("model_used", "unknown"),
         search_queries=search_results.get("search_queries", []),
+    )
+
+
+@router.post("/chat/sessions/{session_id}/web-search/stream")
+async def stream_web_search(
+    session_id: str,
+    payload: WebSearchRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> StreamingResponse:
+    service = ChatService(db)
+    generator = service.stream_web_search_answer(
+        session_id=session_id,
+        query=payload.query,
+        use_google=payload.use_google,
+        user_id=user.id,
+        model=payload.model,
+        use_gemini_rotation=payload.use_gemini_rotation,
+        reasoning_enabled=payload.reasoning_enabled,
+    )
+    return StreamingResponse(
+        generator,
+        media_type="application/x-ndjson",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )

@@ -24,6 +24,7 @@ class ChatMessageRequest(BaseModel):
     images: list[str] = Field(default_factory=list, description="Base64 encoded images")
     model: str | None = None
     reasoning_enabled: bool = False
+    use_gemini_rotation: bool = True
 
 
 class MascotChatRequest(BaseModel):
@@ -40,6 +41,7 @@ class MascotChatRequest(BaseModel):
     )
     model: str | None = None
     reasoning_enabled: bool = False
+    use_gemini_rotation: bool = True
 
 
 class ChatMessageResponse(BaseModel):
@@ -156,6 +158,18 @@ class WebSearchRequest(BaseModel):
     query: str = Field(description="Câu hỏi tìm kiếm")
     use_google: bool = Field(
         default=True, description="Thử Tìm kiếm Google trước (yêu cầu mô hình Gemini)"
+    )
+    model: str | None = Field(
+        default=None,
+        description="Model dùng để tinh chỉnh câu trả lời sau khi lấy kết quả search",
+    )
+    use_gemini_rotation: bool = Field(
+        default=True,
+        description="Bật Gemini rotation khi tinh chỉnh câu trả lời search",
+    )
+    reasoning_enabled: bool = Field(
+        default=False,
+        description="Bật reasoning cho bước tinh chỉnh kết quả search",
     )
 
 

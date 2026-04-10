@@ -74,6 +74,7 @@ services:
       dockerfile: Dockerfile
       args:
         INSTALL_GPU_RUNTIME: ${INSTALL_GPU_RUNTIME:-0}
+        INSTALL_LIBREOFFICE: ${INSTALL_LIBREOFFICE:-1}
         INSTALL_PLAYWRIGHT_BROWSER: ${INSTALL_PLAYWRIGHT_BROWSER:-1}
     container_name: any2-backend
     restart: unless-stopped

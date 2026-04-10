@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, RoundedBox, Sphere } from "@react-three/drei";
 import { Bot as BotIcon, Globe, History, Loader2, Mic, Plus, Send, Settings2, Square, Trash2, Volume2, VolumeX, X, Image as ImageIcon, Play, Pause } from "lucide-react";
@@ -30,6 +30,9 @@ type MiniChatMessage = {
   images?: string[];
   reasoning_details?: Record<string, any> | null;
   model_used?: string;
+  fallback_applied?: boolean;
+  is_web_search?: boolean;
+  search_provider?: string | null;
 };
 
 type PreparedTtsSegment = {
@@ -143,7 +146,9 @@ export function FloatingMascot() {
   const [sttModel, setSttModel] = useState<SttModel>("local-base");
   const [ttsLang, setTtsLang] = useState("vi");
   const [chatModel, setChatModel] = useState<string | null>(null);
+  const [modelSupportsReasoning, setModelSupportsReasoning] = useState(false);
   const [reasoningEnabled, setReasoningEnabled] = useState(false);
+  const [useGeminiRotation, setUseGeminiRotation] = useState(true);
 
   const [mascotSessionId, setMascotSessionId] = useState<string | undefined>(undefined);
   const [sessionHistory, setSessionHistory] = useState<MascotChatSession[]>([]);
@@ -300,6 +305,10 @@ export function FloatingMascot() {
             content: message.message,
             images: message.images,
             reasoning_details: message.reasoning_details,
+            model_used: message.model_used,
+            fallback_applied: message.fallback_applied,
+            is_web_search: message.is_web_search,
+            search_provider: message.search_provider,
           }))
         : [{ role: "assistant", content: DEFAULT_MASCOT_GREETING }]
     );
@@ -431,16 +440,25 @@ export function FloatingMascot() {
     };
   }, [messages, isChatOpen]);
 
-  useEffect(() => {
-    const savedSessionId = localStorage.getItem(MASCOT_SESSION_STORAGE_KEY);
+  const refreshChatSettings = useCallback(() => {
     const savedSttModel = localStorage.getItem("mascot-stt-model");
     if (savedSttModel && STT_MODEL_OPTIONS.includes(savedSttModel as SttModel)) {
       setSttModel(savedSttModel as SttModel);
     }
-    const savedChatModel = localStorage.getItem("chat_model");
+    const savedChatModel = localStorage.getItem("chat_model_id") || localStorage.getItem("chat_model");
+    const savedSupportsReasoning = localStorage.getItem("chat_model_supports_reasoning");
+    const savedUseGeminiRotation = localStorage.getItem("chat_use_gemini_rotation");
     if (savedChatModel) {
       setChatModel(savedChatModel);
     }
+    const supportsReasoning = savedSupportsReasoning === "true";
+    setModelSupportsReasoning(supportsReasoning);
+    setUseGeminiRotation(savedUseGeminiRotation !== "false");
+  }, []);
+
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem(MASCOT_SESSION_STORAGE_KEY);
+    refreshChatSettings();
 
     void refreshSessionHistory();
 
@@ -465,6 +483,10 @@ export function FloatingMascot() {
               content: message.message,
               images: message.images,
               reasoning_details: message.reasoning_details,
+              model_used: message.model_used,
+              fallback_applied: message.fallback_applied,
+              is_web_search: message.is_web_search,
+              search_provider: message.search_provider,
             }))
           );
         }
@@ -482,7 +504,29 @@ export function FloatingMascot() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshChatSettings]);
+
+  useEffect(() => {
+    const onSettingsUpdated = () => refreshChatSettings();
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || event.key.startsWith("chat_") || event.key === "mascot-stt-model") {
+        refreshChatSettings();
+      }
+    };
+
+    window.addEventListener("chat-settings-updated", onSettingsUpdated as EventListener);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("chat-settings-updated", onSettingsUpdated as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [refreshChatSettings]);
+
+  useEffect(() => {
+    if (!modelSupportsReasoning) {
+      setReasoningEnabled(false);
+    }
+  }, [modelSupportsReasoning]);
 
   useEffect(() => {
     if (mascotSessionId) {
@@ -677,10 +721,11 @@ export function FloatingMascot() {
     setChatInput("");
     setChatImages([]);
     setIsSending(true);
+    const effectiveReasoningEnabled = modelSupportsReasoning && reasoningEnabled;
 
     try {
       let currentSessionId = mascotSessionId;
-      setMessages((prev) => [...prev, { role: "assistant", content: "", reasoning_details: reasoningEnabled ? { reasoning: "" } : null }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "", reasoning_details: effectiveReasoningEnabled ? { reasoning: "" } : null }]);
 
       await streamMascotChatMessage(
         trimmed,
@@ -691,7 +736,7 @@ export function FloatingMascot() {
             if (chunk.content) {
               last.content = (last.content || "") + chunk.content;
             }
-            if (chunk.reasoning && reasoningEnabled) {
+            if (chunk.reasoning && effectiveReasoningEnabled) {
               last.reasoning_details = {
                 reasoning: (last.reasoning_details?.reasoning || "") + chunk.reasoning
               };
@@ -713,7 +758,8 @@ export function FloatingMascot() {
           useWebSearch: isWebSearchEnabled,
           useGoogle: useGoogleSearch,
           model: chatModel,
-          reasoningEnabled,
+          reasoningEnabled: effectiveReasoningEnabled,
+          useGeminiRotation,
         }
       );
 
@@ -1013,7 +1059,7 @@ export function FloatingMascot() {
                   <option value="es">Spanish</option>
                 </select>
 
-                {(chatModel?.includes("minimax") || chatModel?.includes("deepseek") || chatModel?.includes("qwen")) && (
+                {modelSupportsReasoning && (
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-light)]">
                     <label className="text-xs font-semibold text-brand-600 dark:text-brand-400">Suy luận sâu (Reasoning)</label>
                     <button
@@ -1201,8 +1247,8 @@ export function FloatingMascot() {
                         )}
                         {msg.model_used && (
                           <div className="flex justify-end">
-                            <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-brand-50/80 dark:bg-brand-900/40 text-brand-500 dark:text-brand-400 border border-brand-100 dark:border-brand-800/60 uppercase tracking-tight">
-                              <BotIcon className="w-2.5 h-2.5" />
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 uppercase tracking-tight shadow-sm">
+                              <BotIcon className="w-3 h-3" />
                               Model: {msg.model_used}
                             </span>
                           </div>

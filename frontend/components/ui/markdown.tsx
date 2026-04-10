@@ -3,6 +3,8 @@
 import React, { memo, useEffect, useState, type CSSProperties } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import { Check, Copy } from "lucide-react";
 
 interface MarkdownProps {
@@ -10,7 +12,8 @@ interface MarkdownProps {
   className?: string;
 }
 
-const REMARK_PLUGINS = [remarkGfm];
+const REMARK_PLUGINS = [remarkGfm, remarkMath];
+const REHYPE_PLUGINS = [rehypeKatex];
 
 const CodeBlock: React.FC<{ language: string; value: string }> = memo(({ language, value }) => {
   const [copied, setCopied] = useState(false);
@@ -201,6 +204,7 @@ const MarkdownBase: React.FC<MarkdownProps> = ({ content, className = "" }) => {
       <div className="max-w-none text-[var(--text-primary)]">
         <ReactMarkdown
           remarkPlugins={REMARK_PLUGINS}
+          rehypePlugins={REHYPE_PLUGINS}
           components={MARKDOWN_COMPONENTS}
         >
           {content}
