@@ -111,6 +111,7 @@ class ChatService:
         user_id: str | None = None,
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ):
         import json
         from starlette.concurrency import iterate_in_threadpool
@@ -161,6 +162,7 @@ class ChatService:
             images=images,
             model=model,
             reasoning_enabled=reasoning_enabled,
+            use_gemini_rotation=use_gemini_rotation,
         )
 
         full_content = ""
@@ -224,6 +226,7 @@ class ChatService:
         user_id: str | None = None,
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ) -> dict:
         if user_id:
             session = await self.chat_repo.get_session_for_user(
@@ -272,6 +275,7 @@ class ChatService:
             images=images,
             model=model,
             reasoning_enabled=reasoning_enabled,
+            use_gemini_rotation=use_gemini_rotation,
         )
 
         llm_metadata = {
@@ -307,6 +311,7 @@ class ChatService:
         use_google: bool = True,
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ):
         import json
         from starlette.concurrency import iterate_in_threadpool
@@ -348,15 +353,40 @@ class ChatService:
                 search_result = await asyncio.to_thread(
                     self.orchestrator.web_search, message, use_google,
                 )
-                refined_answer, refinement_model_used = await asyncio.to_thread(
-                    self._refine_web_search_answer, message, search_result,
+                refine_messages, draft_answer = self._build_web_search_refine_messages(
+                    message,
+                    search_result,
                 )
-                final_answer = refined_answer or str(search_result.get("answer", "")).strip()
+                selected_model = model or settings.web_search_refinement_model
+                sync_gen = self.llm_client.stream_text_response_chat_openai(
+                    messages=refine_messages,
+                    model=selected_model,
+                    reasoning_enabled=reasoning_enabled,
+                    use_gemini_rotation=use_gemini_rotation,
+                )
+
+                final_answer = ""
+                final_reasoning = ""
+                async for chunk in iterate_in_threadpool(sync_gen):
+                    c = chunk.get("content", "")
+                    r = chunk.get("reasoning", "")
+                    if c or r:
+                        final_answer += c
+                        final_reasoning += r
+                        yield json.dumps({"content": c, "reasoning": r}, ensure_ascii=False) + "\n"
+
+                if not final_answer.strip() and not final_reasoning.strip():
+                    final_answer = draft_answer
+
+                reasoning_details = None
+                if final_reasoning:
+                    reasoning_details = {"reasoning": final_reasoning}
+
                 search_provider = search_result.get("search_provider")
                 base_cites = search_result.get("sources", [])
 
                 web_metadata = {
-                    "model_used": refinement_model_used or search_result.get("model"),
+                    "model_used": self.llm_client.last_model_used or search_result.get("model"),
                     "fallback_applied": search_provider != "google_search",
                     "is_web_search": True,
                     "search_results": {
@@ -382,16 +412,16 @@ class ChatService:
                         "message": final_answer,
                         "created_at": utc_now(),
                         "is_web_search": True,
+                        "reasoning_details": reasoning_details,
                         **web_metadata,
                     }
                 )
 
-                yield json.dumps({"content": final_answer, "reasoning": ""}) + "\n"
                 yield json.dumps(
                     {
                         "session_id": mascot_session_id,
                         "done": True,
-                        "model": settings.web_search_refinement_model,
+                        "model": self.llm_client.last_model_used or search_result.get("model"),
                         "search_provider": search_provider,
                     }
                 ) + "\n"
@@ -429,8 +459,11 @@ class ChatService:
                     user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
         messages.append({"role": "user", "content": user_content})
 
-        sync_gen = self.llm_client.stream_text_response_chat_openai(
-            messages, model, reasoning_enabled
+        sync_gen = self.llm_client.stream_chat_unified(
+            messages,
+            model,
+            reasoning_enabled,
+            use_gemini_rotation=use_gemini_rotation,
         )
 
         full_content = ""
@@ -485,6 +518,7 @@ class ChatService:
         use_google: bool = True,
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ) -> dict:
         mascot_session: dict | None = None
         if session_id:
@@ -528,6 +562,8 @@ class ChatService:
                     self._refine_web_search_answer,
                     message,
                     search_result,
+                    model,
+                    use_gemini_rotation,
                 )
                 final_answer = (
                     refined_answer or str(search_result.get("answer", "")).strip()
@@ -574,7 +610,7 @@ class ChatService:
                 )
                 return {
                     "message": final_answer,
-                    "model": settings.web_search_refinement_model,
+                    "model": refinement_model_used or search_result.get("model"),
                     "session_id": mascot_session_id,
                     "search_provider": search_provider,
                     **web_search_metadata,
@@ -586,14 +622,6 @@ class ChatService:
         memory_messages = await self.chat_repo.list_mascot_messages(
             mascot_session_id, limit=settings.mascot_memory_turns
         )
-        memory_lines: list[str] = []
-        for item in memory_messages:
-            role = "Người dùng" if item.get("role") == "user" else "Trợ lý"
-            content = str(item.get("message", "")).strip()
-            if content:
-                memory_lines.append(f"{role}: {content[:400]}")
-        memory_text = "\n".join(memory_lines)
-
         system_prompt = (
             "Bạn là mascot trợ lý học tập thân thiện. "
             "Trả lời ngắn gọn, dễ hiểu, BẮT BUỘC bằng tiếng Việt có dấu đầy đủ và tự nhiên. "
@@ -602,61 +630,43 @@ class ChatService:
         fallback = "Mình đang gặp lỗi tạm thời. Bạn thử lại sau ít giây nhé."
         
         reasoning_details = None
-        
-        if model:
-            messages = [{"role": "system", "content": system_prompt}]
-            for item in memory_messages:
-                msg_role = "user" if item.get("role") == "user" else "assistant"
-                msg_content = str(item.get("message", "")).strip()
-                if not msg_content:
-                    continue
-                msg = {"role": msg_role, "content": msg_content}
-                if item.get("reasoning_details"):
-                    msg["reasoning_details"] = item["reasoning_details"]
-                messages.append(msg)
-            
-            user_content = [{"type": "text", "text": message}]
-            if images:
-                import base64
-                for img in images:
-                    if img.startswith("data:"):
-                        user_content.append({"type": "image_url", "image_url": {"url": img}})
-                    else:
-                        user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
-            messages.append({"role": "user", "content": user_content})
-            
-            answer, reasoning_details = await asyncio.to_thread(
-                self.llm_client.text_response_chat_openai,
-                messages=messages,
-                fallback=fallback,
-                model=model,
-                reasoning_enabled=reasoning_enabled
-            )
-            llm_metadata = {
-                "model_used": self.llm_client.last_model_used,
-                "fallback_applied": False,
-            }
-            if reasoning_details:
-                llm_metadata["reasoning_details"] = reasoning_details
-        else:
-            user_prompt = message
-            if memory_text:
-                user_prompt = f"Lịch sử hội thoại gần đây:\n{memory_text}\n\nTin nhắn hiện tại: {message}"
 
-            answer = await asyncio.to_thread(
-                self.llm_client.text_response_openai,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                fallback=fallback,
-                model=settings.mascot_chat_model,
-                images=images,
-            )
+        messages = [{"role": "system", "content": system_prompt}]
+        for item in memory_messages:
+            msg_role = "user" if item.get("role") == "user" else "assistant"
+            msg_content = str(item.get("message", "")).strip()
+            if not msg_content:
+                continue
+            msg = {"role": msg_role, "content": msg_content}
+            if item.get("reasoning_details"):
+                msg["reasoning_details"] = item["reasoning_details"]
+            messages.append(msg)
 
-            # Lấy metadata (mascot không dùng fallback, nhưng vẫn lấy model_used)
-            llm_metadata = {
-                "model_used": self.llm_client.last_model_used,
-                "fallback_applied": False,  # mascot luôn dùng OpenAI trực tiếp
-            }
+        user_content = [{"type": "text", "text": message}]
+        if images:
+            for img in images:
+                if img.startswith("data:"):
+                    user_content.append({"type": "image_url", "image_url": {"url": img}})
+                else:
+                    user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
+        messages.append({"role": "user", "content": user_content})
+
+        selected_model = model or settings.mascot_chat_model
+        answer, reasoning_details = await asyncio.to_thread(
+            self.llm_client.text_chat_unified,
+            messages=messages,
+            fallback=fallback,
+            model=selected_model,
+            reasoning_enabled=reasoning_enabled,
+            use_gemini_rotation=use_gemini_rotation,
+        )
+
+        llm_metadata = {
+            "model_used": self.llm_client.last_model_used,
+            "fallback_applied": getattr(self.llm_client, "fallback_used", False),
+        }
+        if reasoning_details:
+            llm_metadata["reasoning_details"] = reasoning_details
 
         await self.chat_repo.create_mascot_message(
             {
@@ -686,6 +696,9 @@ class ChatService:
         query: str,
         use_google: bool = True,
         user_id: str | None = None,
+        model: str | None = None,
+        use_gemini_rotation: bool = True,
+        reasoning_enabled: bool = False,
     ) -> dict:
         """
         Tìm kiếm web và trả về câu trả lời được định dạng với trích dẫn đầy đủ
@@ -740,6 +753,9 @@ class ChatService:
                 self._refine_web_search_answer,
                 query,
                 search_result,
+                model,
+                use_gemini_rotation,
+                reasoning_enabled,
             )
         except Exception:
             # Nếu bước biên tập lỗi, vẫn trả kết quả web search gốc để không gián đoạn trải nghiệm.
@@ -795,17 +811,150 @@ class ChatService:
 
         return assistant_msg
 
-    def _refine_web_search_answer(
+    async def stream_web_search_answer(
+        self,
+        session_id: str,
+        query: str,
+        use_google: bool = True,
+        user_id: str | None = None,
+        model: str | None = None,
+        use_gemini_rotation: bool = True,
+        reasoning_enabled: bool = False,
+    ):
+        import json
+        from starlette.concurrency import iterate_in_threadpool
+
+        if user_id:
+            session = await self.chat_repo.get_session_for_user(
+                parse_object_id(session_id), user_id
+            )
+        else:
+            session = await self.chat_repo.get_session(parse_object_id(session_id))
+        if not session:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
+
+        now = utc_now()
+        await self.chat_repo.create_message(
+            {
+                "session_id": session_id,
+                "role": "user",
+                "message": query,
+                "images": [],
+                "citations": [],
+                "created_at": now,
+            }
+        )
+
+        try:
+            search_result = await asyncio.to_thread(
+                self.orchestrator.web_search,
+                query,
+                use_google,
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Tìm kiếm web thất bại: {str(e)}"
+            )
+
+        citations = [
+            {
+                "material_id": f"web_{cite['source']}",
+                "chunk_id": f"source_{cite['index']}",
+                "chunk_index": cite["index"],
+                "snippet": cite["title"],
+            }
+            for cite in search_result.get("citations", [])
+        ]
+        yield json.dumps({"citations": citations}, ensure_ascii=False) + "\n"
+
+        refine_messages, draft_answer = self._build_web_search_refine_messages(
+            query,
+            search_result,
+        )
+        selected_model = model or settings.web_search_refinement_model
+        sync_gen = self.llm_client.stream_text_response_chat_openai(
+            messages=refine_messages,
+            model=selected_model,
+            reasoning_enabled=reasoning_enabled,
+            use_gemini_rotation=use_gemini_rotation,
+        )
+
+        full_content = ""
+        full_reasoning = ""
+        async for chunk in iterate_in_threadpool(sync_gen):
+            c = chunk.get("content", "")
+            r = chunk.get("reasoning", "")
+            if c or r:
+                full_content += c
+                full_reasoning += r
+                yield json.dumps({"content": c, "reasoning": r}, ensure_ascii=False) + "\n"
+
+        if not full_content.strip() and not full_reasoning.strip():
+            full_content = draft_answer
+
+        reasoning_details = None
+        if full_reasoning:
+            reasoning_details = {"reasoning": full_reasoning}
+
+        assistant_msg = await self.chat_repo.create_message(
+            {
+                "session_id": session_id,
+                "role": "assistant",
+                "message": full_content,
+                "citations": citations,
+                "created_at": utc_now(),
+                "model_used": self.llm_client.last_model_used or search_result.get("model"),
+                "fallback_applied": search_result.get("search_provider") != "google_search",
+                "is_web_search": True,
+                "reasoning_details": reasoning_details,
+                "search_results": {
+                    "sources": [
+                        {
+                            "index": s["index"],
+                            "title": s["title"],
+                            "uri": s["uri"],
+                            "snippet": s.get("snippet", ""),
+                        }
+                        for s in search_result.get("sources", [])
+                    ],
+                    "search_provider": search_result.get("search_provider"),
+                    "search_queries": search_result.get("search_queries", []),
+                    "raw_text": str(
+                        search_result.get("raw_text")
+                        or search_result.get("answer")
+                        or ""
+                    ),
+                    "refined_with_llm": bool(self.llm_client.last_model_used),
+                    "search_model": search_result.get("model"),
+                },
+            }
+        )
+
+        await self.chat_repo.update_session(
+            parse_object_id(session_id), {"updated_at": utc_now()}
+        )
+
+        yield json.dumps(
+            {
+                "done": True,
+                "model": assistant_msg.get("model_used") or self.llm_client.last_model_used,
+                "search_provider": search_result.get("search_provider"),
+            },
+            ensure_ascii=False,
+        ) + "\n"
+
+    def _build_web_search_refine_messages(
         self,
         query: str,
         search_result: dict,
-    ) -> tuple[str, str | None]:
-        """Biên tập lại câu trả lời web search bằng LLM, giữ nguyên toàn bộ thông tin."""
+    ) -> tuple[list[dict], str]:
         draft_answer = str(search_result.get("answer", "")).strip()
         if not draft_answer:
-            return "", None
+            return [
+                {"role": "system", "content": "Bạn là trợ lý."},
+                {"role": "user", "content": "Trả về chuỗi rỗng."},
+            ], ""
 
-        # Đưa toàn bộ dữ liệu từ tool search vào prompt để LLM không bỏ sót thông tin.
         full_tool_output = json.dumps(
             search_result, ensure_ascii=False, default=str, indent=2
         )
@@ -829,10 +978,37 @@ class ChatService:
             "4) Trả về câu trả lời hoàn chỉnh cho người dùng từ chính dữ liệu trên."
         )
 
-        refined = self.llm_client.text_response_openai(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
+        return (
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            draft_answer,
+        )
+
+    def _refine_web_search_answer(
+        self,
+        query: str,
+        search_result: dict,
+        model: str | None = None,
+        use_gemini_rotation: bool = True,
+        reasoning_enabled: bool = False,
+    ) -> tuple[str, str | None]:
+        """Biên tập lại câu trả lời web search bằng LLM, giữ nguyên toàn bộ thông tin."""
+        refine_messages, draft_answer = self._build_web_search_refine_messages(
+            query,
+            search_result,
+        )
+        if not draft_answer:
+            return "", None
+
+        selected_model = model or settings.web_search_refinement_model
+
+        refined, _ = self.llm_client.text_chat_unified(
+            messages=refine_messages,
             fallback=draft_answer,
-            model=settings.web_search_refinement_model,
+            model=selected_model,
+            reasoning_enabled=reasoning_enabled,
+            use_gemini_rotation=use_gemini_rotation,
         )
         return (refined or draft_answer).strip(), self.llm_client.last_model_used

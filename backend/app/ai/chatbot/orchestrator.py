@@ -11,7 +11,7 @@ class ChatbotOrchestrator:
         self.llm = LLMClient()
         self.web_search_orchestrator = WebSearchOrchestrator()
 
-    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False) -> dict:
+    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True) -> dict:
         contexts = self.retriever.retrieve(material_id=material_id, query=question)
 
         if not contexts:
@@ -72,7 +72,8 @@ class ChatbotOrchestrator:
                 messages=messages,
                 fallback=fallback_answer,
                 model=model,
-                reasoning_enabled=reasoning_enabled
+                reasoning_enabled=reasoning_enabled,
+                use_gemini_rotation=use_gemini_rotation,
             )
         else:
             answer = self.llm.text_response(system_prompt, user_prompt, fallback_answer, images=images)
@@ -88,7 +89,7 @@ class ChatbotOrchestrator:
         ]
         return {"answer": answer, "citations": citations, "reasoning_details": reasoning_details}
 
-    def stream_answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False):
+    def stream_answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True):
         contexts = self.retriever.retrieve(material_id=material_id, query=question)
 
         if not contexts:
@@ -142,7 +143,8 @@ class ChatbotOrchestrator:
         gen = self.llm.stream_chat_unified(
             messages=messages,
             model=model,
-            reasoning_enabled=reasoning_enabled
+            reasoning_enabled=reasoning_enabled,
+            use_gemini_rotation=use_gemini_rotation,
         )
         
         for chunk in gen:

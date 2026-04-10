@@ -447,7 +447,7 @@ export async function sendChatMessage(
   sessionId: string,
   message: string,
   images?: string[],
-  options?: { model?: string | null; reasoningEnabled?: boolean }
+  options?: { model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<ChatMessage> {
   const chatMessage = await apiFetch<ChatMessage>(`/chat/sessions/${sessionId}/message`, {
     method: "POST",
@@ -456,6 +456,7 @@ export async function sendChatMessage(
       images: images || [],
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
   invalidateCache(`/chat/sessions/${sessionId}`);
@@ -467,7 +468,7 @@ export async function streamChatMessage(
   message: string,
   onChunk: (chunk: { content: string; reasoning: string; citations?: any[]; model?: string; done?: boolean }) => void,
   images?: string[],
-  options?: { model?: string | null; reasoningEnabled?: boolean }
+  options?: { model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/message/stream`, {
     method: "POST",
@@ -480,6 +481,7 @@ export async function streamChatMessage(
       images: images || [],
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
 
@@ -535,7 +537,7 @@ export async function sendMascotChatMessage(
   message: string,
   sessionId?: string,
   images?: string[],
-  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean }
+  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<MascotChatResponse> {
   const result = await apiFetch<MascotChatResponse>("/chat/mascot/message", {
     method: "POST",
@@ -547,6 +549,7 @@ export async function sendMascotChatMessage(
       use_google: options?.useGoogle ?? true,
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
   invalidateCache("/chat/mascot/sessions");
@@ -559,7 +562,7 @@ export async function streamMascotChatMessage(
   onChunk: (chunk: { content: string; reasoning: string; model?: string; session_id?: string; done?: boolean }) => void,
   sessionId?: string,
   images?: string[],
-  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean }
+  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/chat/mascot/message/stream`, {
     method: "POST",
@@ -575,6 +578,7 @@ export async function streamMascotChatMessage(
       use_google: options?.useGoogle ?? true,
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
 
@@ -631,13 +635,94 @@ export async function streamMascotChatMessage(
   }
 }
 
-export async function webSearch(sessionId: string, query: string, useGoogle: boolean = true): Promise<any> {
+export async function webSearch(
+  sessionId: string,
+  query: string,
+  useGoogle: boolean = true,
+  options?: { model?: string | null; useGeminiRotation?: boolean; reasoningEnabled?: boolean }
+): Promise<any> {
   const result = await apiFetch<any>(`/chat/sessions/${sessionId}/web-search`, {
     method: "POST",
-    body: JSON.stringify({ query, use_google: useGoogle }),
+    body: JSON.stringify({
+      query,
+      use_google: useGoogle,
+      model: options?.model || null,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
+      reasoning_enabled: options?.reasoningEnabled ?? false,
+    }),
   });
   invalidateCache(`/chat/sessions/${sessionId}`);
   return result;
+}
+
+export async function streamWebSearch(
+  sessionId: string,
+  query: string,
+  onChunk: (chunk: { content?: string; reasoning?: string; citations?: any[]; model?: string; done?: boolean; search_provider?: string }) => void,
+  options?: { useGoogle?: boolean; model?: string | null; useGeminiRotation?: boolean; reasoningEnabled?: boolean }
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/web-search/stream`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query,
+      use_google: options?.useGoogle ?? true,
+      model: options?.model || null,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
+      reasoning_enabled: options?.reasoningEnabled ?? false,
+    }),
+  });
+
+  if (!response.ok) {
+    let errMessage = `Error ${response.status}: ${response.statusText}`;
+    try {
+      const errBody = await response.json();
+      if (errBody.detail) errMessage = errBody.detail;
+    } catch {}
+    throw new Error(errMessage);
+  }
+
+  if (!response.body) {
+    throw new Error("ReadableStream not yet supported in this browser.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          onChunk(parsed);
+        } catch {
+          console.warn("Failed to parse chunk:", line);
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      try {
+        const parsed = JSON.parse(buffer);
+        onChunk(parsed);
+      } catch {}
+    }
+  } finally {
+    invalidateCache(`/chat/sessions/${sessionId}`);
+    invalidateCache("/chat/");
+  }
 }
 
 export async function searchDuckDuckGo(

@@ -109,7 +109,7 @@ RUN mkdir -p /app/storage \
     && chmod +x /app/start-backend-with-gui.sh
 
 RUN if [ "$INSTALL_PLAYWRIGHT_BROWSER" = "1" ]; then \
-        /app/.venv/bin/playwright install chrome; \
+    /app/.venv/bin/playwright install chromium; \
     fi
 
 USER appuser

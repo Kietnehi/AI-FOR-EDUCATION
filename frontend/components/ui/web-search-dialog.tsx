@@ -29,7 +29,12 @@ export function WebSearchDialog({ sessionId, isOpen, onClose, onSuccess }: WebSe
     setError(null);
 
     try {
-      const result = await webSearch(sessionId, query, useGoogle);
+      const configuredModel = localStorage.getItem("chat_model_id") || localStorage.getItem("chat_model");
+      const useGeminiRotation = localStorage.getItem("chat_use_gemini_rotation") !== "false";
+      const result = await webSearch(sessionId, query, useGoogle, {
+        model: configuredModel,
+        useGeminiRotation,
+      });
       onSuccess(result);
       setQuery("");
       onClose();

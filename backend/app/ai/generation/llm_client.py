@@ -377,15 +377,22 @@ class LLMClient:
         fallback: str,
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ) -> tuple[str, dict | None]:
         """
         Unified chat completion with fallback (Gemini -> OpenAI)
         if model is default or None.
         """
-        is_default = not model or model in ["gpt-4o-mini", "openai/gpt-4o-mini", self.openai_model] or model.endswith("gpt-4o-mini")
-        
-        if not is_default:
-            return self.text_response_chat_openai(messages, fallback, model, reasoning_enabled)
+        target_model = model or self.openai_model
+
+        if not use_gemini_rotation:
+            return self.text_response_chat_openai(
+                messages,
+                fallback,
+                target_model,
+                reasoning_enabled,
+                use_gemini_rotation=use_gemini_rotation,
+            )
 
         # Try Gemini
         try:
@@ -397,24 +404,35 @@ class LLMClient:
 
         # Fallback
         self.fallback_used = True
-        return self.text_response_chat_openai(messages, fallback, self.openai_model, reasoning_enabled)
+        return self.text_response_chat_openai(
+            messages,
+            fallback,
+            target_model,
+            reasoning_enabled,
+            use_gemini_rotation=False,
+        )
 
     def stream_chat_unified(
         self,
         messages: list[dict],
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ):
         """
         Unified streaming chat with fallback (Gemini -> OpenAI).
         As requested: if model is default (primarily RAG chat), disable 
         real-time streaming to avoid jittering in the default workflow.
         """
-        is_default = not model or model in ["gpt-4o-mini", "openai/gpt-4o-mini", self.openai_model] or model.endswith("gpt-4o-mini")
-        
-        if not is_default:
-            # Custom models selected in settings: Keep real-time streaming
-            yield from self.stream_text_response_chat_openai(messages, model, reasoning_enabled)
+        target_model = model or self.openai_model
+
+        if not use_gemini_rotation:
+            yield from self.stream_text_response_chat_openai(
+                messages,
+                target_model,
+                reasoning_enabled,
+                use_gemini_rotation=use_gemini_rotation,
+            )
             return
 
         # For Chatbot RAG's DEFAULT route: USE NON-STREAMING workflow (Gemini -> OpenAI fallback)
@@ -434,8 +452,9 @@ class LLMClient:
         answer, reasoning_details = self.text_response_chat_openai(
             messages, 
             fallback="Dữ liệu cho thấy có lỗi xảy ra. Hãy thử lại.", 
-            model=self.openai_model, 
-            reasoning_enabled=reasoning_enabled
+            model=target_model,
+            reasoning_enabled=reasoning_enabled,
+            use_gemini_rotation=False,
         )
         reasoning = (reasoning_details.get("reasoning", "") if reasoning_details else "")
         yield {"content": answer, "reasoning": reasoning}
@@ -812,6 +831,7 @@ class LLMClient:
         fallback: str,
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ) -> tuple[str, dict | None]:
         if not self.openai_client:
             logger.error("OpenAI client not initialized. Check OPENAI_API_KEY.")
@@ -825,8 +845,13 @@ class LLMClient:
             },
         )
 
+        requested_model = model or self.openai_model
+        model_for_openai = requested_model
+        if use_gemini_rotation and requested_model.endswith("gpt-4o-mini"):
+            model_for_openai = self.openai_model
+
         request_payload = {
-            "model": model or self.openai_model,
+            "model": model_for_openai,
             "messages": messages,
         }
         if reasoning_enabled:
@@ -852,10 +877,10 @@ class LLMClient:
                 reasoning_details["reasoning"] = reasoning
                 
             if content is not None and content != "":
-                self.last_model_used = model or self.openai_model
+                self.last_model_used = model_for_openai
                 return str(content).strip(), reasoning_details
             elif reasoning_details:
-                self.last_model_used = model or self.openai_model
+                self.last_model_used = model_for_openai
                 return "", reasoning_details
             else:
                 logger.warning("OpenAI returned empty response")
@@ -878,14 +903,20 @@ class LLMClient:
         messages: list[dict],
         model: str | None = None,
         reasoning_enabled: bool = False,
+        use_gemini_rotation: bool = True,
     ):
         if not self.openai_client:
             logger.error("OpenAI client not initialized. Check OPENAI_API_KEY.")
             yield {"content": "", "reasoning": ""}
             return
 
+        requested_model = model or self.openai_model
+        model_for_openai = requested_model
+        if use_gemini_rotation and requested_model.endswith("gpt-4o-mini"):
+            model_for_openai = self.openai_model
+
         request_payload = {
-            "model": model or self.openai_model,
+            "model": model_for_openai,
             "messages": messages,
             "stream": True,
             "stream_options": {"include_usage": False}
@@ -898,7 +929,7 @@ class LLMClient:
 
         try:
             response = self.openai_client.chat.completions.create(**request_payload)
-            self.last_model_used = model or self.openai_model
+            self.last_model_used = model_for_openai
             for chunk in response:
                 delta = getattr(getattr(chunk, "choices", [None])[0], "delta", None)
                 if delta:

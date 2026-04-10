@@ -44,9 +44,9 @@ import {
   listChatSessions,
   sendChatMessage,
   streamChatMessage,
+  streamWebSearch,
   synthesizeChatSpeech,
   transcribeChatAudio,
-  webSearch,
 } from "@/lib/api";
 import { formatVietnamDateTime } from "@/lib/datetime";
 import { getAudioDurationFromUrl, getSegmentBaseTime, splitTextForTts } from "@/lib/tts";
@@ -121,14 +121,14 @@ const ChatMessageItem = memo(function ChatMessageItem({
            <div className="mt-1 flex items-center justify-between gap-2 overflow-hidden mb-2">
              <div className="flex flex-wrap items-center gap-1.5 leading-none">
                {message.model_used && (
-                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-brand-50/80 dark:bg-brand-900/40 text-brand-500 dark:text-brand-400 border border-brand-100 dark:border-brand-800/60 uppercase tracking-tight">
-                   <Bot className="w-2.5 h-2.5" />
+                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 uppercase tracking-tight shadow-sm">
+                   <Bot className="w-3 h-3" />
                    Model: {message.model_used}
                  </span>
                )}
                {message.fallback_applied && (
-                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight">
-                   <AlertCircle className="w-2.5 h-2.5" />
+                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 uppercase tracking-tight shadow-sm">
+                   <AlertCircle className="w-3 h-3" />
                    Dự phòng
                  </span>
                )}
@@ -266,7 +266,9 @@ export default function ChatbotPage() {
    const [initializing, setInitializing] = useState(true);
   const [isStartingNewChat, setIsStartingNewChat] = useState(false);
   const [chatModel, setChatModel] = useState<string | null>(null);
+  const [modelSupportsReasoning, setModelSupportsReasoning] = useState(false);
   const [reasoningEnabled, setReasoningEnabled] = useState(false);
+  const [useGeminiRotation, setUseGeminiRotation] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -439,10 +441,44 @@ export default function ChatbotPage() {
     };
   }, [materialId, refreshSessionHistory]);
 
-  useEffect(() => {
-    const savedModel = localStorage.getItem("chat_model");
-    if (savedModel) setChatModel(savedModel);
+  const refreshChatSettings = useCallback(() => {
+    const savedModel = localStorage.getItem("chat_model_id") || localStorage.getItem("chat_model");
+    const savedSupportsReasoning = localStorage.getItem("chat_model_supports_reasoning");
+    const savedUseGeminiRotation = localStorage.getItem("chat_use_gemini_rotation");
+
+    if (savedModel) {
+      setChatModel(savedModel);
+    }
+    const supportsReasoning = savedSupportsReasoning === "true";
+    setModelSupportsReasoning(supportsReasoning);
+    setUseGeminiRotation(savedUseGeminiRotation !== "false");
   }, []);
+
+  useEffect(() => {
+    refreshChatSettings();
+  }, [refreshChatSettings]);
+
+  useEffect(() => {
+    const onSettingsUpdated = () => refreshChatSettings();
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || event.key.startsWith("chat_")) {
+        refreshChatSettings();
+      }
+    };
+
+    window.addEventListener("chat-settings-updated", onSettingsUpdated as EventListener);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("chat-settings-updated", onSettingsUpdated as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [refreshChatSettings]);
+
+  useEffect(() => {
+    if (!modelSupportsReasoning) {
+      setReasoningEnabled(false);
+    }
+  }, [modelSupportsReasoning]);
 
   useEffect(() => {
     if (!materialId || !sessionId) {
@@ -683,29 +719,63 @@ export default function ChatbotPage() {
      setInput("");
      setImages([]);
      setLoading(true);
+    const effectiveReasoningEnabled = modelSupportsReasoning && reasoningEnabled;
 
      try {
        if (isWebSearchEnabled) {
-         const result = await webSearch(sessionId, question, useGoogleSearch);
-         if (result) {
-           const searchMessage: ChatMessage = {
+         setMessages((prev) => [
+           ...prev,
+           {
              id: `web-search-${Date.now()}`,
              role: "assistant",
              session_id: sessionId,
-             message: result.answer,
-             citations: Array.isArray(result.citations) ? result.citations : [],
+             message: "",
+             citations: [],
              created_at: new Date().toISOString(),
-             model_used: result.model,
-             fallback_applied: result.search_provider !== "google_search",
-             search_results: {
-               sources: Array.isArray(result.sources) ? result.sources : [],
-               search_provider: result.search_provider,
-               search_queries: result.search_queries,
-             },
+             reasoning_details: effectiveReasoningEnabled ? { reasoning: "" } : null,
              is_web_search: true,
-           };
-           setMessages((prev) => [...prev, searchMessage]);
-         }
+           } as ChatMessage,
+         ]);
+
+         await streamWebSearch(
+           sessionId,
+           question,
+           (chunk) => {
+             setMessages((prev) => {
+               const next = [...prev];
+               const last = { ...next[next.length - 1] };
+               if (chunk.content) {
+                 last.message = (last.message || "") + chunk.content;
+               }
+               if (chunk.reasoning && effectiveReasoningEnabled) {
+                 last.reasoning_details = {
+                   reasoning: (last.reasoning_details?.reasoning || "") + chunk.reasoning,
+                 };
+               }
+               if (Array.isArray(chunk.citations)) {
+                 last.citations = chunk.citations;
+               }
+               if (chunk.model) {
+                 last.model_used = chunk.model;
+               }
+               if (chunk.search_provider) {
+                 last.fallback_applied = chunk.search_provider !== "google_search";
+                 last.search_results = {
+                   ...(last.search_results || {}),
+                   search_provider: chunk.search_provider,
+                 };
+               }
+               next[next.length - 1] = last;
+               return next;
+             });
+           },
+           {
+             useGoogle: useGoogleSearch,
+             model: chatModel,
+             useGeminiRotation,
+             reasoningEnabled: effectiveReasoningEnabled,
+           }
+         );
        } else {
          setMessages((prev) => [
            ...prev,
@@ -716,7 +786,7 @@ export default function ChatbotPage() {
              message: "",
              citations: [],
              created_at: new Date().toISOString(),
-             reasoning_details: reasoningEnabled ? { reasoning: "" } : null
+             reasoning_details: effectiveReasoningEnabled ? { reasoning: "" } : null
            } as ChatMessage,
          ]);
 
@@ -730,7 +800,7 @@ export default function ChatbotPage() {
                if (chunk.content) {
                  last.message = (last.message || "") + chunk.content;
                }
-               if (chunk.reasoning && reasoningEnabled) {
+               if (chunk.reasoning && effectiveReasoningEnabled) {
                  last.reasoning_details = {
                    reasoning: (last.reasoning_details?.reasoning || "") + chunk.reasoning
                  };
@@ -749,7 +819,8 @@ export default function ChatbotPage() {
            currentImages,
            {
              model: chatModel,
-             reasoningEnabled,
+             reasoningEnabled: effectiveReasoningEnabled,
+             useGeminiRotation,
            }
          );
        }
@@ -1054,14 +1125,14 @@ export default function ChatbotPage() {
                       <div className="mt-2 flex items-center justify-between gap-2 overflow-hidden">
                         <div className="flex flex-wrap items-center gap-2">
                           {msg.model_used && (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-brand-50/50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-900/50">
-                              <Bot className="w-2.5 h-2.5" />
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 uppercase tracking-tight shadow-sm">
+                              <Bot className="w-3 h-3" />
                               Model: {msg.model_used}
                             </span>
                           )}
                           {msg.fallback_applied && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-600 border border-amber-200/50">
-                              <AlertCircle className="w-2.5 h-2.5" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 uppercase tracking-tight shadow-sm">
+                              <AlertCircle className="w-3 h-3" />
                               Dự phòng
                             </span>
                           )}
@@ -1189,7 +1260,7 @@ export default function ChatbotPage() {
                 <option value="es">Spanish</option>
               </select>
             </div>
-            {(chatModel?.includes("minimax") || chatModel?.includes("deepseek") || chatModel?.includes("qwen")) && (
+            {modelSupportsReasoning && (
               <div className="flex items-center">
                 <label className="text-xs text-[var(--text-tertiary)] mr-2 flex items-center gap-1" title="Bật tính năng Suy luận sâu">Suy luận sâu (Reasoning)</label>
                 <button
