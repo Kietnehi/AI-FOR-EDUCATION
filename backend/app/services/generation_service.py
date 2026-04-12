@@ -2,6 +2,8 @@ import asyncio
 import mimetypes
 from pathlib import Path
 
+from celery import Celery
+from celery.result import AsyncResult
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -16,6 +18,7 @@ from app.ai.parsing.text_chunker import split_text_into_chunks
 from app.core.config import settings
 from app.core.logging import logger
 from app.repositories.generated_content_repository import GeneratedContentRepository
+from app.repositories.job_repository import JobRepository
 from app.services.material_service import MaterialService
 from app.services.storage import storage_service
 from app.utils.object_id import parse_object_id
@@ -25,6 +28,7 @@ class GenerationService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.db = db
         self.generated_repo = GeneratedContentRepository(db)
+        self.job_repo = JobRepository(db)
         self.material_service = MaterialService(db)
         self.slide_generator = SlideGenerator()
         self.podcast_generator = PodcastGenerator()
@@ -32,6 +36,83 @@ class GenerationService:
         self.audio_generator = AudioGenerator(uploads_dir=str(Path(settings.generated_dir) / "podcasts"))
         self.image_fetcher = ImageFetcher()
         self.image_extractor = ImageExtractor()
+
+    async def register_generation_task(
+        self,
+        task_id: str,
+        material_id: str,
+        user_id: str,
+        task_type: str,
+    ) -> None:
+        await self.job_repo.create(
+            {
+                "job_id": task_id,
+                "job_type": f"generation_{task_type}",
+                "material_id": material_id,
+                "user_id": user_id,
+                "status": "queued",
+                "created_at": utc_now(),
+            }
+        )
+
+    async def get_generation_task_status(
+        self,
+        task_id: str,
+        user_id: str,
+        celery_app: Celery,
+    ) -> dict:
+        job = await self.job_repo.get_by_job_id(task_id)
+        if not job or job.get("user_id") != user_id:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        task = AsyncResult(task_id, app=celery_app)
+        info = task.info if isinstance(task.info, dict) else {}
+        state = task.state.upper()
+
+        if state == "PENDING":
+            await self.job_repo.update_status(task_id, "pending")
+            return {
+                "task_id": task_id,
+                "status": "pending",
+                "celery_state": state,
+                "progress": 0,
+            }
+
+        if state in {"STARTED", "RETRY"}:
+            await self.job_repo.update_status(task_id, "processing")
+            return {
+                "task_id": task_id,
+                "status": "processing",
+                "celery_state": state,
+                "progress": info.get("progress") if isinstance(info.get("progress"), int) else None,
+            }
+
+        if state == "SUCCESS":
+            await self.job_repo.update_status(task_id, "completed", {"finished_at": utc_now()})
+            result_payload = task.result if isinstance(task.result, dict) else {"value": task.result}
+            return {
+                "task_id": task_id,
+                "status": "completed",
+                "celery_state": state,
+                "progress": 100,
+                "result": result_payload,
+            }
+
+        error_detail = str(task.info) if task.info else "Task failed"
+        await self.job_repo.update_status(
+            task_id,
+            "failed",
+            {
+                "error": error_detail,
+                "finished_at": utc_now(),
+            },
+        )
+        return {
+            "task_id": task_id,
+            "status": "failed",
+            "celery_state": state,
+            "error": error_detail,
+        }
 
     async def _next_version(
         self,

@@ -105,6 +105,7 @@ async def ensure_indexes() -> None:
 
     await db.processing_jobs.create_indexes(
         [
+            IndexModel([("job_id", ASCENDING)], unique=True),
             IndexModel([("job_type", ASCENDING), ("status", ASCENDING)]),
             IndexModel([("material_id", ASCENDING), ("created_at", ASCENDING)]),
         ]
@@ -119,5 +120,12 @@ async def ensure_indexes() -> None:
     await db.audio_assets.create_indexes([IndexModel([("generated_content_id", ASCENDING)])])
     await db.slide_assets.create_indexes([IndexModel([("generated_content_id", ASCENDING)])])
     await db.analytics_events.create_indexes([IndexModel([("event_type", ASCENDING), ("created_at", ASCENDING)])])
+
+    await db.youtube_lesson_history.create_indexes(
+        [
+            IndexModel([("user_id", ASCENDING), ("video.video_id", ASCENDING)], unique=True),
+            IndexModel([("user_id", ASCENDING), ("updated_at", ASCENDING)]),
+        ]
+    )
 
     logger.info("MongoDB indexes ensured")

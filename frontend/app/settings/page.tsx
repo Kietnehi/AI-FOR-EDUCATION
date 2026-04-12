@@ -211,9 +211,9 @@ export default function SettingsPage() {
       ),
     },
     {
-      title: "Mô hình AI",
+      title: "Chatbot AI",
       icon: Bot,
-      desc: "Cấu hình model, reasoning và chiến lược chạy",
+      desc: "Chọn model AI cho Chatbot và Mascot (không áp dụng cho tạo slide, podcast, minigame)",
       action: (
         <div className="w-full max-w-[460px] flex flex-col gap-4 mt-4 lg:mt-0 p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-primary)] shadow-sm">
           {/* Chọn Model */}

@@ -4,7 +4,7 @@ import asyncio
 from fastapi import FastAPI
 
 from app.core import logging as app_logging
-from app.main import app, health_check, lifespan
+from app.main import app, health_check, lifespan, queue_health
 
 
 def test_configure_logging_uses_expected_settings(monkeypatch) -> None:
@@ -24,6 +24,52 @@ def test_configure_logging_uses_expected_settings(monkeypatch) -> None:
 
 async def test_health_check_returns_ok_status() -> None:
     assert await health_check() == {"status": "ok"}
+
+
+async def test_queue_health_returns_stats(monkeypatch) -> None:
+    async def fake_to_thread(func):
+        return func()
+
+    monkeypatch.setattr("app.main.asyncio.to_thread", fake_to_thread)
+
+    class FakeRedis:
+        def __init__(self, url: str, *_args, **_kwargs):
+            self.url = url
+
+        @classmethod
+        def from_url(cls, url: str, *_args, **_kwargs):
+            return cls(url)
+
+        def llen(self, key: str) -> int:
+            assert key == "celery"
+            return 7
+
+        def dbsize(self) -> int:
+            return 11
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr("redis.Redis", FakeRedis)
+
+    assert await queue_health() == {
+        "status": "ok",
+        "queue_depth": 7,
+        "result_backend_keys": 11,
+    }
+
+
+async def test_queue_health_returns_degraded_on_error(monkeypatch) -> None:
+    async def fake_to_thread(_func):
+        raise RuntimeError("redis down")
+
+    monkeypatch.setattr("app.main.asyncio.to_thread", fake_to_thread)
+
+    assert await queue_health() == {
+        "status": "degraded",
+        "queue_depth": -1,
+        "result_backend_keys": -1,
+    }
 
 
 class FakeLoop:
@@ -106,4 +152,5 @@ def test_main_app_registers_health_and_api_routes() -> None:
     paths = {route.path for route in app.routes}
 
     assert "/health" in paths
+    assert "/health/queue" in paths
     assert "/api/materials" in paths
