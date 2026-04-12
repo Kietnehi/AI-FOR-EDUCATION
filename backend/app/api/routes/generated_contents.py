@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from celery.result import AsyncResult
 
 from app.api.dependencies import get_current_user, get_database
 from app.schemas.auth import AuthUser
@@ -101,6 +100,7 @@ async def queue_generate_slides(
     user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    service = GenerationService(db)
     material_service = MaterialService(db)
     await material_service.get_material(material_id, user_id=user.id)
     task = generate_slides_task.delay(
@@ -109,6 +109,7 @@ async def queue_generate_slides(
         payload.max_slides,
         payload.skip_refine,
     )
+    await service.register_generation_task(task.id, material_id, user.id, "slides")
     return GenerationTaskQueuedResponse(
         task_id=task.id,
         message="Slide generation task queued",
@@ -122,6 +123,7 @@ async def queue_generate_podcast(
     user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    service = GenerationService(db)
     material_service = MaterialService(db)
     await material_service.get_material(material_id, user_id=user.id)
     task = generate_podcast_task.delay(
@@ -129,6 +131,7 @@ async def queue_generate_podcast(
         payload.style,
         payload.target_duration_minutes,
     )
+    await service.register_generation_task(task.id, material_id, user.id, "podcast")
     return GenerationTaskQueuedResponse(
         task_id=task.id,
         message="Podcast generation task queued",
@@ -142,9 +145,11 @@ async def queue_generate_minigame(
     user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    service = GenerationService(db)
     material_service = MaterialService(db)
     await material_service.get_material(material_id, user_id=user.id)
     task = generate_minigame_task.delay(material_id, payload.game_type, payload.difficulty)
+    await service.register_generation_task(task.id, material_id, user.id, "minigame")
     return GenerationTaskQueuedResponse(
         task_id=task.id,
         message="Minigame generation task queued",
@@ -155,44 +160,11 @@ async def queue_generate_minigame(
 async def get_generation_task_status(
     task_id: str,
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskStatusResponse:
-    task = AsyncResult(task_id, app=celery_app)
-    info = task.info if isinstance(task.info, dict) else {}
-
-    state = task.state.upper()
-    if state == "PENDING":
-        return GenerationTaskStatusResponse(
-            task_id=task_id,
-            status="pending",
-            celery_state=state,
-            progress=0,
-        )
-
-    if state in {"STARTED", "RETRY"}:
-        return GenerationTaskStatusResponse(
-            task_id=task_id,
-            status="processing",
-            celery_state=state,
-            progress=info.get("progress") if isinstance(info.get("progress"), int) else None,
-        )
-
-    if state == "SUCCESS":
-        result_payload = task.result if isinstance(task.result, dict) else {"value": task.result}
-        return GenerationTaskStatusResponse(
-            task_id=task_id,
-            status="completed",
-            celery_state=state,
-            progress=100,
-            result=result_payload,
-        )
-
-    error_detail = str(task.info) if task.info else "Task failed"
-    return GenerationTaskStatusResponse(
-        task_id=task_id,
-        status="failed",
-        celery_state=state,
-        error=error_detail,
-    )
+    service = GenerationService(db)
+    status_payload = await service.get_generation_task_status(task_id, user.id, celery_app)
+    return GenerationTaskStatusResponse(**status_payload)
 
 
 @router.get("/materials/{material_id}/generated-contents", response_model=list[GeneratedContentResponse])

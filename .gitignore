@@ -84,6 +84,7 @@ backend/storage/outputs/*
 .env.*
 !.env.example
 !.env.docker.example
+cookie.txt
 backend/.env
 frontend/.env.local
 

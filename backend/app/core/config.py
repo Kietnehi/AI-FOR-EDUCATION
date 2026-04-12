@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
+    celery_result_expires_seconds: int = 86400
+    celery_task_soft_time_limit_seconds: int = 1800
+    celery_task_time_limit_seconds: int = 2100
+    celery_worker_prefetch_multiplier: int = 1
 
     chroma_persist_dir: str = "./storage/chroma"
     chroma_collection_name: str = "material_chunks"
@@ -61,6 +65,12 @@ class Settings(BaseSettings):
     groq_base_url: str = "https://api.groq.com"
     
     pexels_api_key: str = ""
+
+    ocr_space_api_key: str = ""
+    ocr_space_url: str = "https://api.ocr.space/parse/image"
+    ocr_space_timeout_seconds: int = 120
+    ocr_space_layout_engine: int = 3
+    ocr_space_boxes_engine: int = 2
 
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"

@@ -825,6 +825,135 @@ export async function generateRemediationQuickStart(
   });
 }
 
+export interface YouTubeVideoItem {
+  video_id: string;
+  title: string;
+  channel?: string | null;
+  duration_seconds?: number | null;
+  thumbnail?: string | null;
+  url: string;
+}
+
+export interface YouTubeTranscriptSegment {
+  text: string;
+  start: number;
+  duration: number;
+  timestamp: string;
+}
+
+export interface InteractiveCheckpoint {
+  start_seconds: number;
+  timestamp: string;
+  title: string;
+  key_point: string;
+  question: string;
+  choices: string[];
+  correct_answer_index: number;
+  explanation: string;
+}
+
+export interface LessonChapterItem {
+  timestamp: string;
+  title: string;
+}
+
+export interface LessonKeyNoteItem {
+  time: string;
+  note: string;
+}
+
+export interface InteractiveLessonPayload {
+  summary: string;
+  key_takeaways: string[];
+  chapters: LessonChapterItem[];
+  key_notes: LessonKeyNoteItem[];
+  checkpoints: InteractiveCheckpoint[];
+}
+
+export interface YouTubeInteractiveLessonResponse {
+  video: YouTubeVideoItem;
+  transcript: YouTubeTranscriptSegment[];
+  lesson: InteractiveLessonPayload;
+}
+
+export interface YouTubeLessonHistorySummary {
+  id: string;
+  video: YouTubeVideoItem;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YouTubeLessonHistoryDetail {
+  id: string;
+  video: YouTubeVideoItem;
+  transcript: YouTubeTranscriptSegment[];
+  lesson: InteractiveLessonPayload;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YouTubeTranslateTranscriptResponse {
+  transcript: YouTubeTranscriptSegment[];
+  target_language: string;
+}
+
+export async function searchYouTubeVideos(query: string, limit: number = 6): Promise<YouTubeVideoItem[]> {
+  const result = await apiFetch<{ items: YouTubeVideoItem[] }>("/youtube-lessons/search", {
+    method: "POST",
+    body: JSON.stringify({ query, limit }),
+    skipCache: true,
+  });
+  return result.items;
+}
+
+export async function generateInteractiveYouTubeLesson(payload: {
+  youtube_url?: string;
+  video_id?: string;
+  query?: string;
+  max_checkpoints?: number;
+  stt_model?: SttModel;
+}): Promise<YouTubeInteractiveLessonResponse> {
+  return apiFetch<YouTubeInteractiveLessonResponse>("/youtube-lessons/interactive", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    skipCache: true,
+  });
+}
+
+export async function listYouTubeLessonHistory(
+  skip: number = 0,
+  limit: number = 20
+): Promise<{ items: YouTubeLessonHistorySummary[]; total: number }> {
+  return apiFetch<{ items: YouTubeLessonHistorySummary[]; total: number }>(
+    `/youtube-lessons/history?skip=${skip}&limit=${limit}`,
+    { skipCache: true }
+  );
+}
+
+export async function getYouTubeLessonHistoryDetail(id: string): Promise<YouTubeLessonHistoryDetail> {
+  return apiFetch<YouTubeLessonHistoryDetail>(`/youtube-lessons/history/${id}`, {
+    skipCache: true,
+  });
+}
+
+export async function deleteYouTubeLessonHistory(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/youtube-lessons/history/${id}`, {
+    method: "DELETE",
+    skipCache: true,
+  });
+}
+
+export async function translateYouTubeTranscript(
+  transcript: YouTubeTranscriptSegment[],
+  targetLanguage: string
+): Promise<YouTubeTranslateTranscriptResponse> {
+  return apiFetch<YouTubeTranslateTranscriptResponse>("/youtube-lessons/translate-transcript", {
+    method: "POST",
+    body: JSON.stringify({ transcript, target_language: targetLanguage }),
+    skipCache: true,
+  });
+}
+
 type FileUrlMode = "download" | "preview";
 
 function getApiHost(): string {
