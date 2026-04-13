@@ -11,6 +11,7 @@ ARG INSTALL_PLAYWRIGHT_BROWSER=0
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=300 \
     DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
     VIRTUAL_ENV=/app/.venv \
@@ -30,12 +31,28 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.24 /uv /usr/local/bin/uv
 COPY requirements*.txt ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    python -m venv "$VIRTUAL_ENV" \
-    && uv pip install --python "$VIRTUAL_ENV/bin/python" -r "$REQUIREMENTS_FILE" \
-    && if [ "$INSTALL_GPU_RUNTIME" = "1" ]; then \
-        uv pip install --python "$VIRTUAL_ENV/bin/python" --index-url "https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL}" torch torchvision; \
-        uv pip install --python "$VIRTUAL_ENV/bin/python" onnxruntime-gpu; \
-    fi
+    set -eux; \
+    pip_install_with_retry() { \
+        for attempt in 1 2 3; do \
+            if "$VIRTUAL_ENV/bin/pip" install --no-cache-dir --retries 10 --timeout 300 "$@"; then \
+                return 0; \
+            fi; \
+            if [ "$attempt" = "3" ]; then \
+                return 1; \
+            fi; \
+            echo "pip install failed (attempt $attempt), retrying: $*"; \
+        done; \
+    }; \
+    python -m venv "$VIRTUAL_ENV"; \
+    grep -viE '^(torch|onnxruntime)([<>=!~ ].*)?$' "$REQUIREMENTS_FILE" > /tmp/requirements.base.txt; \
+    if [ "$INSTALL_GPU_RUNTIME" = "1" ]; then \
+        pip_install_with_retry --index-url "https://download.pytorch.org/whl/${TORCH_CUDA_CHANNEL}" torch torchvision; \
+        pip_install_with_retry onnxruntime-gpu; \
+    else \
+        pip_install_with_retry --index-url "https://download.pytorch.org/whl/cpu" torch; \
+        pip_install_with_retry onnxruntime; \
+    fi; \
+    pip_install_with_retry -r /tmp/requirements.base.txt
 
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
 

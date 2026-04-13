@@ -28,8 +28,8 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { TurnstileCaptcha } from "@/components/auth/turnstile-captcha";
-import { listMaterials, submitCooperationContact } from "@/lib/api";
-import { Material } from "@/types";
+import { getDashboardPersonalization, listMaterials, submitCooperationContact } from "@/lib/api";
+import { DashboardPersonalization, Material } from "@/types";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/auth-provider";
 
@@ -94,7 +94,10 @@ const statCards = [
 
 export default function DashboardPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [dashboardPersonalization, setDashboardPersonalization] =
+    useState<DashboardPersonalization | null>(null);
   const [loading, setLoading] = useState(true);
+  const [personalizationLoading, setPersonalizationLoading] = useState(false);
   const [error, setError] = useState("");
   const [showVisualizer, setShowVisualizer] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -118,15 +121,38 @@ export default function DashboardPage() {
     if (authLoading) return;
     if (!user) {
       setMaterials([]);
+      setDashboardPersonalization(null);
       setLoading(false);
       return;
     }
-    
+
+    let cancelled = false;
     setLoading(true);
-    listMaterials()
-      .then((res) => setMaterials(res.items))
-      .catch((err) => setError(String(err)))
-      .finally(() => setLoading(false));
+    setPersonalizationLoading(true);
+    setError("");
+
+    Promise.all([
+      listMaterials(),
+      getDashboardPersonalization().catch(() => null),
+    ])
+      .then(([materialsResult, personalizationResult]) => {
+        if (cancelled) return;
+        setMaterials(materialsResult.items);
+        setDashboardPersonalization(personalizationResult);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(String(err));
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+        setPersonalizationLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, authLoading]);
 
   useEffect(() => {
@@ -520,7 +546,11 @@ export default function DashboardPage() {
           const count =
             stat.label === "Học liệu"
               ? materials.length
-              : 0;
+              : stat.label === "Slide đã tạo"
+                ? dashboardPersonalization?.generated_counts?.slides ?? 0
+                : stat.label === "Podcast"
+                  ? dashboardPersonalization?.generated_counts?.podcast ?? 0
+                  : dashboardPersonalization?.generated_counts?.minigame ?? 0;
           return (
             <TiltCard key={stat.label} className="min-w-0">
               <Card className="!p-4 h-full shadow-sm hover:shadow-md transition-shadow">
@@ -539,6 +569,96 @@ export default function DashboardPage() {
         })}
         </div>
       </motion.div>
+
+      {user && dashboardPersonalization && (
+        <motion.div variants={item} className="order-4">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card className="!p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+                  Continue Learning
+                </h2>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                  {dashboardPersonalization.study_rhythm.retention_status.toUpperCase()}
+                </span>
+              </div>
+              {dashboardPersonalization.continue_learning.length === 0 ? (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Chưa đủ dữ liệu để đề xuất học liệu tiếp theo.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {dashboardPersonalization.continue_learning.map((item) => (
+                    <Link key={item.material_id} href={`/materials/${item.material_id}`} className="block no-underline">
+                      <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-secondary)] p-3 transition-colors hover:bg-[var(--bg-elevated)]">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-[var(--text-primary)] line-clamp-1">{item.title}</p>
+                          {typeof item.recommendation_score === "number" ? (
+                            <span className="text-[11px] font-semibold text-brand-600">
+                              {item.recommendation_score}%
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-xs text-[var(--text-tertiary)] line-clamp-2">{item.reason}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="!p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: "var(--font-display)" }}>
+                Suggested Next Actions
+              </h2>
+              <div className="space-y-2">
+                {dashboardPersonalization.next_actions.map((action) => (
+                  <p key={action} className="rounded-lg bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+                    {action}
+                  </p>
+                ))}
+              </div>
+              <div className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-secondary)] p-3 text-xs text-[var(--text-tertiary)]">
+                Hoạt động 7 ngày: {dashboardPersonalization.study_rhythm.events_7d} events, {" "}
+                {dashboardPersonalization.study_rhythm.active_days_7d} ngày active.
+                {dashboardPersonalization.study_rhythm.days_since_last_active != null ? (
+                  <span className="block mt-1">
+                    Lần học gần nhất: {dashboardPersonalization.study_rhythm.days_since_last_active} ngày trước.
+                  </span>
+                ) : null}
+                {dashboardPersonalization.study_rhythm.top_feature ? (
+                  <span className="block mt-1">
+                    Kênh học nổi bật: {dashboardPersonalization.study_rhythm.top_feature}.
+                  </span>
+                ) : null}
+              </div>
+            </Card>
+
+            <Card className="!p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: "var(--font-display)" }}>
+                Feature Affinity
+              </h2>
+              <div className="space-y-3">
+                {dashboardPersonalization.feature_affinity.slice(0, 5).map((item) => (
+                  <div key={item.feature}>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="font-semibold text-[var(--text-primary)]">{item.feature}</span>
+                      <span className="text-[var(--text-tertiary)]">{item.score}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[var(--bg-secondary)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500"
+                        style={{ width: `${Math.max(4, Math.min(item.score, 100))}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">{item.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </motion.div>
+      )}
 
       {/* Recent Materials */}
       <motion.div variants={item} className="order-5">
@@ -639,6 +759,9 @@ export default function DashboardPage() {
         <h2 className="text-xl font-black text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
           Công cụ AI của bạn
         </h2>
+        {personalizationLoading && user ? (
+          <p className="mb-3 text-xs font-medium text-[var(--text-tertiary)]">Đang cập nhật đề xuất cá nhân hóa...</p>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             {

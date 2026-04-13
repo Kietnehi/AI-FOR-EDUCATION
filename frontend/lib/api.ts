@@ -16,6 +16,9 @@ import {
   SttModel,
   DuckDuckGoSearchItem,
   DuckDuckGoSearchType,
+  DashboardPersonalization,
+  UserPreferences,
+  UserPreferencesUpdate,
 } from "@/types";
 
 export interface AuthUser {
@@ -215,6 +218,27 @@ export async function logout(): Promise<{ message: string }> {
 
 export async function getMe(): Promise<AuthUser> {
   return apiFetch<AuthUser>("/auth/me");
+}
+
+export async function getUserPreferences(): Promise<UserPreferences> {
+  return apiFetch<UserPreferences>("/personalization/preferences", { skipCache: true });
+}
+
+export async function updateUserPreferences(
+  payload: UserPreferencesUpdate
+): Promise<UserPreferences> {
+  const result = await apiFetch<UserPreferences>("/personalization/preferences", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  invalidateCache("/personalization/preferences", "/personalization/dashboard");
+  return result;
+}
+
+export async function getDashboardPersonalization(): Promise<DashboardPersonalization> {
+  return apiFetch<DashboardPersonalization>("/personalization/dashboard", {
+    skipCache: true,
+  });
 }
 
 export async function submitCooperationContact(

@@ -5,6 +5,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/app-shell";
 
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({ user: null }),
+}));
+
+vi.mock("@/lib/api", () => ({
+  getUserPreferences: vi.fn().mockResolvedValue({ mascot_enabled: true }),
+  updateUserPreferences: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock("next/dynamic", () => ({
   default: () => () => <div data-testid="floating-mascot">Mascot</div>,
 }));

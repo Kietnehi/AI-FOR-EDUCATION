@@ -11,6 +11,7 @@ from app.schemas.games import (
     RemediationQuickStartResponse,
 )
 from app.services.game_service import GameService
+from app.services.personalization_service import PersonalizationService
 
 router = APIRouter()
 
@@ -24,6 +25,20 @@ async def submit_game_attempt(
 ) -> GameAttemptResponse:
     service = GameService(db)
     attempt = await service.submit_attempt(generated_content_id, user.id, payload.answers)
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="game_attempt_submitted",
+        resource_type="game_attempt",
+        resource_id=attempt.get("id"),
+        metadata={
+            "generated_content_id": generated_content_id,
+            "game_type": attempt.get("game_type"),
+            "difficulty": attempt.get("difficulty"),
+            "score": attempt.get("score"),
+            "max_score": attempt.get("max_score"),
+        },
+    )
     return GameAttemptResponse(**attempt)
 
 
@@ -65,5 +80,17 @@ async def remediation_quick_start(
         user_id=user.id,
         difficulty=payload.difficulty,
         top_k_wrong_questions=payload.top_k_wrong_questions,
+    )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="remediation_quick_start_used",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={
+            "difficulty": payload.difficulty,
+            "top_k_wrong_questions": payload.top_k_wrong_questions,
+            "generated_items": len(result.get("generated_items", [])),
+        },
     )
     return RemediationQuickStartResponse(**result)

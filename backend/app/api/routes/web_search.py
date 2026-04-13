@@ -3,9 +3,11 @@ import httpx
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_database
 from app.schemas.auth import AuthUser
+from app.services.personalization_service import PersonalizationService
 
 try:
     from ddgs import DDGS
@@ -444,13 +446,39 @@ async def search_duckduckgo(
     type: SearchType = Query("text", description="Loại tìm kiếm"),
     max_results: int = Query(10, ge=1, le=50, description="Số kết quả tối đa"),
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> list[dict[str, Any]]:
+    personalization_service = PersonalizationService(db)
     try:
         if type == "books":
-            return await _search_google_books(q, max_results)
+            results = await _search_google_books(q, max_results)
+            await personalization_service.track_event(
+                user_id=user.id,
+                event_type="web_search_used",
+                resource_type="web_search",
+                metadata={
+                    "search_type": type,
+                    "query_length": len(q.strip()),
+                    "result_count": len(results),
+                    "provider": "google_books/openlibrary",
+                },
+            )
+            return results
 
         # Các loại khác chạy qua thread pool để không block event loop
-        return await asyncio.to_thread(_run_ddgs_search, q, type, max_results)
+        results = await asyncio.to_thread(_run_ddgs_search, q, type, max_results)
+        await personalization_service.track_event(
+            user_id=user.id,
+            event_type="web_search_used",
+            resource_type="web_search",
+            metadata={
+                "search_type": type,
+                "query_length": len(q.strip()),
+                "result_count": len(results),
+                "provider": "duckduckgo/fallback",
+            },
+        )
+        return results
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=502, detail=f"Dich vu tim kiem tra ve loi HTTP: {exc}") from exc
     except httpx.HTTPError as exc:
