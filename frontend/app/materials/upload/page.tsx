@@ -10,9 +10,11 @@ import {
   CircleHelp,
   CloudUpload,
   Image as ImageIcon,
+  Mic,
   PenLine,
   ShieldAlert,
   ShieldCheck,
+  Square,
   X,
 } from "lucide-react";
 
@@ -82,6 +84,9 @@ export default function UploadMaterialPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const ocrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const [mode, setMode] = useState<UploadMode>("file");
   const [title, setTitle] = useState("");
@@ -94,6 +99,7 @@ export default function UploadMaterialPage() {
   const [file, setFile] = useState<File | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const [sttModel, setSttModel] = useState<SttModel>("local-base");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -103,6 +109,7 @@ export default function UploadMaterialPage() {
   const [guardrailResult, setGuardrailResult] = useState<GuardrailResult | null>(null);
   const [ocrPreview, setOcrPreview] = useState<OCRPreviewResult | null>(null);
   const [transcriptPreview, setTranscriptPreview] = useState("");
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState("");
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
     message: "",
@@ -171,10 +178,146 @@ export default function UploadMaterialPage() {
     setTranscriptPreview("");
   }, [audioFile, sttModel]);
 
+  useEffect(() => {
+    if (!audioFile) {
+      setAudioPreviewUrl("");
+      return;
+    }
+
+    const url = URL.createObjectURL(audioFile);
+    setAudioPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [audioFile]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      stopRecordingStream();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "audio" && isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      } else {
+        stopRecordingStream();
+        setIsRecording(false);
+      }
+    }
+  }, [isRecording, mode]);
+
+  function stopRecordingStream() {
+    if (!recordingStreamRef.current) {
+      return;
+    }
+    recordingStreamRef.current.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+  }
+
+  function getRecordingMimeType() {
+    if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+      return undefined;
+    }
+
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/ogg;codecs=opus",
+    ];
+
+    return candidates.find((type) => MediaRecorder.isTypeSupported(type));
+  }
+
+  function getAudioExtensionFromMimeType(mimeType: string) {
+    if (mimeType.includes("mp4") || mimeType.includes("aac")) {
+      return "m4a";
+    }
+    if (mimeType.includes("ogg") || mimeType.includes("opus")) {
+      return "ogg";
+    }
+    return "webm";
+  }
+
+  async function startAudioRecording() {
+    if (!requireAuth()) {
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setToast({ message: "Trình duyệt không hỗ trợ ghi âm trực tiếp.", type: "error" });
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+      audioChunksRef.current = [];
+
+      const mimeType = getRecordingMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const type = recorder.mimeType || audioChunksRef.current[0]?.type || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type });
+        stopRecordingStream();
+
+        if (!blob.size) {
+          setToast({ message: "Không thu được âm thanh. Vui lòng thử lại.", type: "error" });
+          setIsRecording(false);
+          mediaRecorderRef.current = null;
+          return;
+        }
+
+        const extension = getAudioExtensionFromMimeType(type);
+        const recordedFile = new File([blob], `voice-recording-${Date.now()}.${extension}`, {
+          type,
+          lastModified: Date.now(),
+        });
+
+        setAudioFile(recordedFile);
+        setToast({ message: "Đã ghi âm xong. Bạn có thể xem transcript hoặc tạo học liệu ngay.", type: "success" });
+        setIsRecording(false);
+        mediaRecorderRef.current = null;
+      };
+
+      recorder.start();
+      setToast({ message: "Đang ghi âm... Nhấn Dừng ghi âm để hoàn tất.", type: "info" });
+      setIsRecording(true);
+    } catch {
+      stopRecordingStream();
+      setIsRecording(false);
+      setToast({ message: "Không thể truy cập microphone. Hãy kiểm tra quyền truy cập micro.", type: "error" });
+    }
+  }
+
+  function stopAudioRecording() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      return;
+    }
+    stopRecordingStream();
+    setIsRecording(false);
+  }
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     if (!user) {
       window.dispatchEvent(new CustomEvent("auth-required"));
+      return;
+    }
+    if (mode === "audio" && isRecording) {
+      setToast({ message: "Hãy dừng ghi âm trước khi thay đổi tệp âm thanh.", type: "info" });
       return;
     }
     setDragOver(false);
@@ -190,7 +333,7 @@ export default function UploadMaterialPage() {
       }
       setFile(droppedFile);
     }
-  }, [mode, user]);
+  }, [isRecording, mode, user]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -610,6 +753,9 @@ export default function UploadMaterialPage() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onClick={() => {
+                  if (isRecording) {
+                    return;
+                  }
                   if (!requireAuth()) {
                     return;
                   }
@@ -654,6 +800,9 @@ export default function UploadMaterialPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (isRecording) {
+                          return;
+                        }
                         setAudioFile(null);
                       }}
                       className="flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100"
@@ -678,6 +827,35 @@ export default function UploadMaterialPage() {
                   </div>
                 )}
               </div>
+
+              <Card>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-base font-semibold text-[var(--text-primary)]">Ghi âm trực tiếp</h3>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Bạn có thể thu âm bằng micro thay vì tải file lên.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={isRecording ? "danger" : "secondary"}
+                    onClick={isRecording ? stopAudioRecording : startAudioRecording}
+                    icon={isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    disabled={transcriptLoading || loading || checking}
+                  >
+                    {isRecording ? "Dừng ghi âm" : "Ghi âm trực tiếp"}
+                  </Button>
+                </div>
+
+                {audioPreviewUrl ? (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">Nghe lại âm thanh đã chọn</p>
+                    <audio
+                      controls
+                      src={audioPreviewUrl}
+                      className="w-full"
+                    />
+                  </div>
+                ) : null}
+              </Card>
 
               <Card>
                 <div className="space-y-4">
