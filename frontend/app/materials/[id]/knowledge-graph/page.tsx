@@ -23,7 +23,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Toast } from "@/components/ui/toast";
+import { useNotify } from "@/components/use-notify";
 import { generateKnowledgeGraph, getMaterial, listGeneratedContents } from "@/lib/api";
 import type { GeneratedContent, Material } from "@/types";
 import type { KnowledgeGraphData } from "@/components/3d/knowledge-graph-3d";
@@ -66,6 +66,7 @@ export default function KnowledgeGraphPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const materialId = params.id;
+  const { success, error: notifyError, info } = useNotify();
 
   const [material, setMaterial] = useState<Material | null>(null);
   const [graphData, setGraphData] = useState<KnowledgeGraphData | null>(null);
@@ -74,10 +75,6 @@ export default function KnowledgeGraphPage() {
   const [generating, setGenerating] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [showNodeList, setShowNodeList] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
-    message: "",
-    type: "success",
-  });
 
   // Load material + existing knowledge graph
   useEffect(() => {
@@ -99,20 +96,24 @@ export default function KnowledgeGraphPage() {
           if (kg?.nodes?.length) setGraphData(kg);
         }
       } catch (err) {
-        if (!cancelled) setToast({ message: String(err), type: "error" });
+        if (!cancelled) notifyError(`Không thể tải dữ liệu: ${String(err)}`);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [materialId]);
 
   const handleGenerate = useCallback(async (forceRegenerate = false) => {
     if (!material) return;
     if (material.processing_status !== "processed") {
-      setToast({ message: "Vui lòng xử lý tài liệu trước khi tạo knowledge graph.", type: "info" });
+      info("Vui lòng xử lý tài liệu trước khi tạo knowledge graph.");
       return;
+    }
+    if (forceRegenerate) {
+      info("Đang tạo lại Knowledge Graph...");
     }
     setGenerating(true);
     try {
@@ -121,14 +122,14 @@ export default function KnowledgeGraphPage() {
       const kg = result.json_content as KnowledgeGraphData;
       if (kg?.nodes?.length) {
         setGraphData(kg);
-        setToast({ message: `✨ Đã tạo Knowledge Graph với ${kg.nodes.length} khái niệm và ${kg.edges.length} mối liên hệ!`, type: "success" });
+        success(`Đã tạo Knowledge Graph với ${kg.nodes.length} khái niệm và ${kg.edges.length} mối liên hệ!`);
       }
     } catch (err) {
-      setToast({ message: String(err), type: "error" });
+      notifyError(`Không thể tạo Knowledge Graph: ${String(err)}`);
     } finally {
       setGenerating(false);
     }
-  }, [material, materialId]);
+  }, [material, materialId, success, notifyError, info]);
 
   const handleExportJSON = () => {
     if (!graphData) return;
@@ -139,7 +140,7 @@ export default function KnowledgeGraphPage() {
     a.download = `knowledge-graph-${materialId}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setToast({ message: "Đã xuất file JSON thành công!", type: "success" });
+    success("Đã xuất file JSON thành công!");
   };
 
   const usedCategories = graphData?.metadata?.categories ?? [];
@@ -157,8 +158,6 @@ export default function KnowledgeGraphPage() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-5"
     >
-      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, message: "" })} />
-
       {/* ── Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)]">
         <Link href={`/materials/${materialId}`} className="hover:text-[var(--mint-dark)] transition-colors no-underline text-[var(--text-tertiary)]">

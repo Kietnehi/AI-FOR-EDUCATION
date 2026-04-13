@@ -17,9 +17,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Toast } from "@/components/ui/toast";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useNotify } from "@/components/use-notify";
 import { apiDownloadUrl, apiPreviewUrl, getGeneratedContent } from "@/lib/api";
 import { GeneratedContent } from "@/types";
 
@@ -66,6 +66,7 @@ export default function SlidesPage() {
   const params = useParams<{ id: string }>();
   const contentId = searchParams.get("contentId") || "";
   const materialId = params.id;
+  const { success, error: notifyError, info } = useNotify();
 
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [error, setError] = useState("");
@@ -79,10 +80,19 @@ export default function SlidesPage() {
     }
 
     getGeneratedContent(contentId)
-      .then(setContent)
-      .catch((err) => setError(String(err)))
+      .then((data) => {
+        setContent(data);
+        if (data?.json_content?.slides?.length) {
+          success(`Đã tải ${data.json_content.slides.length} slides thành công!`);
+        }
+      })
+      .catch((err) => {
+        const msg = String(err);
+        setError(msg);
+        notifyError(msg);
+      })
       .finally(() => setLoading(false));
-  }, [contentId]);
+  }, [contentId, notifyError, success]);
 
   const rawSlides: (string | SlideData | Record<string, any>)[] =
     content?.json_content?.slides || content?.outline || [];
@@ -300,11 +310,16 @@ export default function SlidesPage() {
           </span>
         </div>
         {content?.file_url ? (
-          <a href={apiDownloadUrl(content.file_url)} target="_blank" rel="noreferrer">
-            <Button icon={<Download className="h-4 w-4" />} variant="secondary">
-              Tải PPTX
-            </Button>
-          </a>
+          <Button
+            icon={<Download className="h-4 w-4" />}
+            variant="secondary"
+            onClick={() => {
+              info("Đang tải slide...");
+              window.open(apiDownloadUrl(content.file_url!), "_blank");
+            }}
+          >
+            Tải PPTX
+          </Button>
         ) : null}
       </div>
 
@@ -322,8 +337,6 @@ export default function SlidesPage() {
           }
         />
       ) : null}
-
-      {error ? <Toast message={error} type="error" /> : null}
 
       {content ? (
         <>
