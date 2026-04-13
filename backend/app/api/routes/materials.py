@@ -7,6 +7,7 @@ from app.schemas.materials import (
     MaterialGuardrailCheckRequest,
     MaterialGuardrailCheckResponse,
     MaterialListResponse,
+    OCRPreviewResponse,
     MaterialProcessRequest,
     MaterialProcessResponse,
     MaterialResponse,
@@ -67,6 +68,8 @@ async def check_upload_guardrail(
     subject: str | None = Form(None),
     education_level: str | None = Form(None),
     tags: str | None = Form(None),
+    stt_model: str | None = Form(None),
+    whisper_language: str | None = Form(None),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialGuardrailCheckResponse:
     service = MaterialService(db)
@@ -78,9 +81,22 @@ async def check_upload_guardrail(
             "subject": subject,
             "education_level": education_level,
             "tags": [item.strip() for item in tags.split(",")] if tags else [],
+            "stt_model": stt_model,
+            "whisper_language": whisper_language,
         },
     )
     return MaterialGuardrailCheckResponse(**result)
+
+
+@router.post("/materials/ocr-preview-upload", response_model=OCRPreviewResponse)
+async def ocr_preview_upload(
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> OCRPreviewResponse:
+    service = MaterialService(db)
+    result = await service.preview_image_ocr_upload(file=file)
+    return OCRPreviewResponse(**result)
 
 
 @router.post("/materials/upload", response_model=MaterialResponse)
@@ -92,6 +108,8 @@ async def upload_material(
     subject: str | None = Form(None),
     education_level: str | None = Form(None),
     tags: str | None = Form(None),
+    stt_model: str | None = Form(None),
+    whisper_language: str | None = Form(None),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> MaterialResponse:
     service = MaterialService(db)
@@ -104,6 +122,8 @@ async def upload_material(
             "subject": subject,
             "education_level": education_level,
             "tags": [item.strip() for item in tags.split(",")] if tags else [],
+            "stt_model": stt_model,
+            "whisper_language": whisper_language,
         },
     )
     personalization_service = PersonalizationService(db)

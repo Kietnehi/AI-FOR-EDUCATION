@@ -8,6 +8,9 @@ class JobRepository:
     async def create(self, payload: dict) -> None:
         await self.collection.insert_one(payload)
 
+    async def get_by_job_id(self, job_id: str) -> dict | None:
+        return await self.collection.find_one({"job_id": job_id})
+
     async def update_status(
         self, job_id: str, status: str, extra: dict | None = None
     ) -> None:

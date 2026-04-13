@@ -3,6 +3,8 @@ import {
   ChatSession,
   DeleteSessionsResult,
   MinigamePersonalization,
+  MaterialDetailRealtimeSnapshot,
+  MaterialsRealtimeSnapshot,
   RemediationQuickStart,
   GeneratedContent,
   Material,
@@ -113,6 +115,10 @@ export function clearApiCache(): void {
 
 function primeCache(path: string, data: unknown, ttlMs: number = DEFAULT_GET_CACHE_TTL_MS): void {
   writeCache(getCacheKey(path), data, ttlMs);
+}
+
+function openEventStream(path: string): EventSource {
+  return new EventSource(`${API_BASE}${path}`, { withCredentials: true });
 }
 
 async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> {
@@ -260,6 +266,29 @@ export async function listMaterials(): Promise<{ items: Material[]; total: numbe
   return apiFetch<{ items: Material[]; total: number }>("/materials");
 }
 
+export function subscribeToMaterialsRealtime(handlers: {
+  onSnapshot: (snapshot: MaterialsRealtimeSnapshot) => void;
+  onError?: () => void;
+}): () => void {
+  const eventSource = openEventStream("/realtime/materials/stream");
+  const handleSnapshot = (event: MessageEvent<string>) => {
+    const snapshot = JSON.parse(event.data) as MaterialsRealtimeSnapshot;
+    primeCache("/materials", { items: snapshot.items, total: snapshot.total });
+    for (const item of snapshot.items) {
+      primeCache(`/materials/${item.id}`, item);
+    }
+    handlers.onSnapshot(snapshot);
+  };
+
+  eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+  eventSource.onerror = () => handlers.onError?.();
+
+  return () => {
+    eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
+    eventSource.close();
+  };
+}
+
 export async function deleteMaterial(id: string): Promise<void> {
   const result = await apiFetch<void>(`/materials/${id}`, { method: "DELETE" });
   invalidateCache("/materials", `/materials/${id}`);
@@ -268,6 +297,39 @@ export async function deleteMaterial(id: string): Promise<void> {
 
 export async function getMaterial(id: string): Promise<Material> {
   return apiFetch<Material>(`/materials/${id}`);
+}
+
+export function subscribeToMaterialRealtime(
+  materialId: string,
+  handlers: {
+    onSnapshot: (snapshot: MaterialDetailRealtimeSnapshot) => void;
+    onError?: () => void;
+  }
+): () => void {
+  const eventSource = openEventStream(
+    `/realtime/materials/stream?material_id=${encodeURIComponent(materialId)}`
+  );
+  const handleSnapshot = (event: MessageEvent<string>) => {
+    const snapshot = JSON.parse(event.data) as MaterialDetailRealtimeSnapshot;
+    invalidateCache("/materials");
+    if (snapshot.deleted || !snapshot.material) {
+      invalidateCache(`/materials/${materialId}`, `/materials/${materialId}/generated-contents`);
+      handlers.onSnapshot(snapshot);
+      return;
+    }
+
+    primeCache(`/materials/${materialId}`, snapshot.material);
+    primeCache(`/materials/${materialId}/generated-contents`, snapshot.generated_contents);
+    handlers.onSnapshot(snapshot);
+  };
+
+  eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+  eventSource.onerror = () => handlers.onError?.();
+
+  return () => {
+    eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
+    eventSource.close();
+  };
 }
 
 export async function updateMaterial(
@@ -339,6 +401,19 @@ export async function generateMinigame(
     method: "POST",
     body: JSON.stringify({ game_type: gameType, difficulty, force_regenerate }),
     cacheTtlMs: gameType === "shooting_quiz" ? 180000 : 60000,
+  });
+  invalidateCache(`/materials/${id}/generated-contents`);
+  return data;
+}
+
+export async function generateKnowledgeGraph(
+  id: string,
+  force_regenerate: boolean = false
+): Promise<GeneratedContent> {
+  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/knowledge-graph`, {
+    method: "POST",
+    body: JSON.stringify({ force_regenerate }),
+    skipCache: true,
   });
   invalidateCache(`/materials/${id}/generated-contents`);
   return data;
@@ -846,6 +921,142 @@ export async function generateRemediationQuickStart(
       difficulty: payload?.difficulty,
       top_k_wrong_questions: payload?.top_k_wrong_questions ?? 10,
     }),
+  });
+}
+
+export interface YouTubeVideoItem {
+  video_id: string;
+  title: string;
+  channel?: string | null;
+  duration_seconds?: number | null;
+  thumbnail?: string | null;
+  url: string;
+}
+
+export interface YouTubeTranscriptSegment {
+  text: string;
+  start: number;
+  duration: number;
+  timestamp: string;
+}
+
+export interface InteractiveCheckpoint {
+  start_seconds: number;
+  timestamp: string;
+  title: string;
+  key_point: string;
+  question: string;
+  choices: string[];
+  correct_answer_index: number;
+  explanation: string;
+}
+
+export interface LessonChapterItem {
+  timestamp: string;
+  title: string;
+}
+
+export interface LessonKeyNoteItem {
+  time: string;
+  note: string;
+}
+
+export interface InteractiveLessonPayload {
+  summary: string;
+  key_takeaways: string[];
+  chapters: LessonChapterItem[];
+  key_notes: LessonKeyNoteItem[];
+  checkpoints: InteractiveCheckpoint[];
+}
+
+export interface YouTubeInteractiveLessonResponse {
+  video: YouTubeVideoItem;
+  transcript: YouTubeTranscriptSegment[];
+  lesson: InteractiveLessonPayload;
+  translations?: Record<string, YouTubeTranscriptSegment[]>;
+}
+
+export interface YouTubeLessonHistorySummary {
+  id: string;
+  video: YouTubeVideoItem;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YouTubeLessonHistoryDetail {
+  id: string;
+  video: YouTubeVideoItem;
+  transcript: YouTubeTranscriptSegment[];
+  lesson: InteractiveLessonPayload;
+  translations?: Record<string, YouTubeTranscriptSegment[]>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YouTubeTranslateTranscriptResponse {
+  transcript: YouTubeTranscriptSegment[];
+  target_language: string;
+}
+
+export async function searchYouTubeVideos(query: string, limit: number = 6): Promise<YouTubeVideoItem[]> {
+  const result = await apiFetch<{ items: YouTubeVideoItem[] }>("/youtube-lessons/search", {
+    method: "POST",
+    body: JSON.stringify({ query, limit }),
+    skipCache: true,
+  });
+  return result.items;
+}
+
+export async function generateInteractiveYouTubeLesson(payload: {
+  youtube_url?: string;
+  video_id?: string;
+  query?: string;
+  max_checkpoints?: number;
+  stt_model?: SttModel;
+}): Promise<YouTubeInteractiveLessonResponse> {
+  return apiFetch<YouTubeInteractiveLessonResponse>("/youtube-lessons/interactive", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    skipCache: true,
+  });
+}
+
+export async function listYouTubeLessonHistory(
+  skip: number = 0,
+  limit: number = 20
+): Promise<{ items: YouTubeLessonHistorySummary[]; total: number }> {
+  return apiFetch<{ items: YouTubeLessonHistorySummary[]; total: number }>(
+    `/youtube-lessons/history?skip=${skip}&limit=${limit}`,
+    { skipCache: true }
+  );
+}
+
+export async function getYouTubeLessonHistoryDetail(id: string): Promise<YouTubeLessonHistoryDetail> {
+  return apiFetch<YouTubeLessonHistoryDetail>(`/youtube-lessons/history/${id}`, {
+    skipCache: true,
+  });
+}
+
+export async function deleteYouTubeLessonHistory(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/youtube-lessons/history/${id}`, {
+    method: "DELETE",
+    skipCache: true,
+  });
+}
+
+export async function translateYouTubeTranscript(
+  transcript: YouTubeTranscriptSegment[],
+  targetLanguage: string,
+  videoId?: string
+): Promise<YouTubeTranslateTranscriptResponse> {
+  return apiFetch<YouTubeTranslateTranscriptResponse>("/youtube-lessons/translate-transcript", {
+    method: "POST",
+    body: JSON.stringify({ 
+      transcript, 
+      target_language: targetLanguage,
+      video_id: videoId 
+    }),
+    skipCache: true,
   });
 }
 

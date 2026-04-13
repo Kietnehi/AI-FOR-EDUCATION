@@ -13,6 +13,7 @@ import {
   Clapperboard,
   FileText,
   Globe,
+  PlayCircle,
   ChevronLeft,
   Settings,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/materials",         label: "Học liệu",               icon: BookOpen },
   { href: "/materials/upload",  label: "Tải lên",                icon: Upload },
   { href: "/materials/video",   label: "Tạo Video AI",           icon: Clapperboard },
+  { href: "/materials/youtube-lesson", label: "YouTube Tương tác", icon: PlayCircle },
   { href: "/chatbot",           label: "Chatbot RAG",            icon: MessageSquareText },
   { href: "/web-search",        label: "Search Website Online",  icon: Globe },
   { href: "/generated",         label: "Nội dung AI",            icon: Sparkles },

@@ -24,6 +24,7 @@ import {
   Eye,
   Play,
   RefreshCw,
+  Network,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { Toast } from "@/components/ui/toast";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { SlideGenerationDialog } from "@/components/ui/slide-generation-dialog";
+import { useNotify } from "@/components/use-notify";
 import {
   confirmNotebookLMArtifactGeneration,
   deleteGeneratedContent,
@@ -42,10 +44,12 @@ import {
   generateNotebookLMMediaFromMaterial,
   generatePodcast,
   generateSlides,
+  generateKnowledgeGraph,
   getMaterial,
   apiDownloadUrl,
   apiPreviewUrl,
   processMaterial,
+  subscribeToMaterialRealtime,
   updateMaterial,
   confirmNotebookLMDownload,
   cancelNotebookLMSession,
@@ -90,6 +94,7 @@ export default function MaterialDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const materialId = params.id;
+  const { success, error, info } = useNotify();
 
   const [material, setMaterial] = useState<Material | null>(null);
   const [generatedContents, setGeneratedContents] = useState<GeneratedContent[]>([]);
@@ -123,6 +128,14 @@ export default function MaterialDetailPage() {
     message: "",
     type: "success",
   });
+
+  // Wrapper để vừa hiện toast cũ, vừa thêm vào notification system mới
+  const showToastAndNotify = (message: string, type: "success" | "error" | "info") => {
+    setToast({ message, type });
+    if (type === "success") success(message);
+    else if (type === "error") error(message);
+    else info(message);
+  };
 
   const fullText = material?.cleaned_text || material?.raw_text || "";
   const previewLimit = 1000;
@@ -161,6 +174,24 @@ export default function MaterialDetailPage() {
   }, [materialId]);
 
   useEffect(() => {
+    if (!materialId) return;
+
+    return subscribeToMaterialRealtime(materialId, {
+      onSnapshot: (snapshot) => {
+        setLoading(false);
+        if (snapshot.deleted || !snapshot.material) {
+          setToast({ message: "Học liệu này đã bị xóa hoặc không còn khả dụng.", type: "info" });
+          router.push("/materials");
+          return;
+        }
+        setMaterial(snapshot.material);
+        setGeneratedContents(snapshot.generated_contents);
+      },
+      onError: () => undefined,
+    });
+  }, [materialId, router]);
+
+  useEffect(() => {
     if (!material) return;
     const level = material.education_level || "";
     const isPresetLevel = EDUCATION_LEVEL_OPTIONS.some(
@@ -195,7 +226,7 @@ export default function MaterialDetailPage() {
     setBusyAction("process");
     try {
       await processMaterial(materialId);
-      setToast({ message: "Đã xếp hàng xử lý tài liệu thành công!", type: "success" });
+      showToastAndNotify("Đã xếp hàng xử lý tài liệu thành công!", "success");
       const updated = await getMaterial(materialId);
       setMaterial(updated);
     } catch (error) {
@@ -362,9 +393,9 @@ export default function MaterialDetailPage() {
     try {
       await deleteGeneratedContent(item.id);
       await refreshGeneratedContents();
-      setToast({ message: `Đã xóa ${label} thành công.`, type: "success" });
+      showToastAndNotify(`Đã xóa ${label} thành công.`, "success");
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setDeletingGeneratedId("");
     }
@@ -407,22 +438,22 @@ export default function MaterialDetailPage() {
       } else if ("status" in payload && payload.status === "awaiting_artifact_confirmation") {
         setNotebookConfirmation(null);
         setNotebookArtifactPending(payload as NotebookLMArtifactConfirmationResult);
-        setToast({ message: payload.message || "Đã upload xong. Xác nhận để bấm tạo Video + Infographic.", type: "info" });
+        showToastAndNotify(payload.message || "Đã upload xong. Xác nhận để bấm tạo Video + Infographic.", "info");
       } else if ("status" in payload && payload.status === "generation_complete") {
         setNotebookConfirmation(null);
         setNotebookArtifactPending(null);
         setNotebookGenerated(payload as NotebookLMMediaResult);
-        setToast({ message: payload.message || "Đã tạo xong! Vui lòng xác nhận để tải xuống.", type: "success" });
+        showToastAndNotify(payload.message || "Đã tạo xong! Vui lòng xác nhận để tải xuống.", "success");
       } else if ("status" in payload && payload.status === "saved") {
         setNotebookConfirmation(null);
         setNotebookArtifactPending(null);
         setNotebookGenerated(null);
         setNotebookSaved(payload as NotebookLMSavedResult);
         setShowNotebookLibraryModal(true);
-        setToast({ message: "Đã tìm thấy nội dung đã tạo trước đó.", type: "info" });
+        showToastAndNotify("Đã tìm thấy nội dung đã tạo trước đó.", "info");
       }
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setBusyAction("");
     }
@@ -438,12 +469,12 @@ export default function MaterialDetailPage() {
       if (payload.status === "generation_complete") {
         setNotebookArtifactPending(null);
         setNotebookGenerated(payload as NotebookLMMediaResult);
-        setToast({ message: payload.message || "Đã bấm tạo trên NotebookLM. Khi render xong, bấm tải xuống.", type: "success" });
+        showToastAndNotify(payload.message || "Đã bấm tạo trên NotebookLM. Khi render xong, bấm tải xuống.", "success");
       }
     } catch (error) {
       setNotebookGenerated(null);
       setNotebookArtifactPending(notebookArtifactPending);
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setIsArtifactGenerating(false);
       setBusyAction("");
@@ -451,7 +482,7 @@ export default function MaterialDetailPage() {
   }
 
   const handleForceDownload = (url: string, filename: string, showToast = true) => {
-    if (showToast) setToast({ message: `Đang chuẩn bị tải xuống: ${filename}...`, type: "info" });
+    showToastAndNotify(`Đang chuẩn bị tải xuống: ${filename}...`, "info");
     const link = document.createElement("a");
     link.href = url;
     link.download = filename;
@@ -472,7 +503,7 @@ export default function MaterialDetailPage() {
       setIsArtifactGenerating(false);
 
       const total = result.videos.length + result.infographics.length;
-      setToast({ message: `Đã bắt đầu tải ${total} tệp (video + infographic) về máy.`, type: "success" });
+      showToastAndNotify(`Đã bắt đầu tải ${total} tệp (video + infographic) về máy.`, "success");
 
       // Trigger direct browser downloads so user receives files immediately.
       const filesToDownload = [...result.videos, ...result.infographics];
@@ -496,9 +527,9 @@ export default function MaterialDetailPage() {
       setNotebookGenerated(null);
       setNotebookArtifactPending(null);
       setIsArtifactGenerating(false);
-      setToast({ message: "Đã hủy session và đóng browser", type: "info" });
+      showToastAndNotify("Đã hủy session và đóng browser", "info");
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setBusyAction("");
     }
@@ -526,7 +557,7 @@ export default function MaterialDetailPage() {
   async function handleSaveMaterialEdits() {
     const title = editForm.title.trim();
     if (!title) {
-      setToast({ message: "Tiêu đề không được để trống.", type: "error" });
+      showToastAndNotify("Tiêu đề không được để trống.", "error");
       return;
     }
 
@@ -544,10 +575,11 @@ export default function MaterialDetailPage() {
       });
 
       setMaterial(updated);
+      showToastAndNotify("Đã cập nhật học liệu thành công.", "success");
+      // Đóng dialog sau khi save thành công
       setIsEditingMaterial(false);
-      setToast({ message: "Đã cập nhật học liệu thành công.", type: "success" });
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setSavingEdit(false);
     }
@@ -560,10 +592,10 @@ export default function MaterialDetailPage() {
     setBusyAction("delete");
     try {
       await deleteMaterial(materialId);
-      setToast({ message: "Đã xóa học liệu thành công.", type: "success" });
+      showToastAndNotify("Đã xóa học liệu thành công.", "success");
       router.push("/materials");
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setBusyAction("");
     }
@@ -818,6 +850,101 @@ export default function MaterialDetailPage() {
             );
           })}
         </div>
+
+        {/* Knowledge Graph Card */}
+        {(() => {
+          const kgItems = generatedContents.filter((c) => c.content_type === "knowledge_graph");
+          const hasKg = kgItems.length > 0;
+          const isKgBusy = busyAction === "knowledge_graph";
+
+          return (
+            <Card className="mt-4 group relative overflow-hidden" hover>
+              {/* Subtle animated background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-violet-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
+                    <Network className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                        Knowledge Graph 3D
+                      </h3>
+                      {hasKg && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                          <Check className="w-3 h-3" />
+                          Đã tạo
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                      Biểu đồ kiến thức tương tác 3D – trực quan hóa mối liên hệ giữa các khái niệm
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                  {hasKg ? (
+                    <>
+                      <Button
+                        icon={<Eye className="w-4 h-4" />}
+                        onClick={() => router.push(`/materials/${materialId}/knowledge-graph`)}
+                        disabled={busyAction.length > 0}
+                        className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-none shadow-sm hover:shadow-md"
+                      >
+                        Xem Knowledge Graph
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!ensureMaterialProcessed("tạo lại knowledge graph")) return;
+                          setBusyAction("knowledge_graph");
+                          try {
+                            await generateKnowledgeGraph(materialId, true);
+                            await refreshGeneratedContents();
+                            showToastAndNotify("Đã tạo lại Knowledge Graph!", "success");
+                          } catch (error) {
+                            setToast({ message: String(error), type: "error" });
+                          } finally {
+                            setBusyAction("");
+                          }
+                        }}
+                        disabled={busyAction.length > 0}
+                        className="flex items-center justify-center gap-2 h-10 px-4 rounded-xl border border-[var(--border-light)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isKgBusy ? "animate-spin" : ""}`} />
+                        Tạo lại
+                      </button>
+                    </>
+                  ) : (
+                    <Button
+                      icon={<Sparkles className="w-4 h-4" />}
+                      onClick={async () => {
+                        if (!ensureMaterialProcessed("tạo knowledge graph")) return;
+                        setBusyAction("knowledge_graph");
+                        try {
+                          await generateKnowledgeGraph(materialId, false);
+                          await refreshGeneratedContents();
+                          router.push(`/materials/${materialId}/knowledge-graph`);
+                        } catch (error) {
+                          setToast({ message: String(error), type: "error" });
+                          setBusyAction("");
+                        }
+                      }}
+                      loading={isKgBusy}
+                      disabled={busyAction.length > 0}
+                      className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-none shadow-sm hover:shadow-lg"
+                    >
+                      {isKgBusy ? "Đang tạo Knowledge Graph…" : "Tạo Knowledge Graph"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
 
         <Card className="mt-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

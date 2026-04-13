@@ -6,6 +6,7 @@ import { Settings, User, Bell, Shield, Palette, Database, Moon, Sun, Bot } from 
 import { useAuth } from "@/components/auth-provider";
 import { Card } from "@/components/ui/card";
 import { Toast } from "@/components/ui/toast";
+import { useNotify } from "@/components/use-notify";
 import { useTheme } from "@/components/theme-provider";
 import { getUserPreferences, updateUserPreferences } from "@/lib/api";
 
@@ -17,6 +18,7 @@ type CustomModelOption = {
 export default function SettingsPage() {
   const { theme, toggle } = useTheme();
   const { user } = useAuth();
+  const { success: notifySuccess, error: notifyError } = useNotify();
   const [chatModelId, setChatModelId] = useState<string>("openai/gpt-4o-mini");
   const [chatModelName, setChatModelName] = useState<string>("GPT-4o Mini");
   const [showAddModelForm, setShowAddModelForm] = useState<boolean>(false);
@@ -137,6 +139,7 @@ export default function SettingsPage() {
       setNoticeType("error");
       setNotice("Vui lòng nhập model ID. Ví dụ: qwen/qwen3.6-plus:free");
       setNoticeKey((prev) => prev + 1);
+      notifyError("Vui lòng nhập model ID.");
       return;
     }
 
@@ -180,10 +183,12 @@ export default function SettingsPage() {
       setNoticeType("success");
       setNotice("Đã lưu cấu hình model AI");
       setNoticeKey((prev) => prev + 1);
+      notifySuccess("Đã lưu cấu hình model AI");
     } catch {
       setNoticeType("error");
       setNotice("Không thể lưu cấu hình. Hãy kiểm tra quyền localStorage của trình duyệt.");
       setNoticeKey((prev) => prev + 1);
+      notifyError("Không thể lưu cấu hình. Hãy kiểm tra quyền localStorage.");
     }
   };
 
@@ -195,6 +200,7 @@ export default function SettingsPage() {
       setNoticeType("error");
       setNotice("Không thể lưu danh sách model tùy chỉnh.");
       setNoticeKey((prev) => prev + 1);
+      notifyError("Không thể lưu danh sách model tùy chỉnh.");
       return false;
     }
   };
@@ -221,6 +227,7 @@ export default function SettingsPage() {
       setNoticeType("error");
       setNotice("Vui lòng nhập Model ID trước khi thêm.");
       setNoticeKey((prev) => prev + 1);
+      notifyError("Vui lòng nhập Model ID trước khi thêm.");
       return;
     }
 
@@ -229,6 +236,7 @@ export default function SettingsPage() {
       setNoticeType("error");
       setNotice("Model này đã có trong danh sách.");
       setNoticeKey((prev) => prev + 1);
+      notifyError("Model này đã có trong danh sách.");
       return;
     }
 
@@ -249,6 +257,7 @@ export default function SettingsPage() {
     setNoticeType("success");
     setNotice("Đã thêm model vào danh sách.");
     setNoticeKey((prev) => prev + 1);
+    notifySuccess("Đã thêm model vào danh sách.");
   };
 
   const handleDeleteCustomModel = () => {
@@ -256,6 +265,7 @@ export default function SettingsPage() {
       setNoticeType("error");
       setNotice("Vui lòng chọn model cần xóa.");
       setNoticeKey((prev) => prev + 1);
+      notifyError("Vui lòng chọn model cần xóa.");
       return;
     }
 
@@ -295,9 +305,9 @@ export default function SettingsPage() {
       ),
     },
     {
-      title: "Mô hình AI",
+      title: "Chatbot AI",
       icon: Bot,
-      desc: "Cấu hình model, reasoning và chiến lược chạy",
+      desc: "Chọn model AI cho Chatbot và Mascot (không áp dụng cho tạo slide, podcast, minigame)",
       action: (
         <div className="w-full max-w-[460px] flex flex-col gap-4 mt-4 lg:mt-0 p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-primary)] shadow-sm">
           {/* Chọn Model */}

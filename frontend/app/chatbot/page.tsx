@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardSkeleton } from "@/components/ui/skeleton";
-import { listMaterials } from "@/lib/api";
+import { listMaterials, subscribeToMaterialsRealtime } from "@/lib/api";
 import { Material } from "@/types";
 
 export default function ChatbotIndexPage() {
@@ -21,6 +21,16 @@ export default function ChatbotIndexPage() {
       .then((res) => setMaterials(res.items.filter((m) => m.processing_status === "processed")))
       .catch(() => undefined)
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    return subscribeToMaterialsRealtime({
+      onSnapshot: (snapshot) => {
+        setMaterials(snapshot.items.filter((material) => material.processing_status === "processed"));
+        setLoading(false);
+      },
+      onError: () => undefined,
+    });
   }, []);
 
   return (
