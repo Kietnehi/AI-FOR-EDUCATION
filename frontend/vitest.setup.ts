@@ -24,3 +24,20 @@ if (!("scrollIntoView" in Element.prototype)) {
     configurable: true,
   });
 }
+
+if (!("IntersectionObserver" in globalThis)) {
+  class MockIntersectionObserver implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "0px";
+    readonly thresholds = [0];
+
+    disconnect(): void {}
+    observe(): void {}
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+    unobserve(): void {}
+  }
+
+  globalThis.IntersectionObserver = MockIntersectionObserver;
+}
