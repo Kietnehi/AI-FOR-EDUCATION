@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, chat, contact, converter, files, games, generated_contents, materials, web_search, youtube_lessons
+from app.api.routes import auth, chat, contact, converter, files, games, generated_contents, materials, realtime, web_search, youtube_lessons
 
 api_router = APIRouter()
 api_router.include_router(auth.router, tags=["auth"])
@@ -8,6 +8,7 @@ api_router.include_router(contact.router, tags=["contact"])
 
 api_router.include_router(materials.router, tags=["materials"])
 api_router.include_router(generated_contents.router, tags=["generated-contents"])
+api_router.include_router(realtime.router)
 api_router.include_router(chat.router, tags=["chat"])
 api_router.include_router(games.router, tags=["games"])
 api_router.include_router(files.router, tags=["files"])

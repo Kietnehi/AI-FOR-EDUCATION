@@ -24,6 +24,7 @@ import {
   Eye,
   Play,
   RefreshCw,
+  Network,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -42,10 +43,12 @@ import {
   generateNotebookLMMediaFromMaterial,
   generatePodcast,
   generateSlides,
+  generateKnowledgeGraph,
   getMaterial,
   apiDownloadUrl,
   apiPreviewUrl,
   processMaterial,
+  subscribeToMaterialRealtime,
   updateMaterial,
   confirmNotebookLMDownload,
   cancelNotebookLMSession,
@@ -159,6 +162,24 @@ export default function MaterialDetailPage() {
       cancelled = true;
     };
   }, [materialId]);
+
+  useEffect(() => {
+    if (!materialId) return;
+
+    return subscribeToMaterialRealtime(materialId, {
+      onSnapshot: (snapshot) => {
+        setLoading(false);
+        if (snapshot.deleted || !snapshot.material) {
+          setToast({ message: "Học liệu này đã bị xóa hoặc không còn khả dụng.", type: "info" });
+          router.push("/materials");
+          return;
+        }
+        setMaterial(snapshot.material);
+        setGeneratedContents(snapshot.generated_contents);
+      },
+      onError: () => undefined,
+    });
+  }, [materialId, router]);
 
   useEffect(() => {
     if (!material) return;
@@ -818,6 +839,101 @@ export default function MaterialDetailPage() {
             );
           })}
         </div>
+
+        {/* Knowledge Graph Card */}
+        {(() => {
+          const kgItems = generatedContents.filter((c) => c.content_type === "knowledge_graph");
+          const hasKg = kgItems.length > 0;
+          const isKgBusy = busyAction === "knowledge_graph";
+
+          return (
+            <Card className="mt-4 group relative overflow-hidden" hover>
+              {/* Subtle animated background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-violet-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
+                    <Network className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                        Knowledge Graph 3D
+                      </h3>
+                      {hasKg && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                          <Check className="w-3 h-3" />
+                          Đã tạo
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                      Biểu đồ kiến thức tương tác 3D – trực quan hóa mối liên hệ giữa các khái niệm
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                  {hasKg ? (
+                    <>
+                      <Button
+                        icon={<Eye className="w-4 h-4" />}
+                        onClick={() => router.push(`/materials/${materialId}/knowledge-graph`)}
+                        disabled={busyAction.length > 0}
+                        className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-none shadow-sm hover:shadow-md"
+                      >
+                        Xem Knowledge Graph
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!ensureMaterialProcessed("tạo lại knowledge graph")) return;
+                          setBusyAction("knowledge_graph");
+                          try {
+                            await generateKnowledgeGraph(materialId, true);
+                            await refreshGeneratedContents();
+                            setToast({ message: "Đã tạo lại Knowledge Graph!", type: "success" });
+                          } catch (error) {
+                            setToast({ message: String(error), type: "error" });
+                          } finally {
+                            setBusyAction("");
+                          }
+                        }}
+                        disabled={busyAction.length > 0}
+                        className="flex items-center justify-center gap-2 h-10 px-4 rounded-xl border border-[var(--border-light)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isKgBusy ? "animate-spin" : ""}`} />
+                        Tạo lại
+                      </button>
+                    </>
+                  ) : (
+                    <Button
+                      icon={<Sparkles className="w-4 h-4" />}
+                      onClick={async () => {
+                        if (!ensureMaterialProcessed("tạo knowledge graph")) return;
+                        setBusyAction("knowledge_graph");
+                        try {
+                          await generateKnowledgeGraph(materialId, false);
+                          await refreshGeneratedContents();
+                          router.push(`/materials/${materialId}/knowledge-graph`);
+                        } catch (error) {
+                          setToast({ message: String(error), type: "error" });
+                          setBusyAction("");
+                        }
+                      }}
+                      loading={isKgBusy}
+                      disabled={busyAction.length > 0}
+                      className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-none shadow-sm hover:shadow-lg"
+                    >
+                      {isKgBusy ? "Đang tạo Knowledge Graph…" : "Tạo Knowledge Graph"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
 
         <Card className="mt-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

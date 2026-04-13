@@ -45,6 +45,20 @@ export type GeneratedContent = {
   updated_at: string;
 };
 
+export type MaterialsRealtimeSnapshot = {
+  scope: "materials";
+  items: Material[];
+  total: number;
+};
+
+export type MaterialDetailRealtimeSnapshot = {
+  scope: "material_detail";
+  material_id: string;
+  deleted: boolean;
+  material: Material | null;
+  generated_contents: GeneratedContent[];
+};
+
 export type GameTypePersonalizationStat = {
   game_type: "quiz_mixed" | "flashcard" | "shooting_quiz" | string;
   attempts: number;

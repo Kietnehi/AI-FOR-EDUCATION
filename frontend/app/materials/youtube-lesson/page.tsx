@@ -799,6 +799,11 @@ export default function YoutubeInteractiveLessonPage() {
                           className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
                         <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
+                        {item.video.duration_seconds ? (
+                          <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[10px] font-bold text-white">
+                            {formatDuration(item.video.duration_seconds)}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="min-w-0 flex-1 flex flex-col justify-between">
                         <p className="line-clamp-2 text-xs font-bold text-[var(--text-primary)] leading-relaxed group-hover:text-brand-600 transition-colors">

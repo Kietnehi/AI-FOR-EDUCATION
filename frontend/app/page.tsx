@@ -28,7 +28,7 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { TurnstileCaptcha } from "@/components/auth/turnstile-captcha";
-import { listMaterials, submitCooperationContact } from "@/lib/api";
+import { listMaterials, subscribeToMaterialsRealtime, submitCooperationContact } from "@/lib/api";
 import { Material } from "@/types";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/auth-provider";
@@ -127,6 +127,19 @@ export default function DashboardPage() {
       .then((res) => setMaterials(res.items))
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    return subscribeToMaterialsRealtime({
+      onSnapshot: (snapshot) => {
+        setMaterials(snapshot.items);
+        setError("");
+        setLoading(false);
+      },
+      onError: () => undefined,
+    });
   }, [user, authLoading]);
 
   useEffect(() => {
