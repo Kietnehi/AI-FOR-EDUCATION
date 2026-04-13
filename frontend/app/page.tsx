@@ -30,8 +30,7 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { TurnstileCaptcha } from "@/components/auth/turnstile-captcha";
 import { getDashboardPersonalization, listMaterials, submitCooperationContact } from "@/lib/api";
 import { DashboardPersonalization, Material } from "@/types";
-import { listMaterials, subscribeToMaterialsRealtime, submitCooperationContact } from "@/lib/api";
-import { Material } from "@/types";
+import { subscribeToMaterialsRealtime } from "@/lib/api";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/auth-provider";
 import { useNotify } from "@/components/use-notify";
@@ -1001,8 +1000,7 @@ export default function DashboardPage() {
         <div className="grid gap-3 lg:grid-cols-3">
           {[
             {
-              name: "
-              nehi",
+              name: "nehi",
               username: "Kietnehi",
               role: "AI Engineer & Researcher",
               gradient: "from-brand-500 to-brand-600",
