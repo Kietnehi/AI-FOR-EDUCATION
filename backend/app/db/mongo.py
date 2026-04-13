@@ -50,6 +50,13 @@ async def ensure_indexes() -> None:
         ]
     )
 
+    await db.user_preferences.create_indexes(
+        [
+            IndexModel([("user_id", ASCENDING)], unique=True),
+            IndexModel([("updated_at", ASCENDING)]),
+        ]
+    )
+
     await db.learning_materials.create_indexes(
         [
             IndexModel([("user_id", ASCENDING), ("created_at", ASCENDING)]),
@@ -119,7 +126,16 @@ async def ensure_indexes() -> None:
 
     await db.audio_assets.create_indexes([IndexModel([("generated_content_id", ASCENDING)])])
     await db.slide_assets.create_indexes([IndexModel([("generated_content_id", ASCENDING)])])
-    await db.analytics_events.create_indexes([IndexModel([("event_type", ASCENDING), ("created_at", ASCENDING)])])
+    await db.analytics_events.create_indexes(
+        [
+            IndexModel([("event_type", ASCENDING), ("created_at", ASCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("created_at", ASCENDING)]),
+            IndexModel(
+                [("resource_type", ASCENDING), ("resource_id", ASCENDING), ("created_at", ASCENDING)]
+            ),
+            IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0),
+        ]
+    )
 
     await db.youtube_lesson_history.create_indexes(
         [
