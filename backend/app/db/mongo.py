@@ -112,6 +112,7 @@ async def ensure_indexes() -> None:
 
     await db.processing_jobs.create_indexes(
         [
+            IndexModel([("job_id", ASCENDING)], unique=True),
             IndexModel([("job_type", ASCENDING), ("status", ASCENDING)]),
             IndexModel([("material_id", ASCENDING), ("created_at", ASCENDING)]),
         ]
@@ -133,6 +134,13 @@ async def ensure_indexes() -> None:
                 [("resource_type", ASCENDING), ("resource_id", ASCENDING), ("created_at", ASCENDING)]
             ),
             IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0),
+        ]
+    )
+
+    await db.youtube_lesson_history.create_indexes(
+        [
+            IndexModel([("user_id", ASCENDING), ("video.video_id", ASCENDING)], unique=True),
+            IndexModel([("user_id", ASCENDING), ("updated_at", ASCENDING)]),
         ]
     )
 

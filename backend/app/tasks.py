@@ -1,6 +1,7 @@
 import asyncio
 
 from celery import Celery
+from fastapi import HTTPException
 
 from app.core.config import settings
 from app.core.logging import configure_logging, logger
@@ -20,6 +21,12 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
+    result_expires=settings.celery_result_expires_seconds,
+    task_soft_time_limit=settings.celery_task_soft_time_limit_seconds,
+    task_time_limit=settings.celery_task_time_limit_seconds,
+    worker_prefetch_multiplier=settings.celery_worker_prefetch_multiplier,
+    task_acks_late=True,
+    broker_connection_retry_on_startup=True,
 )
 
 
@@ -68,7 +75,7 @@ async def _run_generate_minigame(material_id: str, game_type: str, difficulty: s
         await close_mongo()
 
 
-@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30, retry_backoff=True, retry_jitter=True)
 def generate_slides_task(
     self,
     material_id: str,
@@ -87,12 +94,24 @@ def generate_slides_task(
                 skip_refine=skip_refine,
             )
         )
+    except HTTPException as exc:
+        message = (
+            f"Non-retriable HTTP error status={exc.status_code} "
+            f"detail={exc.detail}"
+        )
+        logger.warning(
+            "Generate slides task failed with non-retriable HTTP error for material_id=%s status=%s detail=%s",
+            material_id,
+            exc.status_code,
+            exc.detail,
+        )
+        raise RuntimeError(message) from None
     except Exception as exc:
         logger.exception("Generate slides task failed for material_id=%s", material_id)
         raise self.retry(exc=exc)
 
 
-@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30, retry_backoff=True, retry_jitter=True)
 def generate_podcast_task(
     self,
     material_id: str,
@@ -109,17 +128,41 @@ def generate_podcast_task(
                 target_duration_minutes=target_duration_minutes,
             )
         )
+    except HTTPException as exc:
+        message = (
+            f"Non-retriable HTTP error status={exc.status_code} "
+            f"detail={exc.detail}"
+        )
+        logger.warning(
+            "Generate podcast task failed with non-retriable HTTP error for material_id=%s status=%s detail=%s",
+            material_id,
+            exc.status_code,
+            exc.detail,
+        )
+        raise RuntimeError(message) from None
     except Exception as exc:
         logger.exception("Generate podcast task failed for material_id=%s", material_id)
         raise self.retry(exc=exc)
 
 
-@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30, retry_backoff=True, retry_jitter=True)
 def generate_minigame_task(self, material_id: str, game_type: str, difficulty: str = "medium") -> dict:
     configure_logging()
     logger.info("Queue generate minigame task material_id=%s", material_id)
     try:
         return asyncio.run(_run_generate_minigame(material_id=material_id, game_type=game_type, difficulty=difficulty))
+    except HTTPException as exc:
+        message = (
+            f"Non-retriable HTTP error status={exc.status_code} "
+            f"detail={exc.detail}"
+        )
+        logger.warning(
+            "Generate minigame task failed with non-retriable HTTP error for material_id=%s status=%s detail=%s",
+            material_id,
+            exc.status_code,
+            exc.detail,
+        )
+        raise RuntimeError(message) from None
     except Exception as exc:
         logger.exception("Generate minigame task failed for material_id=%s", material_id)
         raise self.retry(exc=exc)

@@ -324,7 +324,7 @@ async def transcribe_audio(
             temp_path = temp_file.name
             temp_file.write(await file.read())
 
-        whisper_language = language or settings.whisper_language
+        whisper_language = language.strip() if language else None
         local_whisper_model = LOCAL_WHISPER_MODELS.get(stt_model)
         if local_whisper_model:
             service = SpeechToTextService(local_whisper_model)

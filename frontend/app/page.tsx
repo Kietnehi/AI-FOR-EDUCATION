@@ -30,8 +30,11 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { TurnstileCaptcha } from "@/components/auth/turnstile-captcha";
 import { getDashboardPersonalization, listMaterials, submitCooperationContact } from "@/lib/api";
 import { DashboardPersonalization, Material } from "@/types";
+import { listMaterials, subscribeToMaterialsRealtime, submitCooperationContact } from "@/lib/api";
+import { Material } from "@/types";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/auth-provider";
+import { useNotify } from "@/components/use-notify";
 
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
@@ -101,6 +104,8 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [showVisualizer, setShowVisualizer] = useState(false);
   const { user, loading: authLoading } = useAuth();
+  const { info } = useNotify();
+  const hasShownWelcome = useRef(false);
   
   // Quản lý trạng thái Custom Video Player
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -153,6 +158,32 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
+  }, [user, authLoading]);
+
+  // Demo notification when user logs in - chỉ gọi 1 lần
+  useEffect(() => {
+    if (!authLoading && user && !hasShownWelcome.current) {
+      hasShownWelcome.current = true;
+      info(`Chào mừng ${user.name || 'bạn'} đến với AI Learning Studio! 🎉`, "Chào mừng!");
+    }
+    // Reset flag khi logout để lần login sau lại hiện
+    if (!user) {
+      hasShownWelcome.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    return subscribeToMaterialsRealtime({
+      onSnapshot: (snapshot) => {
+        setMaterials(snapshot.items);
+        setError("");
+        setLoading(false);
+      },
+      onError: () => undefined,
+    });
   }, [user, authLoading]);
 
   useEffect(() => {
@@ -970,7 +1001,8 @@ export default function DashboardPage() {
         <div className="grid gap-3 lg:grid-cols-3">
           {[
             {
-              name: "Kietnehi",
+              name: "
+              nehi",
               username: "Kietnehi",
               role: "AI Engineer & Researcher",
               gradient: "from-brand-500 to-brand-600",

@@ -4,10 +4,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AudioLines,
   ArrowRight,
   CheckCircle2,
   CircleHelp,
   CloudUpload,
+  Image as ImageIcon,
   PenLine,
   ShieldAlert,
   ShieldCheck,
@@ -18,15 +20,29 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Toast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
+import type { SttModel } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
-type UploadMode = "file" | "text";
+type UploadMode = "file" | "image" | "audio" | "text";
 
 type GuardrailResult = {
   is_academic: boolean;
   category: string;
   message: string;
+};
+
+type OCRWord = {
+  text: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type OCRPreviewResult = {
+  text: string;
+  words: OCRWord[];
 };
 
 const EDUCATION_LEVEL_OPTIONS = [
@@ -36,6 +52,13 @@ const EDUCATION_LEVEL_OPTIONS = [
   "Đại học/Cao đẳng",
   "Khác",
 ] as const;
+
+const STT_MODEL_OPTIONS: Array<{ value: SttModel; label: string }> = [
+  { value: "local-base", label: "Local Whisper Base" },
+  { value: "local-small", label: "Local Whisper Small" },
+  { value: "whisper-large-v3", label: "Groq Whisper Large v3" },
+  { value: "whisper-large-v3-turbo", label: "Groq Whisper Large v3 Turbo" },
+];
 
 async function extractApiError(response: Response) {
   const raw = await response.text();
@@ -56,6 +79,9 @@ export default function UploadMaterialPage() {
   const router = useRouter();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const ocrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const [mode, setMode] = useState<UploadMode>("file");
   const [title, setTitle] = useState("");
@@ -66,10 +92,18 @@ export default function UploadMaterialPage() {
   const [tags, setTags] = useState("");
   const [rawText, setRawText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [sttModel, setSttModel] = useState<SttModel>("local-base");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [guardrailResult, setGuardrailResult] = useState<GuardrailResult | null>(null);
+  const [ocrPreview, setOcrPreview] = useState<OCRPreviewResult | null>(null);
+  const [transcriptPreview, setTranscriptPreview] = useState("");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" }>({
     message: "",
     type: "success",
@@ -77,14 +111,65 @@ export default function UploadMaterialPage() {
 
   const canCheck = useMemo(() => {
     if (mode === "file") return Boolean(file && title.trim());
+    if (mode === "image") return Boolean(imageFile && title.trim());
+    if (mode === "audio") return Boolean(audioFile && title.trim());
     return Boolean(title.trim() && rawText.trim());
-  }, [file, mode, rawText, title]);
+  }, [audioFile, file, imageFile, mode, rawText, title]);
 
   const canCreate = Boolean(guardrailResult?.is_academic);
 
   useEffect(() => {
     setGuardrailResult(null);
-  }, [mode, title, description, subject, educationLevel, tags, rawText, file]);
+  }, [mode, title, description, subject, educationLevel, tags, rawText, file, imageFile, audioFile, sttModel]);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl("");
+      setOcrPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(url);
+    setOcrPreview(null);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
+  useEffect(() => {
+    if (!imagePreviewUrl || !ocrPreview || !ocrCanvasRef.current) {
+      return;
+    }
+
+    const canvas = ocrCanvasRef.current;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return;
+    }
+
+    const image = new window.Image();
+    image.onload = () => {
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      context.lineWidth = 2;
+      context.strokeStyle = "#ef4444";
+      context.fillStyle = "#ef4444";
+      context.font = "16px sans-serif";
+
+      for (const word of ocrPreview.words) {
+        context.strokeRect(word.left, word.top, word.width, word.height);
+        if (word.text) {
+          const textY = Math.max(14, word.top - 4);
+          context.fillText(word.text, word.left, textY);
+        }
+      }
+    };
+    image.src = imagePreviewUrl;
+  }, [imagePreviewUrl, ocrPreview]);
+
+  useEffect(() => {
+    setTranscriptPreview("");
+  }, [audioFile, sttModel]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -95,10 +180,17 @@ export default function UploadMaterialPage() {
     setDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
+      if (mode === "image") {
+        setImageFile(droppedFile);
+        return;
+      }
+      if (mode === "audio") {
+        setAudioFile(droppedFile);
+        return;
+      }
       setFile(droppedFile);
-      setMode("file");
     }
-  }, [user]);
+  }, [mode, user]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -137,6 +229,10 @@ export default function UploadMaterialPage() {
         message:
           mode === "file"
             ? "Hãy chọn file và nhập tiêu đề trước khi kiểm tra."
+            : mode === "image"
+              ? "Hãy chọn ảnh và nhập tiêu đề trước khi kiểm tra."
+              : mode === "audio"
+                ? "Hãy chọn file âm thanh và nhập tiêu đề trước khi kiểm tra."
             : "Hãy nhập tiêu đề và nội dung trước khi kiểm tra.",
         type: "info",
       });
@@ -149,14 +245,21 @@ export default function UploadMaterialPage() {
     try {
       let response: Response;
 
-      if (mode === "file" && file) {
+      if (mode !== "text") {
+        const uploadFile = mode === "image" ? imageFile : mode === "audio" ? audioFile : file;
+        if (!uploadFile) {
+          throw new Error("Không tìm thấy tệp để kiểm tra.");
+        }
         const form = new FormData();
-        form.append("file", file);
+        form.append("file", uploadFile);
         form.append("title", title);
         form.append("description", description);
         form.append("subject", subject);
         form.append("education_level", educationLevel);
         form.append("tags", tags);
+        if (mode === "audio") {
+          form.append("stt_model", sttModel);
+        }
         response = await fetch(`${API_BASE}/materials/guardrail-check-upload`, {
           method: "POST",
           body: form,
@@ -201,6 +304,80 @@ export default function UploadMaterialPage() {
     }
   }
 
+  async function handleOCRPreview() {
+    if (!requireAuth()) {
+      return;
+    }
+
+    if (!imageFile) {
+      setToast({ message: "Hãy chọn ảnh trước khi OCR.", type: "info" });
+      return;
+    }
+
+    setOcrLoading(true);
+    try {
+      const form = new FormData();
+      form.append("file", imageFile);
+      const response = await fetch(`${API_BASE}/materials/ocr-preview-upload`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+
+      await assertAuthResponse(response);
+      if (!response.ok) {
+        throw new Error(await extractApiError(response));
+      }
+
+      const data: OCRPreviewResult = await response.json();
+      setOcrPreview(data);
+      setToast({ message: "OCR hoàn tất. Bạn có thể đối chiếu ảnh gốc và kết quả OCR.", type: "success" });
+    } catch (error) {
+      setOcrPreview(null);
+      setToast({ message: `Lỗi OCR: ${String(error)}`, type: "error" });
+    } finally {
+      setOcrLoading(false);
+    }
+  }
+
+  async function handleTranscriptPreview() {
+    if (!requireAuth()) {
+      return;
+    }
+
+    if (!audioFile) {
+      setToast({ message: "Hãy chọn file âm thanh trước khi xem transcript.", type: "info" });
+      return;
+    }
+
+    setTranscriptLoading(true);
+    try {
+      const form = new FormData();
+      form.append("file", audioFile);
+      form.append("stt_model", sttModel);
+
+      const response = await fetch(`${API_BASE}/chat/transcribe`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+
+      await assertAuthResponse(response);
+      if (!response.ok) {
+        throw new Error(await extractApiError(response));
+      }
+
+      const data = (await response.json()) as { text: string };
+      setTranscriptPreview(data.text || "");
+      setToast({ message: "Đã tạo transcript thành công.", type: "success" });
+    } catch (error) {
+      setTranscriptPreview("");
+      setToast({ message: `Lỗi transcript: ${String(error)}`, type: "error" });
+    } finally {
+      setTranscriptLoading(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
@@ -221,14 +398,21 @@ export default function UploadMaterialPage() {
 
     try {
       let response: Response;
-      if (mode === "file" && file) {
+      if (mode !== "text") {
+        const uploadFile = mode === "image" ? imageFile : mode === "audio" ? audioFile : file;
+        if (!uploadFile) {
+          throw new Error("Không tìm thấy tệp để tải lên.");
+        }
         const form = new FormData();
-        form.append("file", file);
+        form.append("file", uploadFile);
         form.append("title", title);
         form.append("description", description);
         form.append("subject", subject);
         form.append("education_level", educationLevel);
         form.append("tags", tags);
+        if (mode === "audio") {
+          form.append("stt_model", sttModel);
+        }
         response = await fetch(`${API_BASE}/materials/upload`, {
           method: "POST",
           body: form,
@@ -271,47 +455,64 @@ export default function UploadMaterialPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-3xl space-y-6"
+      className="mx-auto max-w-4xl space-y-8 pb-12"
     >
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
-          Tải lên học liệu
+      <div className="flex flex-col items-center text-center space-y-3">
+        <div className="inline-flex items-center justify-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 font-medium text-brand-600 ring-1 ring-inset ring-brand-500/20 dark:bg-brand-950/30 dark:text-brand-300 dark:ring-brand-500/30">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75"></span>
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500"></span>
+          </span>
+          <span className="text-xs">AI-Powered Extraction</span>
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+          Tạo mới <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-indigo-500 dark:from-brand-400 dark:to-indigo-400">Học liệu</span>
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Tải file hoặc nhập nội dung trực tiếp. Tài liệu phải qua bước kiểm tra học thuật trước khi tạo học liệu.
+        <p className="max-w-xl text-base text-[var(--text-secondary)]">
+          Tải file, xử lý ảnh bằng OCR hoặc nhập văn bản trực tiếp. Hệ thống AI sẽ tự động phân tích và chuyển đổi thành học liệu thông minh.
         </p>
       </div>
 
-      <div className="flex gap-2 rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-1.5">
-        <button
-          type="button"
-          onClick={() => setMode("file")}
-          className={`
-            flex flex-1 items-center justify-center gap-2 rounded-xl border-0 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer
-            ${mode === "file"
-              ? "bg-[var(--bg-elevated)] text-brand-600 shadow-[var(--shadow-sm)]"
-              : "bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}
-          `}
-        >
-          <CloudUpload className="h-5 w-5" />
-          Tải file lên
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("text")}
-          className={`
-            flex flex-1 items-center justify-center gap-2 rounded-xl border-0 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer
-            ${mode === "text"
-              ? "bg-[var(--bg-elevated)] text-brand-600 shadow-[var(--shadow-sm)]"
-              : "bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}
-          `}
-        >
-          <PenLine className="h-5 w-5" />
-          Nhập văn bản
-        </button>
+      <div className="mx-auto w-full max-w-2xl rounded-2xl bg-[var(--bg-secondary)] p-1.5 shadow-sm ring-1 ring-inset ring-[var(--border-light)]">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        {(["file", "image", "audio", "text"] as const).map((m) => {
+          const isActive = mode === m;
+          const Icon = m === "file" ? CloudUpload : m === "image" ? ImageIcon : m === "audio" ? AudioLines : PenLine;
+          const label =
+            m === "file"
+              ? "Tải file"
+              : m === "image"
+                ? "Ảnh OCR"
+                : m === "audio"
+                  ? "Âm thanh"
+                  : "Văn bản";
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`relative z-10 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                isActive 
+                  ? "text-[var(--text-primary)] font-bold tracking-tight" 
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              }`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="active-mode-bg"
+                  className="absolute inset-0 z-[-1] rounded-xl bg-[var(--bg-elevated)] shadow-sm ring-1 ring-[var(--border-light)]"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap">{label}</span>
+            </button>
+          );
+        })}
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-8">
         <AnimatePresence mode="wait">
           {mode === "file" && (
             <motion.div
@@ -393,6 +594,273 @@ export default function UploadMaterialPage() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {mode === "audio" && (
+            <motion.div
+              key="audio"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-4"
+            >
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => {
+                  if (!requireAuth()) {
+                    return;
+                  }
+                  audioInputRef.current?.click();
+                }}
+                className={`
+                  relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 transition-all duration-300
+                  ${dragOver
+                    ? "scale-[1.02] border-brand-400 bg-brand-50"
+                    : audioFile
+                      ? "border-emerald-400 bg-emerald-50"
+                      : "border-[var(--border-default)] bg-[var(--bg-secondary)] hover:border-brand-300 hover:bg-brand-50/50"}
+                `}
+              >
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  accept="audio/*,.mp4,.m4a,.wav,.mp3,.ogg,.webm,.opus,.aac,.flac,.mpga,.mpeg"
+                  onChange={(e) => {
+                    if (!requireAuth()) {
+                      e.currentTarget.value = "";
+                      return;
+                    }
+                    setAudioFile(e.target.files?.[0] || null);
+                  }}
+                  className="hidden"
+                />
+                {audioFile ? (
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex flex-col items-center gap-3"
+                  >
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100">
+                      <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold text-[var(--text-primary)]">{audioFile.name}</p>
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">{(audioFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAudioFile(null);
+                      }}
+                      className="flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100"
+                    >
+                      <X className="h-3 w-3" />
+                      Xóa file
+                    </button>
+                  </motion.div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <motion.div
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100"
+                    >
+                      <AudioLines className="h-7 w-7 text-brand-600" />
+                    </motion.div>
+                    <div className="text-center">
+                      <p className="font-semibold text-[var(--text-primary)]">Kéo thả file âm thanh/video vào đây</p>
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">Hỗ trợ audio và MP4 chỉ có tiếng</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Card>
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Model Whisper</span>
+                    <select
+                      value={sttModel}
+                      onChange={(e) => setSttModel(e.target.value as SttModel)}
+                      className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)] transition-all duration-200 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    >
+                      {STT_MODEL_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-[var(--text-primary)]">Xem transcript</h3>
+                      <p className="mt-1 text-sm text-[var(--text-secondary)]">Xem trước nội dung chuyển giọng nói thành văn bản trước khi tạo học liệu.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleTranscriptPreview}
+                      loading={transcriptLoading}
+                      disabled={!audioFile}
+                    >
+                      {transcriptLoading ? "Đang tạo transcript..." : "Xem transcript"}
+                    </Button>
+                  </div>
+
+                  {transcriptPreview ? (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-[var(--text-primary)]">Transcript</p>
+                      <textarea
+                        value={transcriptPreview}
+                        readOnly
+                        rows={10}
+                        className="w-full resize-y rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)]"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {mode === "image" && (
+            <motion.div
+              key="image"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-4"
+            >
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => {
+                  if (!requireAuth()) {
+                    return;
+                  }
+                  imageInputRef.current?.click();
+                }}
+                className={`
+                  relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 transition-all duration-300
+                  ${dragOver
+                    ? "scale-[1.02] border-brand-400 bg-brand-50"
+                    : imageFile
+                      ? "border-emerald-400 bg-emerald-50"
+                      : "border-[var(--border-default)] bg-[var(--bg-secondary)] hover:border-brand-300 hover:bg-brand-50/50"}
+                `}
+              >
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp,.bmp"
+                  onChange={(e) => {
+                    if (!requireAuth()) {
+                      e.currentTarget.value = "";
+                      return;
+                    }
+                    setImageFile(e.target.files?.[0] || null);
+                  }}
+                  className="hidden"
+                />
+
+                {imageFile ? (
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex flex-col items-center gap-3"
+                  >
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100">
+                      <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold text-[var(--text-primary)]">{imageFile.name}</p>
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">{(imageFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImageFile(null);
+                      }}
+                      className="flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100"
+                    >
+                      <X className="h-3 w-3" />
+                      Xóa ảnh
+                    </button>
+                  </motion.div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <motion.div
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100"
+                    >
+                      <ImageIcon className="h-7 w-7 text-brand-600" />
+                    </motion.div>
+                    <div className="text-center">
+                      <p className="font-semibold text-[var(--text-primary)]">Kéo thả ảnh vào đây</p>
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">Hoặc nhấn để chọn ảnh • PNG, JPG, WEBP, BMP</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Card>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-base font-semibold text-[var(--text-primary)]">Xem trước OCR</h3>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">OCR ảnh để đối chiếu bản gốc và bản đã nhận diện trước khi tạo học liệu.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleOCRPreview}
+                    loading={ocrLoading}
+                    disabled={!imageFile}
+                  >
+                    {ocrLoading ? "Đang OCR..." : "OCR ảnh"}
+                  </Button>
+                </div>
+
+                {imagePreviewUrl && ocrPreview ? (
+                  <div className="mt-4 space-y-4">
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">Ảnh gốc</p>
+                        <img
+                          src={imagePreviewUrl}
+                          alt="Ảnh gốc tải lên"
+                          className="max-h-[420px] w-full rounded-xl border border-[var(--border-light)] object-contain bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">Ảnh sau OCR (đánh dấu vùng chữ)</p>
+                        <canvas
+                          ref={ocrCanvasRef}
+                          className="max-h-[420px] w-full rounded-xl border border-[var(--border-light)] bg-white object-contain"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-[var(--text-primary)]">Nội dung OCR</p>
+                      <textarea
+                        value={ocrPreview.text}
+                        readOnly
+                        rows={8}
+                        className="w-full resize-y rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)]"
+                      />
+                    </div>
+
+                  </div>
+                ) : null}
+              </Card>
             </motion.div>
           )}
 

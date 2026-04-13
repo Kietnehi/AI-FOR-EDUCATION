@@ -29,7 +29,7 @@ type MiniChatMessage = {
   content: string;
   images?: string[];
   reasoning_details?: Record<string, any> | null;
-  model_used?: string;
+  model_used?: string | null;
   fallback_applied?: boolean;
   is_web_search?: boolean;
   search_provider?: string | null;
