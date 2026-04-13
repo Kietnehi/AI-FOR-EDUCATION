@@ -99,16 +99,16 @@ export const Topbar = memo(function Topbar({
             onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
             className="
               relative w-10 h-10 rounded-full flex items-center justify-center
-              bg-transparent border-2 border-[var(--border-structural)]
-              text-[var(--text-secondary)] hover:text-[var(--text-primary)]
-              hover:border-[#A1E8AF]
+              bg-transparent border-2 border-[var(--border-structural)] dark:border-slate-600
+              text-[var(--text-secondary)] dark:text-slate-300 hover:text-[var(--text-primary)] dark:hover:text-white
+              hover:border-[#A1E8AF] dark:hover:border-brand-400
               transition-all duration-200 cursor-pointer
             "
             aria-label="Thông báo"
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[8px] h-2 px-0.5 flex items-center justify-center bg-rose-500 rounded-full text-[8px] font-bold text-white">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 flex items-center justify-center bg-rose-500 dark:bg-rose-600 rounded-full text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-900">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
