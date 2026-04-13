@@ -6,6 +6,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repositories.base import serialize_document
+from app.utils.time import utc_now
 
 
 class YouTubeLessonHistoryRepository:
@@ -43,11 +44,29 @@ class YouTubeLessonHistoryRepository:
             "video": payload.get("video"),
             "lesson": payload.get("lesson"),
             "transcript": payload.get("transcript"),
+            "translations": {},
             "created_at": created_at,
             "updated_at": updated_at,
         }
         result = await self.collection.insert_one(doc)
         return serialize_document({"_id": result.inserted_id, **doc}) or {}
+
+    async def save_translation(
+        self,
+        user_id: str,
+        video_id: str,
+        language: str,
+        translated_transcript: list[dict],
+    ) -> bool:
+        query = {"user_id": user_id, "video.video_id": video_id}
+        update = {
+            "$set": {
+                f"translations.{language}": translated_transcript,
+                "updated_at": utc_now(),
+            }
+        }
+        result = await self.collection.update_one(query, update)
+        return result.modified_count > 0
 
     async def list_for_user(self, user_id: str, skip: int, limit: int) -> tuple[list[dict], int]:
         query = {"user_id": user_id}

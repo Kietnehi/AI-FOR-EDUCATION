@@ -75,6 +75,7 @@ class YouTubeLessonResponse(BaseModel):
     video: YouTubeVideoItem
     transcript: list[TranscriptSegment]
     lesson: InteractiveLessonPayload
+    translations: dict[str, list[TranscriptSegment]] | None = Field(default_factory=dict)
 
 
 class YouTubeLessonHistorySummary(BaseModel):
@@ -89,6 +90,7 @@ class YouTubeLessonHistoryDetail(BaseModel):
     video: YouTubeVideoItem
     transcript: list[TranscriptSegment]
     lesson: InteractiveLessonPayload
+    translations: dict[str, list[TranscriptSegment]] | None = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
@@ -99,6 +101,7 @@ class YouTubeLessonHistoryListResponse(BaseModel):
 
 
 class YouTubeTranscriptTranslateRequest(BaseModel):
+    video_id: str | None = None
     transcript: list[TranscriptSegment]
     target_language: str = Field(..., min_length=2, max_length=20)
 
