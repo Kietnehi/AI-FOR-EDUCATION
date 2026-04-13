@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { deleteMaterial, listMaterials, subscribeToMaterialsRealtime, updateMaterial } from "@/lib/api";
 import { Material } from "@/types";
+import { useNotify } from "@/components/use-notify";
 
 const container = {
   hidden: { opacity: 0 },
@@ -38,6 +39,7 @@ const EDUCATION_LEVEL_OPTIONS = [
 ] as const;
 
 export default function MaterialsPage() {
+  const { success, error: notifyError } = useNotify();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -141,7 +143,7 @@ export default function MaterialsPage() {
   const handleSaveEdit = async () => {
     if (!editingMaterial) return;
     if (!editForm.title.trim()) {
-      alert("Tiêu đề không được để trống.");
+      notifyError("Tiêu đề không được để trống.");
       return;
     }
 
@@ -161,8 +163,9 @@ export default function MaterialsPage() {
       setMaterials((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setEditingMaterial(null);
       setIsCustomEducationLevel(false);
+      success("Đã cập nhật học liệu thành công.");
     } catch (err) {
-      alert(`Lỗi khi cập nhật: ${err}`);
+      notifyError(`Lỗi khi cập nhật: ${err}`);
     } finally {
       setSavingEdit(false);
     }
@@ -177,8 +180,9 @@ export default function MaterialsPage() {
     try {
       await deleteMaterial(id);
       setMaterials((prev) => prev.filter((item) => item.id !== id));
+      success("Đã xóa học liệu thành công.");
     } catch (err) {
-      alert(`Lỗi khi xóa: ${err}`);
+      notifyError(`Lỗi khi xóa: ${err}`);
     } finally {
       setDeletingId(null);
     }

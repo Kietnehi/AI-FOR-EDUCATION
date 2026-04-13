@@ -139,7 +139,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
           <p className="text-sm leading-relaxed m-0 whitespace-pre-wrap">
             {message.message}
           </p>
-        ) : message.is_web_search && message.search_results ? (
+        ) : message.is_web_search && message.search_results && message.search_results.sources ? (
           <WebSearchResult
             answer={message.message}
             sources={message.search_results.sources}
