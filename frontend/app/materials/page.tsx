@@ -21,7 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardSkeleton } from "@/components/ui/skeleton";
-import { deleteMaterial, listMaterials, updateMaterial } from "@/lib/api";
+import { deleteMaterial, listMaterials, subscribeToMaterialsRealtime, updateMaterial } from "@/lib/api";
 import { Material } from "@/types";
 
 const container = {
@@ -82,6 +82,17 @@ export default function MaterialsPage() {
 
   useEffect(() => {
     reloadMaterials();
+  }, []);
+
+  useEffect(() => {
+    return subscribeToMaterialsRealtime({
+      onSnapshot: (snapshot) => {
+        setMaterials(snapshot.items);
+        setError("");
+        setLoading(false);
+      },
+      onError: () => undefined,
+    });
   }, []);
 
   useEffect(() => {

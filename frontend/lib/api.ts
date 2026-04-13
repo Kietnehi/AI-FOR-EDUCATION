@@ -3,6 +3,8 @@ import {
   ChatSession,
   DeleteSessionsResult,
   MinigamePersonalization,
+  MaterialDetailRealtimeSnapshot,
+  MaterialsRealtimeSnapshot,
   RemediationQuickStart,
   GeneratedContent,
   Material,
@@ -110,6 +112,10 @@ export function clearApiCache(): void {
 
 function primeCache(path: string, data: unknown, ttlMs: number = DEFAULT_GET_CACHE_TTL_MS): void {
   writeCache(getCacheKey(path), data, ttlMs);
+}
+
+function openEventStream(path: string): EventSource {
+  return new EventSource(`${API_BASE}${path}`, { withCredentials: true });
 }
 
 async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> {
@@ -236,6 +242,29 @@ export async function listMaterials(): Promise<{ items: Material[]; total: numbe
   return apiFetch<{ items: Material[]; total: number }>("/materials");
 }
 
+export function subscribeToMaterialsRealtime(handlers: {
+  onSnapshot: (snapshot: MaterialsRealtimeSnapshot) => void;
+  onError?: () => void;
+}): () => void {
+  const eventSource = openEventStream("/realtime/materials/stream");
+  const handleSnapshot = (event: MessageEvent<string>) => {
+    const snapshot = JSON.parse(event.data) as MaterialsRealtimeSnapshot;
+    primeCache("/materials", { items: snapshot.items, total: snapshot.total });
+    for (const item of snapshot.items) {
+      primeCache(`/materials/${item.id}`, item);
+    }
+    handlers.onSnapshot(snapshot);
+  };
+
+  eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+  eventSource.onerror = () => handlers.onError?.();
+
+  return () => {
+    eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
+    eventSource.close();
+  };
+}
+
 export async function deleteMaterial(id: string): Promise<void> {
   const result = await apiFetch<void>(`/materials/${id}`, { method: "DELETE" });
   invalidateCache("/materials", `/materials/${id}`);
@@ -244,6 +273,39 @@ export async function deleteMaterial(id: string): Promise<void> {
 
 export async function getMaterial(id: string): Promise<Material> {
   return apiFetch<Material>(`/materials/${id}`);
+}
+
+export function subscribeToMaterialRealtime(
+  materialId: string,
+  handlers: {
+    onSnapshot: (snapshot: MaterialDetailRealtimeSnapshot) => void;
+    onError?: () => void;
+  }
+): () => void {
+  const eventSource = openEventStream(
+    `/realtime/materials/stream?material_id=${encodeURIComponent(materialId)}`
+  );
+  const handleSnapshot = (event: MessageEvent<string>) => {
+    const snapshot = JSON.parse(event.data) as MaterialDetailRealtimeSnapshot;
+    invalidateCache("/materials");
+    if (snapshot.deleted || !snapshot.material) {
+      invalidateCache(`/materials/${materialId}`, `/materials/${materialId}/generated-contents`);
+      handlers.onSnapshot(snapshot);
+      return;
+    }
+
+    primeCache(`/materials/${materialId}`, snapshot.material);
+    primeCache(`/materials/${materialId}/generated-contents`, snapshot.generated_contents);
+    handlers.onSnapshot(snapshot);
+  };
+
+  eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+  eventSource.onerror = () => handlers.onError?.();
+
+  return () => {
+    eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
+    eventSource.close();
+  };
 }
 
 export async function updateMaterial(
@@ -315,6 +377,19 @@ export async function generateMinigame(
     method: "POST",
     body: JSON.stringify({ game_type: gameType, difficulty, force_regenerate }),
     cacheTtlMs: gameType === "shooting_quiz" ? 180000 : 60000,
+  });
+  invalidateCache(`/materials/${id}/generated-contents`);
+  return data;
+}
+
+export async function generateKnowledgeGraph(
+  id: string,
+  force_regenerate: boolean = false
+): Promise<GeneratedContent> {
+  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/knowledge-graph`, {
+    method: "POST",
+    body: JSON.stringify({ force_regenerate }),
+    skipCache: true,
   });
   invalidateCache(`/materials/${id}/generated-contents`);
   return data;

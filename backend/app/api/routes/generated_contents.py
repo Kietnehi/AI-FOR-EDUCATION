@@ -8,6 +8,7 @@ from app.schemas.generated_content import (
     GenerateNotebookLMMediaRequest,
     GeneratePodcastRequest,
     GenerateSlidesRequest,
+    GenerateKnowledgeGraphRequest,
     GenerateNotebookLMMediaResponse,
     NotebookLMArtifactConfirmationResponse,
     GeneratedContentResponse,
@@ -85,6 +86,25 @@ async def generate_minigame(
         material_id, 
         game_type=payload.game_type,
         difficulty=payload.difficulty,
+        user_id=user.id,
+        force_regenerate=payload.force_regenerate,
+    )
+    if not result.get("storage_type"):
+        result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
+    return GeneratedContentResponse(**result)
+
+
+@router.post("/materials/{material_id}/generate/knowledge-graph", response_model=GeneratedContentResponse)
+async def generate_knowledge_graph(
+    material_id: str,
+    payload: GenerateKnowledgeGraphRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> GeneratedContentResponse:
+    """Generate a knowledge graph (nodes + edges) from a processed material."""
+    service = GenerationService(db)
+    result = await service.generate_knowledge_graph(
+        material_id,
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
     )
