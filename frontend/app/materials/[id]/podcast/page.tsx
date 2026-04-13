@@ -12,6 +12,7 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/ui/audio-player";
+import { useNotify } from "@/components/use-notify";
 import { apiDownloadUrl, apiPreviewUrl, getGeneratedContent } from "@/lib/api";
 import { GeneratedContent } from "@/types";
 
@@ -20,6 +21,7 @@ export default function PodcastPage() {
   const params = useParams<{ id: string }>();
   const contentId = searchParams.get("contentId") || "";
   const materialId = params.id;
+  const { success, error: notifyError, info } = useNotify();
 
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,10 +32,17 @@ export default function PodcastPage() {
       return;
     }
     getGeneratedContent(contentId)
-      .then(setContent)
-      .catch(() => undefined)
+      .then((data) => {
+        setContent(data);
+        if (data?.json_content?.segments?.length) {
+          success(`Đã tải podcast với ${data.json_content.segments.length} đoạn hội thoại!`);
+        }
+      })
+      .catch((err) => {
+        notifyError(`Không thể tải podcast: ${String(err)}`);
+      })
       .finally(() => setLoading(false));
-  }, [contentId]);
+  }, [contentId, success, notifyError]);
 
   const segments = content?.json_content?.segments || [];
 
@@ -123,13 +132,25 @@ export default function PodcastPage() {
 
           {/* Audio Player */}
           {content.file_url && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 space-y-3">
               <AudioPlayer
                 audioUrl={apiPreviewUrl(content.file_url)}
                 downloadUrl={apiDownloadUrl(content.file_url)}
                 title={content.json_content?.title || "Podcast Audio"}
                 className="shadow-lg border-0 ring-1 ring-[var(--border-light)]"
               />
+              <div className="flex justify-end">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    info("Đang tải podcast...");
+                    window.open(apiDownloadUrl(content.file_url!), "_blank");
+                  }}
+                >
+                  Tải podcast
+                </Button>
+              </div>
             </div>
           )}
 

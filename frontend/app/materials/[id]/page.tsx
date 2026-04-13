@@ -131,7 +131,6 @@ export default function MaterialDetailPage() {
 
   // Wrapper để vừa hiện toast cũ, vừa thêm vào notification system mới
   const showToastAndNotify = (message: string, type: "success" | "error" | "info") => {
-    console.log("[showToastAndNotify]", type, message);
     setToast({ message, type });
     if (type === "success") success(message);
     else if (type === "error") error(message);
@@ -396,7 +395,7 @@ export default function MaterialDetailPage() {
       await refreshGeneratedContents();
       showToastAndNotify(`Đã xóa ${label} thành công.`, "success");
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setDeletingGeneratedId("");
     }
@@ -439,7 +438,7 @@ export default function MaterialDetailPage() {
       } else if ("status" in payload && payload.status === "awaiting_artifact_confirmation") {
         setNotebookConfirmation(null);
         setNotebookArtifactPending(payload as NotebookLMArtifactConfirmationResult);
-        setToast({ message: payload.message || "Đã upload xong. Xác nhận để bấm tạo Video + Infographic.", type: "info" });
+        showToastAndNotify(payload.message || "Đã upload xong. Xác nhận để bấm tạo Video + Infographic.", "info");
       } else if ("status" in payload && payload.status === "generation_complete") {
         setNotebookConfirmation(null);
         setNotebookArtifactPending(null);
@@ -451,10 +450,10 @@ export default function MaterialDetailPage() {
         setNotebookGenerated(null);
         setNotebookSaved(payload as NotebookLMSavedResult);
         setShowNotebookLibraryModal(true);
-        setToast({ message: "Đã tìm thấy nội dung đã tạo trước đó.", type: "info" });
+        showToastAndNotify("Đã tìm thấy nội dung đã tạo trước đó.", "info");
       }
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setBusyAction("");
     }
@@ -470,12 +469,12 @@ export default function MaterialDetailPage() {
       if (payload.status === "generation_complete") {
         setNotebookArtifactPending(null);
         setNotebookGenerated(payload as NotebookLMMediaResult);
-        setToast({ message: payload.message || "Đã bấm tạo trên NotebookLM. Khi render xong, bấm tải xuống.", type: "success" });
+        showToastAndNotify(payload.message || "Đã bấm tạo trên NotebookLM. Khi render xong, bấm tải xuống.", "success");
       }
     } catch (error) {
       setNotebookGenerated(null);
       setNotebookArtifactPending(notebookArtifactPending);
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setIsArtifactGenerating(false);
       setBusyAction("");
@@ -530,7 +529,7 @@ export default function MaterialDetailPage() {
       setIsArtifactGenerating(false);
       showToastAndNotify("Đã hủy session và đóng browser", "info");
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setBusyAction("");
     }
@@ -596,7 +595,7 @@ export default function MaterialDetailPage() {
       showToastAndNotify("Đã xóa học liệu thành công.", "success");
       router.push("/materials");
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setBusyAction("");
     }
