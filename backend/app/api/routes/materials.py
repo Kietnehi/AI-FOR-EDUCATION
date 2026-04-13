@@ -13,6 +13,7 @@ from app.schemas.materials import (
     MaterialUpdateRequest,
 )
 from app.services.material_service import MaterialService
+from app.services.personalization_service import PersonalizationService
 from app.services.storage import storage_service
 
 router = APIRouter()
@@ -26,6 +27,17 @@ async def create_material(
 ) -> MaterialResponse:
     service = MaterialService(db)
     material = await service.create_material(payload.model_dump())
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="material_created",
+        resource_type="material",
+        resource_id=material.get("id"),
+        metadata={
+            "source_type": material.get("source_type"),
+            "subject": material.get("subject"),
+        },
+    )
     if not material.get("storage_type"):
         material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
@@ -94,6 +106,18 @@ async def upload_material(
             "tags": [item.strip() for item in tags.split(",")] if tags else [],
         },
     )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="material_uploaded",
+        resource_type="material",
+        resource_id=material.get("id"),
+        metadata={
+            "file_name": file.filename,
+            "source_type": material.get("source_type"),
+            "subject": material.get("subject"),
+        },
+    )
     if not material.get("storage_type"):
         material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
@@ -124,6 +148,13 @@ async def get_material(
 ) -> MaterialResponse:
     service = MaterialService(db)
     material = await service.get_material(material_id, user_id=user.id)
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="material_viewed",
+        resource_type="material",
+        resource_id=material.get("id") or material_id,
+    )
     if not material.get("storage_type"):
         material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
@@ -141,6 +172,14 @@ async def process_material(
         material_id,
         force_reprocess=payload.force_reprocess,
         user_id=user.id,
+    )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="material_process_requested",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={"force_reprocess": payload.force_reprocess},
     )
     return MaterialProcessResponse(
         material_id=material_id,

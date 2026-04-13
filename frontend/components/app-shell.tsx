@@ -9,6 +9,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { Footer } from "@/components/layout/footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/components/auth-provider";
+import { getUserPreferences, updateUserPreferences } from "@/lib/api";
 
 // Load 3D component correctly
 const FloatingMascot = dynamic(() => import("@/components/3d/floating-mascot").then(mod => mod.FloatingMascot), {
@@ -31,6 +32,26 @@ export function AppShell({ children }: { children: ReactNode }) {
       setMascotEnabled(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    getUserPreferences()
+      .then((preferences) => {
+        if (cancelled) return;
+        const next = preferences.mascot_enabled !== false;
+        setMascotEnabled(next);
+        localStorage.setItem("mascot-enabled", String(next));
+      })
+      .catch(() => {
+        // Keep local fallback when server preference is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!mascotEnabled) {
@@ -76,13 +97,23 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const handleToggleMascot = () => {
+  const handleToggleMascot = async () => {
     const next = !mascotEnabled;
     setMascotEnabled(next);
     localStorage.setItem("mascot-enabled", String(next));
+
+    if (!user) {
+      return;
+    }
+
+    try {
+      await updateUserPreferences({ mascot_enabled: next });
+    } catch {
+      // Local value is already applied; server sync can retry later.
+    }
   };
 
-  if (pathname.startsWith("/auth")) {
+  if ((pathname || "").startsWith("/auth")) {
     return (
       <ThemeProvider>
         <div className="min-h-screen bg-[var(--bg-primary)]">

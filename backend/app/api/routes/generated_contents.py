@@ -20,6 +20,7 @@ from app.schemas.generated_content import (
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.services.generation_service import GenerationService
 from app.services.material_service import MaterialService
+from app.services.personalization_service import PersonalizationService
 from app.services.notebooklm_service import NotebookLMService
 from app.services.storage import storage_service
 from app.utils.time import utc_now
@@ -49,6 +50,20 @@ async def generate_slides(
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
     )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="generation_requested",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={
+            "content_type": "slides",
+            "tone": payload.tone,
+            "max_slides": payload.max_slides,
+            "force_regenerate": payload.force_regenerate,
+            "generated_content_id": result.get("id"),
+        },
+    )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
@@ -69,6 +84,20 @@ async def generate_podcast(
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
     )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="generation_requested",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={
+            "content_type": "podcast",
+            "style": payload.style,
+            "target_duration_minutes": payload.target_duration_minutes,
+            "force_regenerate": payload.force_regenerate,
+            "generated_content_id": result.get("id"),
+        },
+    )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
@@ -88,6 +117,20 @@ async def generate_minigame(
         difficulty=payload.difficulty,
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
+    )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="generation_requested",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={
+            "content_type": "minigame",
+            "game_type": payload.game_type,
+            "difficulty": payload.difficulty,
+            "force_regenerate": payload.force_regenerate,
+            "generated_content_id": result.get("id"),
+        },
     )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
