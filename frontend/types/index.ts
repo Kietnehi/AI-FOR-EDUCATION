@@ -115,6 +115,77 @@ export type RemediationQuickStart = {
   message: string;
 };
 
+export type PersonalizationCustomModelOption = {
+  id: string;
+  name: string;
+};
+
+export type UserPreferences = {
+  user_id: string;
+  theme: "light" | "dark" | "system";
+  mascot_enabled: boolean;
+  chat_model_id: string;
+  chat_model_name: string;
+  chat_model_supports_reasoning: boolean;
+  chat_use_gemini_rotation: boolean;
+  chat_custom_models: PersonalizationCustomModelOption[];
+  preferred_language: string;
+  learning_pace: "light" | "moderate" | "intensive";
+  study_goal?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserPreferencesUpdate = {
+  theme?: "light" | "dark" | "system";
+  mascot_enabled?: boolean;
+  chat_model_id?: string;
+  chat_model_name?: string;
+  chat_model_supports_reasoning?: boolean;
+  chat_use_gemini_rotation?: boolean;
+  chat_custom_models?: PersonalizationCustomModelOption[];
+  preferred_language?: string;
+  learning_pace?: "light" | "moderate" | "intensive";
+  study_goal?: string | null;
+};
+
+export type DashboardContinueLearningItem = {
+  material_id: string;
+  title: string;
+  subject?: string | null;
+  reason: string;
+  last_activity_at?: string | null;
+  recommendation_score?: number;
+};
+
+export type DashboardFeatureAffinityItem = {
+  feature: string;
+  score: number;
+  reason: string;
+};
+
+export type DashboardPersonalization = {
+  generated_counts: Record<string, number>;
+  continue_learning: DashboardContinueLearningItem[];
+  next_actions: string[];
+  feature_affinity: DashboardFeatureAffinityItem[];
+  study_rhythm: {
+    active_days_7d: number;
+    events_7d: number;
+    last_active_at?: string | null;
+    retention_status: "inactive" | "low" | "medium" | "high";
+    days_since_last_active?: number | null;
+    top_feature?: string | null;
+  };
+  summary: {
+    materials_total: number;
+    generated_total: number;
+    chat_sessions_total: number;
+    game_attempts_total: number;
+    average_game_accuracy: number;
+  };
+};
+
 export type NotebookLMMediaFile = {
   file_name: string;
   file_url: string;

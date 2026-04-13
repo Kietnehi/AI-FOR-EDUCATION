@@ -8,6 +8,7 @@ def test_api_router_registers_expected_route_groups() -> None:
     assert "/generated-contents/{content_id}" in paths
     assert "/chat/{material_id}/session" in paths
     assert "/games/{generated_content_id}/submit" in paths
+    assert "/personalization/preferences" in paths
     assert "/files/{file_path:path}/download" in paths
     assert "/converter/convert-url" in paths
 
@@ -19,5 +20,6 @@ def test_api_router_exposes_expected_tags() -> None:
     assert tags_by_path["/generated-contents/{content_id}"] == ["generated-contents"]
     assert tags_by_path["/chat/{material_id}/session"] == ["chat"]
     assert tags_by_path["/games/{generated_content_id}/submit"] == ["games"]
+    assert tags_by_path["/personalization/preferences"] == ["personalization"]
     assert tags_by_path["/files/{file_path:path}/download"] == ["files"]
     assert tags_by_path["/converter/convert-url"] == ["converter"]

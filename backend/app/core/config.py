@@ -107,6 +107,13 @@ class Settings(BaseSettings):
     # Number of latest mascot chat messages injected as memory.
     mascot_memory_turns: int = 10
 
+    # Personalization telemetry controls
+    personalization_event_retention_days: int = 90
+    personalization_event_max_string_length: int = 240
+    personalization_event_max_metadata_keys: int = 40
+    personalization_event_max_list_items: int = 20
+    personalization_event_max_depth: int = 3
+
     @field_validator(
         "upload_dir",
         "generated_dir",

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Settings, User, Bell, Shield, Palette, Database, Moon, Sun, Bot } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
 import { Card } from "@/components/ui/card";
 import { Toast } from "@/components/ui/toast";
 import { useNotify } from "@/components/use-notify";
 import { useTheme } from "@/components/theme-provider";
+import { getUserPreferences, updateUserPreferences } from "@/lib/api";
 
 type CustomModelOption = {
   id: string;
@@ -15,6 +17,7 @@ type CustomModelOption = {
 
 export default function SettingsPage() {
   const { theme, toggle } = useTheme();
+  const { user } = useAuth();
   const { success: notifySuccess, error: notifyError } = useNotify();
   const [chatModelId, setChatModelId] = useState<string>("openai/gpt-4o-mini");
   const [chatModelName, setChatModelName] = useState<string>("GPT-4o Mini");
@@ -25,6 +28,9 @@ export default function SettingsPage() {
   const [deleteTargetModelId, setDeleteTargetModelId] = useState("");
   const [modelSupportsReasoning, setModelSupportsReasoning] = useState<boolean>(false);
   const [useGeminiRotation, setUseGeminiRotation] = useState<boolean>(true);
+  const [preferredLanguage, setPreferredLanguage] = useState<string>("vi");
+  const [learningPace, setLearningPace] = useState<"light" | "moderate" | "intensive">("moderate");
+  const [studyGoal, setStudyGoal] = useState<string>("");
   const [notice, setNotice] = useState("");
   const [noticeType, setNoticeType] = useState<"success" | "error" | "info">("info");
   const [noticeKey, setNoticeKey] = useState(0);
@@ -36,13 +42,16 @@ export default function SettingsPage() {
     { id: "minimax/minimax-m2.7", name: "MiniMax M2.7" },
   ];
 
-  useEffect(() => {
+  const applyStoredSettings = useCallback(() => {
     const legacyModel = localStorage.getItem("chat_model");
     const savedModelId = localStorage.getItem("chat_model_id");
     const savedModelName = localStorage.getItem("chat_model_name");
     const savedSupportsReasoning = localStorage.getItem("chat_model_supports_reasoning");
     const savedUseGeminiRotation = localStorage.getItem("chat_use_gemini_rotation");
     const savedCustomModels = localStorage.getItem("chat_custom_models");
+    const savedPreferredLanguage = localStorage.getItem("learning_pref_language");
+    const savedLearningPace = localStorage.getItem("learning_pref_pace");
+    const savedStudyGoal = localStorage.getItem("learning_pref_goal");
 
     let parsedCustomModels: CustomModelOption[] = [];
     if (savedCustomModels) {
@@ -69,9 +78,60 @@ export default function SettingsPage() {
     setDeleteTargetModelId(parsedCustomModels[0]?.id || "");
     setModelSupportsReasoning(savedSupportsReasoning === "true");
     setUseGeminiRotation(savedUseGeminiRotation !== "false");
+    setPreferredLanguage((savedPreferredLanguage || "vi").trim() || "vi");
+    if (savedLearningPace === "light" || savedLearningPace === "intensive") {
+      setLearningPace(savedLearningPace);
+    } else {
+      setLearningPace("moderate");
+    }
+    setStudyGoal(savedStudyGoal || "");
   }, []);
 
-  const handleSaveAiSettings = () => {
+  useEffect(() => {
+    applyStoredSettings();
+  }, [applyStoredSettings]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    getUserPreferences()
+      .then((prefs) => {
+        if (cancelled) return;
+        setChatModelId(prefs.chat_model_id || "openai/gpt-4o-mini");
+        setChatModelName((prefs.chat_model_name || prefs.chat_model_id || "GPT-4o Mini").trim());
+        setModelSupportsReasoning(Boolean(prefs.chat_model_supports_reasoning));
+        setUseGeminiRotation(prefs.chat_use_gemini_rotation !== false);
+        setPreferredLanguage((prefs.preferred_language || "vi").trim() || "vi");
+        if (prefs.learning_pace === "light" || prefs.learning_pace === "intensive") {
+          setLearningPace(prefs.learning_pace);
+        } else {
+          setLearningPace("moderate");
+        }
+        setStudyGoal(prefs.study_goal || "");
+
+        const serverCustomModels = Array.isArray(prefs.chat_custom_models)
+          ? prefs.chat_custom_models
+              .filter((item) => item && typeof item.id === "string")
+              .map((item) => ({
+                id: String(item.id).trim(),
+                name: String(item.name || item.id).trim(),
+              }))
+              .filter((item) => item.id.length > 0)
+          : [];
+        setCustomModels(serverCustomModels);
+        setDeleteTargetModelId(serverCustomModels[0]?.id || "");
+      })
+      .catch(() => {
+        // Keep local settings as fallback if API is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const handleSaveAiSettings = async () => {
     const normalizedModelId = chatModelId.trim();
     const normalizedModelName = chatModelName.trim();
 
@@ -91,9 +151,33 @@ export default function SettingsPage() {
       localStorage.setItem("chat_model_supports_reasoning", String(modelSupportsReasoning));
       localStorage.removeItem("chat_show_reasoning_toggle");
       localStorage.setItem("chat_use_gemini_rotation", String(useGeminiRotation));
+      localStorage.setItem("learning_pref_language", preferredLanguage.trim() || "vi");
+      localStorage.setItem("learning_pref_pace", learningPace);
+      localStorage.setItem("learning_pref_goal", studyGoal.trim());
 
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("chat-settings-updated"));
+      }
+
+      if (user) {
+        try {
+          await updateUserPreferences({
+            theme,
+            chat_model_id: normalizedModelId,
+            chat_model_name: normalizedModelName || normalizedModelId,
+            chat_custom_models: customModels,
+            chat_model_supports_reasoning: modelSupportsReasoning,
+            chat_use_gemini_rotation: useGeminiRotation,
+            preferred_language: preferredLanguage.trim() || "vi",
+            learning_pace: learningPace,
+            study_goal: studyGoal.trim() ? studyGoal.trim() : null,
+          });
+        } catch {
+          setNoticeType("info");
+          setNotice("Đã lưu trên thiết bị. Chưa đồng bộ lên tài khoản, vui lòng thử lại sau.");
+          setNoticeKey((prev) => prev + 1);
+          return;
+        }
       }
 
       setNoticeType("success");
@@ -388,6 +472,49 @@ export default function SettingsPage() {
                 </label>
               </div>
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+              Cá nhân hóa học tập
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1.5">
+                <span className="block text-xs font-semibold text-[var(--text-secondary)]">Ngôn ngữ ưu tiên</span>
+                <select
+                  value={preferredLanguage}
+                  onChange={(e) => setPreferredLanguage(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--text-primary)] cursor-pointer outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="vi">Tiếng Việt</option>
+                  <option value="en">English</option>
+                </select>
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="block text-xs font-semibold text-[var(--text-secondary)]">Nhịp học mong muốn</span>
+                <select
+                  value={learningPace}
+                  onChange={(e) => setLearningPace(e.target.value as "light" | "moderate" | "intensive")}
+                  className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--text-primary)] cursor-pointer outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="light">Nhẹ</option>
+                  <option value="moderate">Vừa</option>
+                  <option value="intensive">Chuyên sâu</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="space-y-1.5">
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">Mục tiêu học tập</span>
+              <input
+                type="text"
+                value={studyGoal}
+                onChange={(e) => setStudyGoal(e.target.value)}
+                placeholder="Ví dụ: Nắm chắc xác suất trong 4 tuần"
+                className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </label>
           </div>
 
           <div className="pt-2">

@@ -8,9 +8,11 @@ import json
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import FileResponse, JSONResponse
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_database
 from app.schemas.auth import AuthUser
+from app.services.personalization_service import PersonalizationService
 
 from app.services.converter import (
     convert_web_to_pdf,
@@ -36,16 +38,32 @@ async def convert_url(
     background_tasks: BackgroundTasks,
     url: str = Form(...),
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     file_id = str(uuid.uuid4())
     output_path = OUTPUT_DIR / f"{file_id}.pdf"
     success = await convert_web_to_pdf(url, output_path)
     if success:
+        personalization_service = PersonalizationService(db)
+        await personalization_service.track_event(
+            user_id=user.id,
+            event_type="converter_used",
+            resource_type="converter",
+            metadata={"input_type": "url", "success": True},
+        )
         background_tasks.add_task(cleanup_files, None, str(output_path))
         safe_filename = re.sub(r'[\\/*?:"<>|]', '_', url.split('//')[-1])[:50]
         if not safe_filename.endswith('.pdf'):
             safe_filename += '.pdf'
         return FileResponse(output_path, filename=safe_filename, media_type='application/pdf')
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="converter_used",
+        resource_type="converter",
+        metadata={"input_type": "url", "success": False},
+        success=False,
+    )
     raise HTTPException(status_code=500, detail="Conversion failed")
 
 
@@ -54,6 +72,7 @@ async def convert_upload(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     file_id = str(uuid.uuid4())
     input_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
@@ -66,10 +85,25 @@ async def convert_upload(
     background_tasks.add_task(cleanup_files, str(input_path), str(output_path))
     
     if success:
+        personalization_service = PersonalizationService(db)
+        await personalization_service.track_event(
+            user_id=user.id,
+            event_type="converter_used",
+            resource_type="converter",
+            metadata={"input_type": "file", "success": True, "file_name": file.filename},
+        )
         original_name = Path(file.filename).stem
         safe_name = re.sub(r'[\\/*?:"<>|]', '_', original_name)
         return FileResponse(output_path, filename=f"{safe_name}.pdf", media_type='application/pdf')
-    
+
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="converter_used",
+        resource_type="converter",
+        metadata={"input_type": "file", "success": False, "file_name": file.filename},
+        success=False,
+    )
     raise HTTPException(status_code=500, detail="Conversion failed on Windows")
 
 
@@ -78,6 +112,7 @@ async def extract_pdf(
     background_tasks: BackgroundTasks, 
     file: UploadFile = File(...),
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -92,11 +127,27 @@ async def extract_pdf(
     result = await loop.run_in_executor(None, extract_from_pdf, str(input_path), extract_id)
     
     if not result.get("success"):
+        personalization_service = PersonalizationService(db)
+        await personalization_service.track_event(
+            user_id=user.id,
+            event_type="converter_extract_used",
+            resource_type="converter",
+            metadata={"success": False, "file_name": file.filename},
+            success=False,
+        )
         background_tasks.add_task(cleanup_files, str(input_path))
         raise HTTPException(status_code=500, detail=f"Extraction failed: {result.get('error', 'Unknown')}")
     
     # Just cleanup the uploaded PDF, keep the extracted dir for viewing
     background_tasks.add_task(cleanup_files, str(input_path))
+
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="converter_extract_used",
+        resource_type="converter",
+        metadata={"success": True, "file_name": file.filename},
+    )
     
     return JSONResponse({
         "success": True,
