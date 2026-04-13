@@ -62,7 +62,7 @@ export function Toast({ message, type, onClose }: ToastProps) {
         transition={{ duration: 0.22, ease: "easeOut" }}
         role="alert"
         aria-live="polite"
-        className={`fixed top-20 right-4 left-4 sm:left-auto sm:w-[420px] z-[80] overflow-hidden rounded-2xl border ${bg} ${text} shadow-[0_20px_60px_rgba(15,23,42,0.18)] dark:shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl`}
+        className={`fixed top-20 right-4 left-4 sm:left-auto sm:w-[420px] z-[9999] overflow-hidden rounded-2xl border ${bg} ${text} shadow-[0_20px_60px_rgba(15,23,42,0.18)] dark:shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl`}
       >
         <div className={`h-1 w-full bg-gradient-to-r ${accent}`} />
         <div className="flex items-start gap-3 px-4 py-4">

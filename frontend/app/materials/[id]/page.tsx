@@ -35,6 +35,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { Toast } from "@/components/ui/toast";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { SlideGenerationDialog } from "@/components/ui/slide-generation-dialog";
+import { useNotify } from "@/components/use-notify";
 import {
   confirmNotebookLMArtifactGeneration,
   deleteGeneratedContent,
@@ -93,6 +94,7 @@ export default function MaterialDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const materialId = params.id;
+  const { success, error, info } = useNotify();
 
   const [material, setMaterial] = useState<Material | null>(null);
   const [generatedContents, setGeneratedContents] = useState<GeneratedContent[]>([]);
@@ -126,6 +128,15 @@ export default function MaterialDetailPage() {
     message: "",
     type: "success",
   });
+
+  // Wrapper để vừa hiện toast cũ, vừa thêm vào notification system mới
+  const showToastAndNotify = (message: string, type: "success" | "error" | "info") => {
+    console.log("[showToastAndNotify]", type, message);
+    setToast({ message, type });
+    if (type === "success") success(message);
+    else if (type === "error") error(message);
+    else info(message);
+  };
 
   const fullText = material?.cleaned_text || material?.raw_text || "";
   const previewLimit = 1000;
@@ -216,7 +227,7 @@ export default function MaterialDetailPage() {
     setBusyAction("process");
     try {
       await processMaterial(materialId);
-      setToast({ message: "Đã xếp hàng xử lý tài liệu thành công!", type: "success" });
+      showToastAndNotify("Đã xếp hàng xử lý tài liệu thành công!", "success");
       const updated = await getMaterial(materialId);
       setMaterial(updated);
     } catch (error) {
@@ -383,7 +394,7 @@ export default function MaterialDetailPage() {
     try {
       await deleteGeneratedContent(item.id);
       await refreshGeneratedContents();
-      setToast({ message: `Đã xóa ${label} thành công.`, type: "success" });
+      showToastAndNotify(`Đã xóa ${label} thành công.`, "success");
     } catch (error) {
       setToast({ message: String(error), type: "error" });
     } finally {
@@ -433,7 +444,7 @@ export default function MaterialDetailPage() {
         setNotebookConfirmation(null);
         setNotebookArtifactPending(null);
         setNotebookGenerated(payload as NotebookLMMediaResult);
-        setToast({ message: payload.message || "Đã tạo xong! Vui lòng xác nhận để tải xuống.", type: "success" });
+        showToastAndNotify(payload.message || "Đã tạo xong! Vui lòng xác nhận để tải xuống.", "success");
       } else if ("status" in payload && payload.status === "saved") {
         setNotebookConfirmation(null);
         setNotebookArtifactPending(null);
@@ -472,7 +483,7 @@ export default function MaterialDetailPage() {
   }
 
   const handleForceDownload = (url: string, filename: string, showToast = true) => {
-    if (showToast) setToast({ message: `Đang chuẩn bị tải xuống: ${filename}...`, type: "info" });
+    showToastAndNotify(`Đang chuẩn bị tải xuống: ${filename}...`, "info");
     const link = document.createElement("a");
     link.href = url;
     link.download = filename;
@@ -493,7 +504,7 @@ export default function MaterialDetailPage() {
       setIsArtifactGenerating(false);
 
       const total = result.videos.length + result.infographics.length;
-      setToast({ message: `Đã bắt đầu tải ${total} tệp (video + infographic) về máy.`, type: "success" });
+      showToastAndNotify(`Đã bắt đầu tải ${total} tệp (video + infographic) về máy.`, "success");
 
       // Trigger direct browser downloads so user receives files immediately.
       const filesToDownload = [...result.videos, ...result.infographics];
@@ -517,7 +528,7 @@ export default function MaterialDetailPage() {
       setNotebookGenerated(null);
       setNotebookArtifactPending(null);
       setIsArtifactGenerating(false);
-      setToast({ message: "Đã hủy session và đóng browser", type: "info" });
+      showToastAndNotify("Đã hủy session và đóng browser", "info");
     } catch (error) {
       setToast({ message: String(error), type: "error" });
     } finally {
@@ -547,7 +558,7 @@ export default function MaterialDetailPage() {
   async function handleSaveMaterialEdits() {
     const title = editForm.title.trim();
     if (!title) {
-      setToast({ message: "Tiêu đề không được để trống.", type: "error" });
+      showToastAndNotify("Tiêu đề không được để trống.", "error");
       return;
     }
 
@@ -565,10 +576,11 @@ export default function MaterialDetailPage() {
       });
 
       setMaterial(updated);
+      showToastAndNotify("Đã cập nhật học liệu thành công.", "success");
+      // Đóng dialog sau khi save thành công
       setIsEditingMaterial(false);
-      setToast({ message: "Đã cập nhật học liệu thành công.", type: "success" });
     } catch (error) {
-      setToast({ message: String(error), type: "error" });
+      showToastAndNotify(String(error), "error");
     } finally {
       setSavingEdit(false);
     }
@@ -581,7 +593,7 @@ export default function MaterialDetailPage() {
     setBusyAction("delete");
     try {
       await deleteMaterial(materialId);
-      setToast({ message: "Đã xóa học liệu thành công.", type: "success" });
+      showToastAndNotify("Đã xóa học liệu thành công.", "success");
       router.push("/materials");
     } catch (error) {
       setToast({ message: String(error), type: "error" });
@@ -893,7 +905,7 @@ export default function MaterialDetailPage() {
                           try {
                             await generateKnowledgeGraph(materialId, true);
                             await refreshGeneratedContents();
-                            setToast({ message: "Đã tạo lại Knowledge Graph!", type: "success" });
+                            showToastAndNotify("Đã tạo lại Knowledge Graph!", "success");
                           } catch (error) {
                             setToast({ message: String(error), type: "error" });
                           } finally {

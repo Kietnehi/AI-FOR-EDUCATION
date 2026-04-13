@@ -30,7 +30,8 @@ export type GeneratedContent = {
     | "chatbot_config"
     | "quiz"
     | "video"
-    | "infographic";
+    | "infographic"
+    | "knowledge_graph";
   game_type?: "quiz_mixed" | "flashcard" | "shooting_quiz";
   difficulty?: "easy" | "medium" | "hard" | string;
   version: number;
@@ -192,7 +193,7 @@ export type ChatMessage = {
   fallback_applied?: boolean;
   images?: string[];
    search_results?: {
-     sources: Array<{
+     sources?: Array<{
        index: number;
        title: string;
        uri: string;
