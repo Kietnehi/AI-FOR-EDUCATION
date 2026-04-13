@@ -80,7 +80,7 @@ async def generate_interactive_youtube_lesson(
         raise HTTPException(status_code=500, detail=f"Không thể tạo bài học tương tác: {exc}") from exc
 
     now = utc_now()
-    await history_repo.upsert_by_user_and_video(
+    history_doc = await history_repo.upsert_by_user_and_video(
         user_id=user.id,
         video_id=video_meta.get("video_id", ""),
         payload={
@@ -93,9 +93,10 @@ async def generate_interactive_youtube_lesson(
     )
 
     return YouTubeLessonResponse(
-        video=video_meta,
-        transcript=transcript,
-        lesson=lesson,
+        video=history_doc["video"],
+        transcript=history_doc["transcript"],
+        lesson=history_doc["lesson"],
+        translations=history_doc.get("translations", {}),
     )
 
 
@@ -150,14 +151,25 @@ async def delete_youtube_lesson_history(
 async def translate_youtube_transcript(
     payload: YouTubeTranscriptTranslateRequest,
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> YouTubeTranscriptTranslateResponse:
     service = YouTubeLessonService()
+    history_repo = YouTubeLessonHistoryRepository(db)
     transcript = [item.model_dump() for item in payload.transcript]
     try:
         translated = service.translate_transcript(
             transcript,
             target_language=payload.target_language,
         )
+        
+        # Save to history if video_id is provided
+        if payload.video_id:
+            await history_repo.save_translation(
+                user_id=user.id,
+                video_id=payload.video_id,
+                language=payload.target_language,
+                translated_transcript=translated,
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Không thể dịch transcript: {exc}") from exc
 

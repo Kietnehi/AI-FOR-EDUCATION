@@ -417,7 +417,7 @@ export default function YoutubeInteractiveLessonPage() {
       const result = await generateInteractiveYouTubeLesson(requestPayload);
       setPayload(result);
       setTranscriptLang("original");
-      setTranslatedTranscriptByLang({});
+      setTranslatedTranscriptByLang(result.translations || {});
       const history = await listYouTubeLessonHistory(0, 20);
       setHistoryItems(history.items || []);
     } catch (err) {
@@ -441,9 +441,10 @@ export default function YoutubeInteractiveLessonPage() {
         video: item.video,
         transcript: item.transcript,
         lesson: item.lesson,
+        translations: item.translations,
       });
       setTranscriptLang("original");
-      setTranslatedTranscriptByLang({});
+      setTranslatedTranscriptByLang(item.translations || {});
     } catch (err) {
       setError(`Lỗi mở lịch sử: ${String(err)}`);
     } finally {
@@ -469,12 +470,16 @@ export default function YoutubeInteractiveLessonPage() {
   async function handleTranslateTranscript() {
     if (!payload?.transcript?.length) return;
     if (transcriptLang === "original") return;
-    if (translatedTranscriptByLang[transcriptLang]) return;
+    // Removed existing check to allow re-translation
 
     setTranslatingTranscript(true);
     setError("");
     try {
-      const result = await translateYouTubeTranscript(payload.transcript, transcriptLang);
+      const result = await translateYouTubeTranscript(
+        payload.transcript, 
+        transcriptLang,
+        payload.video.video_id
+      );
       setTranslatedTranscriptByLang((prev) => ({
         ...prev,
         [transcriptLang]: result.transcript,
@@ -927,21 +932,42 @@ export default function YoutubeInteractiveLessonPage() {
                       className="rounded-lg border border-[var(--border-light)] bg-[var(--bg-primary)] px-2 py-1 text-xs font-semibold text-[var(--text-primary)] outline-none"
                     >
                       <option value="original">Bản gốc</option>
-                      {VOICE_LANGUAGES.map((lang) => (
-                        <option key={lang.value} value={lang.value}>
-                          {lang.label}
-                        </option>
-                      ))}
+                      {VOICE_LANGUAGES.map((lang) => {
+                        const isSaved = !!translatedTranscriptByLang[lang.value];
+                        return (
+                          <option key={lang.value} value={lang.value}>
+                            {lang.label} {isSaved ? "✓" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={handleTranslateTranscript}
-                      loading={translatingTranscript}
-                      disabled={transcriptLang === "original"}
-                    >
-                      Dịch
-                    </Button>
+                    {transcriptLang !== "original" && translatedTranscriptByLang[transcriptLang] ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-600 dark:bg-emerald-500/10 shrink-0">
+                          <Sparkles className="h-3 w-3" />
+                          Đã lưu
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleTranslateTranscript}
+                          loading={translatingTranscript}
+                          className="h-7 text-[10px] font-bold text-[var(--text-secondary)] hover:text-brand-600 hover:bg-brand-50"
+                        >
+                          Dịch lại
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handleTranslateTranscript}
+                        loading={translatingTranscript}
+                        disabled={transcriptLang === "original"}
+                      >
+                        Dịch
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">

@@ -874,6 +874,7 @@ export interface YouTubeInteractiveLessonResponse {
   video: YouTubeVideoItem;
   transcript: YouTubeTranscriptSegment[];
   lesson: InteractiveLessonPayload;
+  translations?: Record<string, YouTubeTranscriptSegment[]>;
 }
 
 export interface YouTubeLessonHistorySummary {
@@ -888,6 +889,7 @@ export interface YouTubeLessonHistoryDetail {
   video: YouTubeVideoItem;
   transcript: YouTubeTranscriptSegment[];
   lesson: InteractiveLessonPayload;
+  translations?: Record<string, YouTubeTranscriptSegment[]>;
   created_at: string;
   updated_at: string;
 }
@@ -945,11 +947,16 @@ export async function deleteYouTubeLessonHistory(id: string): Promise<{ message:
 
 export async function translateYouTubeTranscript(
   transcript: YouTubeTranscriptSegment[],
-  targetLanguage: string
+  targetLanguage: string,
+  videoId?: string
 ): Promise<YouTubeTranslateTranscriptResponse> {
   return apiFetch<YouTubeTranslateTranscriptResponse>("/youtube-lessons/translate-transcript", {
     method: "POST",
-    body: JSON.stringify({ transcript, target_language: targetLanguage }),
+    body: JSON.stringify({ 
+      transcript, 
+      target_language: targetLanguage,
+      video_id: videoId 
+    }),
     skipCache: true,
   });
 }
