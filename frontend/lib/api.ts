@@ -1011,6 +1011,7 @@ export async function generateInteractiveYouTubeLesson(payload: {
   youtube_url?: string;
   video_id?: string;
   query?: string;
+  manual_transcript?: string;
   max_checkpoints?: number;
   stt_model?: SttModel;
 }): Promise<YouTubeInteractiveLessonResponse> {

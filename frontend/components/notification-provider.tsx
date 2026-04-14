@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Bell, CheckCircle2, XCircle, AlertCircle, Info } from "lucide-react";
 
@@ -64,23 +64,26 @@ function saveNotifications(userId: string, notifications: Notification[]): void 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load notifications khi user thay đổi
   useEffect(() => {
     if (!loading && user) {
       setNotifications(loadNotifications(user.id));
+      setIsLoaded(true);
     } else if (!loading && !user) {
       // Clear notifications khi logout
       setNotifications([]);
+      setIsLoaded(false);
     }
   }, [user, loading]);
 
   // Save notifications khi có thay đổi
   useEffect(() => {
-    if (user && notifications.length > 0) {
+    if (user && isLoaded) {
       saveNotifications(user.id, notifications);
     }
-  }, [notifications, user]);
+  }, [notifications, user, isLoaded]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
