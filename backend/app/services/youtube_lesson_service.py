@@ -24,7 +24,75 @@ def _format_timestamp(seconds: float) -> str:
     return f"{minutes}:{secs:02d}"
 
 
+def _timestamp_to_seconds(ts_str: str) -> float:
+    """Chuyển định dạng M:SS, MM:SS hoặc H:MM:SS thành giây."""
+    parts = ts_str.strip().split(":")
+    try:
+        if len(parts) == 2:  # M:SS
+            return float(parts[0]) * 60 + float(parts[1])
+        elif len(parts) == 3:  # H:MM:SS
+            return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+    except (ValueError, IndexError):
+        return 0.0
+    return 0.0
+
+
 class YouTubeLessonService:
+    def parse_manual_transcript(self, raw_text: str) -> list[dict[str, Any]]:
+        """
+        Parse transcript thủ công có dạng:
+        Tiêu đề (optional)
+        0:00
+        Nội dung câu 1...
+        0:06
+        Nội dung câu 2...
+        """
+        lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+        segments: list[dict[str, Any]] = []
+        
+        current_start = 0.0
+        current_text_parts: list[str] = []
+        
+        # Regex tìm mốc thời gian (ví dụ: 0:00, 12:34, 1:02:03)
+        ts_pattern = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
+
+        for line in lines:
+            if ts_pattern.match(line):
+                # Nếu đã có nội dung trước đó, lưu lại segment cũ
+                if current_text_parts:
+                    text = " ".join(current_text_parts).strip()
+                    if text:
+                        segments.append({
+                            "text": text,
+                            "start": current_start,
+                            "timestamp": _format_timestamp(current_start)
+                        })
+                    current_text_parts = []
+                
+                # Cập nhật mốc thời gian mới
+                current_start = _timestamp_to_seconds(line)
+            else:
+                # Đây là nội dung văn bản
+                current_text_parts.append(line)
+        
+        # Lưu segment cuối cùng
+        if current_text_parts:
+            text = " ".join(current_text_parts).strip()
+            if text:
+                segments.append({
+                    "text": text,
+                    "start": current_start,
+                    "timestamp": _format_timestamp(current_start)
+                })
+        
+        # Tính duration cho từng segment dựa trên segment tiếp theo
+        for i in range(len(segments)):
+            if i < len(segments) - 1:
+                segments[i]["duration"] = max(0.5, segments[i+1]["start"] - segments[i]["start"])
+            else:
+                segments[i]["duration"] = 5.0  # Mặc định segment cuối là 5s
+                
+        return segments
     _VIDEO_PATTERNS = [
         r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})",
         r"^([a-zA-Z0-9_-]{11})$",
@@ -141,10 +209,35 @@ class YouTubeLessonService:
         return options
 
     def extract_video_id(self, source: str) -> str | None:
+        from urllib.parse import urlparse, parse_qs
+        
         raw = (source or "").strip()
         if not raw:
             return None
 
+        # Trường hợp chỉ là ID 11 ký tự
+        if len(raw) == 11 and re.match(r"^[a-zA-Z0-9_-]{11}$", raw):
+            return raw
+
+        try:
+            parsed_url = urlparse(raw)
+            # Dạng youtube.com/watch?v=... hoặc youtube.com/shorts/...
+            if "youtube.com" in parsed_url.hostname:
+                if parsed_url.path == "/watch":
+                    query = parse_qs(parsed_url.query)
+                    return query.get("v", [None])[0]
+                elif parsed_url.path.startswith(("/embed/", "/shorts/", "/live/")):
+                    parts = parsed_url.path.split("/")
+                    if len(parts) >= 3:
+                        return parts[2]
+            
+            # Dạng youtu.be/ID
+            if parsed_url.hostname == "youtu.be":
+                return parsed_url.path[1:] if len(parsed_url.path) > 1 else None
+        except Exception:
+            pass
+
+        # Fallback dùng Regex nếu urlparse thất bại
         for pattern in self._VIDEO_PATTERNS:
             match = re.search(pattern, raw)
             if match:
@@ -220,14 +313,7 @@ class YouTubeLessonService:
     def get_transcript(self, video_id: str, *, stt_model: str = "local-base") -> list[dict[str, Any]]:
         diagnostics: list[str] = []
 
-        # Smart_Youtube strategy (đã chạy ổn ở project tham chiếu):
-        # 1) youtube_transcript_api nhiều biến thể gọi
-        # 2) fallback tải audio + Whisper local
-        smart_segments = self._get_transcript_with_smart_strategy(video_id, stt_model=stt_model, diagnostics=diagnostics)
-        if smart_segments:
-            return smart_segments
-
-        # Strategy 1: youtube_transcript_api (nhanh và ổn định với video có transcript công khai)
+        # 1. Thử youtube_transcript_api (Cách nhanh nhất và chuẩn nhất)
         try:
             transcript_list = self._fetch_with_youtube_transcript_api(video_id)
             if transcript_list:
@@ -238,7 +324,16 @@ class YouTubeLessonService:
         except Exception as exc:
             diagnostics.append(f"youtube_transcript_api: {type(exc).__name__}: {exc}")
 
-        # Strategy 2: timedtext endpoint (không phụ thuộc yt-dlp JS runtime)
+        # 2. Thử Smart API fallback (biến thể khác)
+        try:
+            smart_transcript = self._fetch_smart_youtube_transcript_api(video_id)
+            if smart_transcript:
+                return smart_transcript
+            diagnostics.append("smart_youtube_api: empty")
+        except Exception as exc:
+            diagnostics.append(f"smart_youtube_api: {type(exc).__name__}: {exc}")
+
+        # 3. Thử Google TimedText endpoint
         try:
             timedtext_segments = self._fetch_with_google_timedtext(video_id)
             if timedtext_segments:
@@ -247,7 +342,7 @@ class YouTubeLessonService:
         except Exception as exc:
             diagnostics.append(f"timedtext: {type(exc).__name__}: {exc}")
 
-        # Strategy 3: parse trực tiếp captionTracks từ trang watch (không phụ thuộc yt-dlp JS runtime)
+        # 4. Thử parse trực tiếp captionTracks từ watch page
         try:
             watch_page_segments = self._fetch_with_watch_page_captions(video_id)
             if watch_page_segments:
@@ -256,7 +351,7 @@ class YouTubeLessonService:
         except Exception as exc:
             diagnostics.append(f"watch_page_captions: {type(exc).__name__}: {exc}")
 
-        # Strategy 4: yt-dlp subtitles/automatic_captions (fallback cho nhiều video bị chặn API transcript)
+        # 5. Thử yt-dlp extraction
         try:
             fallback_segments = self._fetch_with_ytdlp_captions(video_id)
             if fallback_segments:
@@ -265,7 +360,7 @@ class YouTubeLessonService:
         except Exception as exc:
             diagnostics.append(f"yt_dlp_captions: {type(exc).__name__}: {exc}")
 
-        # Strategy 5: audio + Whisper (theo Smart_Youtube)
+        # 6. CUỐI CÙNG: Dùng AI nghe (STT) - Chỉ khi tất cả các cách trên thất bại
         if stt_model in self._GROQ_WHISPER_MODELS:
             try:
                 groq_segments = self._transcribe_with_groq(video_id, stt_model, diagnostics=diagnostics)
@@ -290,8 +385,8 @@ class YouTubeLessonService:
 
         details = " | ".join(diagnostics[:8]) if diagnostics else "unknown"
         raise RuntimeError(
-            "Không lấy được transcript từ YouTube cho video này. "
-            f"Video có thể bị giới hạn caption theo client/region/auth. Chi tiết: {details}"
+            "Không lấy được transcript từ YouTube. "
+            f"Vui lòng thử lại hoặc chọn Model STT khác. Chi tiết: {details}"
         )
 
     def _get_transcript_with_smart_strategy(

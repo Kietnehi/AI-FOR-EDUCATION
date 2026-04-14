@@ -49,13 +49,21 @@ class UserPreferencesRepository:
     async def upsert_by_user_id(self, user_id: str, update_fields: dict) -> dict:
         now = utc_now()
         default_payload = self._build_default(user_id)
+        
+        # Prepare the fields to be set (updates + updated_at)
         safe_updates = {**update_fields, "updated_at": now}
+        
+        # Prepare the fields for insertion only (defaults NOT in updates)
+        on_insert = {
+            k: v for k, v in default_payload.items() 
+            if k not in safe_updates
+        }
 
         await self.collection.update_one(
             {"user_id": user_id},
             {
                 "$set": safe_updates,
-                "$setOnInsert": default_payload,
+                "$setOnInsert": on_insert,
             },
             upsert=True,
         )
