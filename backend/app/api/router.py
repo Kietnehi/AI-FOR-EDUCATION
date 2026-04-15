@@ -11,8 +11,9 @@ from app.api.routes import (
     materials,
     personalization,
     web_search,
+    schedule,
 )
-from app.api.routes import auth, chat, contact, converter, files, games, generated_contents, materials, realtime, web_search, youtube_lessons
+from app.api.routes import auth, chat, contact, converter, files, games, generated_contents, materials, realtime, web_search, youtube_lessons, schedule
 
 api_router = APIRouter()
 api_router.include_router(auth.router, tags=["auth"])
@@ -28,3 +29,4 @@ api_router.include_router(files.router, tags=["files"])
 api_router.include_router(converter.router, tags=["converter"], prefix="/converter")
 api_router.include_router(web_search.router, tags=["web-search"], prefix="/web-search")
 api_router.include_router(youtube_lessons.router, tags=["youtube-lessons"])
+api_router.include_router(schedule.router, tags=["schedule"])
