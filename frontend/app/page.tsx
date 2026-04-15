@@ -34,6 +34,7 @@ import { subscribeToMaterialsRealtime } from "@/lib/api";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/auth-provider";
 import { useNotify } from "@/components/use-notify";
+import { WorkflowVisualization } from "@/components/home/workflow-visualization";
 
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
@@ -526,7 +527,12 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      <motion.div variants={item} className="order-7">
+      {/* Workflow Visualization Section */}
+      <motion.div variants={item} className="order-3">
+        <WorkflowVisualization />
+      </motion.div>
+
+      <motion.div variants={item} className="order-8">
         <Card className="tech-stack-card relative overflow-hidden shadow-sm">
           <div className="mb-5 flex items-end justify-between gap-4">
             <div>
@@ -569,7 +575,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Quick Stats */}
-      <motion.div variants={item} className="order-3 w-full overflow-x-clip">
+      <motion.div variants={item} className="order-4 w-full overflow-x-clip">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((stat) => {
           const Icon = stat.icon;
@@ -601,7 +607,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {user && dashboardPersonalization && (
-        <motion.div variants={item} className="order-4">
+        <motion.div variants={item} className="order-5">
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="!p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
@@ -691,7 +697,7 @@ export default function DashboardPage() {
       )}
 
       {/* Recent Materials */}
-      <motion.div variants={item} className="order-5">
+      <motion.div variants={item} className="order-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-black text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
@@ -785,7 +791,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Quick Actions — Soft Brutalism cards */}
-      <motion.div variants={item} className="order-4">
+      <motion.div variants={item} className="order-7">
         <h2 className="text-xl font-black text-[var(--text-primary)] mb-4" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
           Công cụ AI của bạn
         </h2>
@@ -841,7 +847,7 @@ export default function DashboardPage() {
 
       {/* Geography Location */}
       {/* Cooperation Contact */}
-      <motion.div variants={item} className="order-6 content-auto">
+      <motion.div variants={item} className="order-9 content-auto">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
           <Mail className="w-5 h-5 text-brand-600" />
@@ -1000,7 +1006,7 @@ export default function DashboardPage() {
         <div className="grid gap-3 lg:grid-cols-3">
           {[
             {
-              name: "nehi",
+              name: "Kietnehi",
               username: "Kietnehi",
               role: "AI Engineer & Researcher",
               gradient: "from-brand-500 to-brand-600",
@@ -1074,7 +1080,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Geography Location */}
-      <motion.div variants={item} className="order-8 content-auto">
+      <motion.div variants={item} className="order-10 content-auto">
         <div className="flex items-center gap-2 mb-4">
           <MapPin className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
