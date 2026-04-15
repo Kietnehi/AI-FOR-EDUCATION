@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { memo, useEffect } from "react";
 import Link from "next/link";
@@ -16,6 +16,7 @@ import {
   PlayCircle,
   ChevronLeft,
   Settings,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/chatbot",           label: "Chatbot RAG",            icon: MessageSquareText },
   { href: "/web-search",        label: "Search Website Online",  icon: Globe },
   { href: "/generated",         label: "Nội dung AI",            icon: Sparkles },
+  { href: "/schedule",          label: "Lịch học & làm việc",    icon: Calendar },
   { href: "/converter",         label: "Chuyển đổi & trích xuất", icon: FileText },
 ];
 

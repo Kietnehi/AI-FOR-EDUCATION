@@ -3,6 +3,8 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Bell, CheckCircle2, XCircle, AlertCircle, Info } from "lucide-react";
+import { Toast } from "@/components/ui/toast";
+
 
 export type NotificationType = "success" | "error" | "info" | "warning";
 
@@ -65,6 +67,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [activeToast, setActiveToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+
 
   // Load notifications khi user thay đổi
   useEffect(() => {
@@ -96,6 +100,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         read: false,
       };
       setNotifications((prev) => [newNotification, ...prev]);
+      
+      // Also show as a floating toast
+      if (notification.type !== "warning") {
+         setActiveToast({
+           message: notification.message,
+           type: notification.type as "success" | "error" | "info"
+         });
+      }
     },
     []
   );
@@ -131,6 +143,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {activeToast && (
+        <Toast 
+          message={activeToast.message} 
+          type={activeToast.type} 
+          onClose={() => setActiveToast(null)} 
+        />
+      )}
     </NotificationContext.Provider>
   );
 }

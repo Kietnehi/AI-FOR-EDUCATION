@@ -21,6 +21,9 @@ import {
   DashboardPersonalization,
   UserPreferences,
   UserPreferencesUpdate,
+  Schedule,
+  ScheduleEvent,
+  ScheduleUploadResponse,
 } from "@/types";
 
 export interface AuthUser {
@@ -1096,4 +1099,39 @@ export function apiDownloadUrl(fileUrl: string): string {
 
 export function apiPreviewUrl(fileUrl: string): string {
   return apiFileUrl(fileUrl, "preview");
+}
+
+// ---------------------------------------------------------------------------
+// Schedule
+// ---------------------------------------------------------------------------
+
+export async function uploadScheduleFile(file: File): Promise<ScheduleUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  const response = await fetch(`${API_BASE}/schedule/upload`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Upload failed: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+export async function getSchedule(): Promise<Schedule> {
+  return apiFetch<Schedule>("/schedule", { skipCache: true });
+}
+
+export async function saveSchedule(events: ScheduleEvent[]): Promise<Schedule> {
+  const result = await apiFetch<Schedule>("/schedule", {
+    method: "POST",
+    body: JSON.stringify(events),
+  });
+  invalidateCache("/schedule");
+  return result;
 }
