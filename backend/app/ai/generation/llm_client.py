@@ -1,3 +1,4 @@
+import asyncio
 import json
 import threading
 import time
@@ -153,6 +154,7 @@ class LLMClient:
     def _build_gemini_config(self, temperature: float, force_json: bool) -> dict:
         config: dict = {
             "temperature": temperature,
+            "max_output_tokens": 16384,
         }
         if force_json:
             config["response_mime_type"] = "application/json"
@@ -335,6 +337,16 @@ class LLMClient:
             system_prompt, user_prompt, temperature=0.3, force_json=False, images=images
         )
         return content or fallback
+
+    def generate(self, system_prompt: str, user_prompt: str, fallback: str = "") -> str:
+        """Alias for text_response used in some services."""
+        return self.text_response(system_prompt, user_prompt, fallback)
+
+    async def fast_generate(self, prompt: str) -> str:
+        """Async version of text_response for background tasks."""
+        system_prompt = "Bạn là trợ lý AI hữu ích, chuyên nghiệp và thân thiện."
+        return await asyncio.to_thread(self.text_response, system_prompt, prompt, "")
+
 
     def text_response_openai(
         self,

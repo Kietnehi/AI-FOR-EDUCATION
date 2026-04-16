@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock3, Globe, ListChecks, Mic, MicOff, PlayCircle, Search, Sparkles, ChevronDown, History, Trash2, ExternalLink, X } from "lucide-react";
+import { Clock3, Globe, ListChecks, Mic, MicOff, PlayCircle, Search, Sparkles, ChevronDown, History, Trash2, ExternalLink, X, FileText } from "lucide-react";
 
 import {
   deleteYouTubeLessonHistory,
@@ -165,6 +165,8 @@ export default function YoutubeInteractiveLessonPage() {
   const [transcriptLang, setTranscriptLang] = useState<string>("original");
   const [translatingTranscript, setTranslatingTranscript] = useState(false);
   const [translatedTranscriptByLang, setTranslatedTranscriptByLang] = useState<Record<string, YouTubeTranscriptSegment[]>>({});
+  const [manualTranscript, setManualTranscript] = useState("");
+  const [showManualEntry, setShowManualEntry] = useState(false);
   const [error, setError] = useState("");
 
   const recognitionRef = useRef<any>(null);
@@ -401,6 +403,12 @@ export default function YoutubeInteractiveLessonPage() {
     const raw = input.trim();
     if (!raw && !source?.video_id && !source?.query) return;
 
+    // Kiểm tra bắt buộc nếu đang ở chế độ thủ công
+    if (showManualEntry && !manualTranscript) {
+      setError("Vui lòng nhập transcript trước khi tạo bài học bằng chế độ thủ công.");
+      return;
+    }
+
     setAnalyzeLoading(true);
     setError("");
     setActiveCheckpointIndex(null);
@@ -410,8 +418,8 @@ export default function YoutubeInteractiveLessonPage() {
 
     const directVideoId = source?.video_id || extractVideoId(raw);
     const requestPayload = directVideoId
-      ? { video_id: directVideoId, max_checkpoints: 5, stt_model: sttModel }
-      : { query: source?.query || raw, max_checkpoints: 5, stt_model: sttModel };
+      ? { video_id: directVideoId, max_checkpoints: 5, stt_model: sttModel, manual_transcript: showManualEntry ? manualTranscript : undefined }
+      : { query: source?.query || raw, max_checkpoints: 5, stt_model: sttModel, manual_transcript: showManualEntry ? manualTranscript : undefined };
 
     try {
       const result = await generateInteractiveYouTubeLesson(requestPayload);
@@ -420,9 +428,18 @@ export default function YoutubeInteractiveLessonPage() {
       setTranslatedTranscriptByLang(result.translations || {});
       const history = await listYouTubeLessonHistory(0, 20);
       setHistoryItems(history.items || []);
-    } catch (err) {
+      // Reset manual entry state on success
+      setShowManualEntry(false);
+      setManualTranscript("");
+    } catch (err: any) {
       setPayload(null);
-      setError(`Lỗi phân tích: ${String(err)}`);
+      const errorMsg = String(err);
+      setError(`Lỗi phân tích: ${errorMsg}`);
+      
+      // Tự động mở ô nhập thủ công nếu lỗi liên quan đến transcript
+      if (errorMsg.includes("transcript") || errorMsg.includes("422")) {
+        setShowManualEntry(true);
+      }
     } finally {
       setAnalyzeLoading(false);
     }
@@ -543,7 +560,7 @@ export default function YoutubeInteractiveLessonPage() {
             <div className="relative flex flex-1 items-center">
               <input
                 className="h-12 w-full rounded-2xl border border-[var(--border-light)] bg-[var(--bg-primary)] pl-5 pr-12 text-sm text-[var(--text-primary)] outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-50 shadow-sm transition-all"
-                placeholder="Dán link YouTube hoặc nhập từ khóa tìm kiếm..."
+                placeholder={showManualEntry ? "Dán link YouTube của video này..." : "Dán link YouTube hoặc nhập từ khóa tìm kiếm..."}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {
@@ -551,7 +568,7 @@ export default function YoutubeInteractiveLessonPage() {
                     const maybeVideoId = extractVideoId(input);
                     if (maybeVideoId) {
                       handleAnalyze();
-                    } else {
+                    } else if (!showManualEntry) {
                       handleSearch();
                     }
                   }
@@ -593,11 +610,85 @@ export default function YoutubeInteractiveLessonPage() {
                 onClick={() => handleAnalyze()} 
                 loading={analyzeLoading} 
                 icon={<Sparkles className="h-4 w-4" />}
-                className="h-12 rounded-2xl px-6 font-bold shadow-md shadow-brand-100"
+                className={`h-12 rounded-2xl px-6 font-bold shadow-md transition-all ${
+                  showManualEntry && (!input || !manualTranscript)
+                    ? "opacity-50 cursor-not-allowed bg-[var(--text-muted)] shadow-none"
+                    : "shadow-brand-100"
+                }`}
+                disabled={showManualEntry && (!input || !manualTranscript)}
               >
-                Tạo bài học
+                {showManualEntry 
+                  ? (!input ? "Cần dán link YouTube" : !manualTranscript ? "Cần nhập Transcript" : "Tạo từ Transcript") 
+                  : "Tạo bài học"}
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Tab chọn chế độ */}
+            <div className="flex p-1 bg-[var(--bg-section)] rounded-xl w-fit border border-[var(--border-light)]">
+              <button
+                onClick={() => setShowManualEntry(false)}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  !showManualEntry 
+                    ? "bg-white text-brand-600 shadow-sm" 
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Tự động lấy Transcript
+              </button>
+              <button
+                onClick={() => setShowManualEntry(true)}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  showManualEntry 
+                    ? "bg-white text-brand-600 shadow-sm" 
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Nhập Transcript thủ công
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {showManualEntry && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-brand-600">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Nội dung Transcript</span>
+                    </div>
+                  </div>
+                  
+                  <textarea
+                    className={`w-full min-h-[180px] rounded-2xl border bg-[var(--bg-section)] p-4 text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-[var(--text-muted)] custom-scrollbar shadow-inner ${
+                      showManualEntry && !manualTranscript && input
+                        ? "border-rose-400 ring-2 ring-rose-500/10"
+                        : "border-brand-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
+                    }`}
+                    placeholder={`Dán transcript vào đây. Định dạng ví dụ:\n0:00\nHello friends, today we discuss vibe coding...\n0:06\nSo what is vibe coding exactly?`}
+                    value={manualTranscript}
+                    onChange={(e) => setManualTranscript(e.target.value)}
+                  />
+                  {showManualEntry && !manualTranscript && input && (
+                    <motion.p 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="text-[10px] text-rose-500 font-bold flex items-center gap-1"
+                    >
+                      <span className="h-1 w-1 rounded-full bg-rose-500" /> Vui lòng nhập nội dung transcript để tiếp tục.
+                    </motion.p>
+                  )}
+                  <p className="text-[10px] text-[var(--text-muted)] italic">
+                    * AI sẽ dựa vào mốc thời gian bạn cung cấp để tạo câu hỏi và tóm tắt bài học.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Hàng 2: Các thiết lập bổ trợ - Gọn gàng và Trực quan */}
@@ -739,7 +830,15 @@ export default function YoutubeInteractiveLessonPage() {
               <button
                 key={item.video_id}
                 type="button"
-                onClick={() => handleAnalyze({ video_id: item.video_id })}
+                onClick={() => {
+                  if (showManualEntry) {
+                    setInput(item.video_id);
+                    // Có thể scroll lên trên để người dùng thấy ô nhập
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else {
+                    handleAnalyze({ video_id: item.video_id });
+                  }
+                }}
                 className="flex items-start gap-3 rounded-xl border border-[var(--border-light)] bg-[var(--bg-primary)] p-3 text-left transition hover:border-brand-400"
               >
                 <div className="relative h-16 w-28 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-section)]">

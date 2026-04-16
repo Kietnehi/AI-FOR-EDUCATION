@@ -68,7 +68,15 @@ async def generate_interactive_youtube_lesson(
     try:
         if video_meta is None:
             video_meta = service.get_video_meta(video_id)
-        transcript = service.get_transcript(video_id, stt_model=payload.stt_model)
+        
+        # Ưu tiên sử dụng transcript thủ công nếu có
+        if payload.manual_transcript:
+            transcript = service.parse_manual_transcript(payload.manual_transcript)
+            if not transcript:
+                raise RuntimeError("Không thể parse nội dung transcript thủ công. Vui lòng kiểm tra định dạng.")
+        else:
+            transcript = service.get_transcript(video_id, stt_model=payload.stt_model)
+            
         lesson = service.build_interactive_lesson(
             transcript,
             title=video_meta.get("title") or "YouTube Lesson",

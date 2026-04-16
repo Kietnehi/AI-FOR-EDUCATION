@@ -7,6 +7,12 @@ class UserRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.users
 
+    async def find_by_id(self, user_id: str | ObjectId) -> dict | None:
+        if isinstance(user_id, str):
+            user_id = ObjectId(user_id)
+        doc = await self.collection.find_one({"_id": user_id})
+        return serialize_document(doc)
+
     async def find_by_email(self, email: str) -> dict | None:
         doc = await self.collection.find_one({"email": email})
         return serialize_document(doc)

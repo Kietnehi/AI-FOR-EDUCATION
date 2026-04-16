@@ -67,6 +67,8 @@ class UserPreferencesRepository:
     async def upsert_by_user_id(self, user_id: str, update_fields: dict) -> dict:
         now = utc_now()
         default_payload = self._build_default(user_id)
+        
+        # Prepare the fields to be set (updates + updated_at)
         safe_updates = {**update_fields, "updated_at": now}
         
         safe_set_on_insert = {

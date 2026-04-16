@@ -37,8 +37,8 @@ export function ConfirmDialog({
             className={[
               "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border",
               dangerTone
-                ? "border-rose-200 bg-rose-50 text-rose-600"
-                : "border-amber-200 bg-amber-50 text-amber-600",
+                ? "border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"
+                : "border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
             ].join(" ")}
           >
             <AlertTriangle className="h-5 w-5" />
