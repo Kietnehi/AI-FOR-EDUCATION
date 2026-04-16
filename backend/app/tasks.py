@@ -301,8 +301,7 @@ async def _run_check_schedule_reminders():
     except Exception as e:
         logger.error(f"Error in _run_check_schedule_reminders: {e}")
     finally:
-        # Note: Celery beat worker handles the loop, we just do one pass
-        pass
+        await close_mongo()
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=30, retry_backoff=True)
