@@ -33,6 +33,7 @@ import { addMinutesToInputValue, formatVietnamInputDateTime, formatVietnamTime, 
 import { ScheduleEvent } from "@/types";
 import { cn } from "@/lib/utils";
 import { VietnamClock } from "./vietnam-clock";
+import { Dialog } from "@/components/ui/dialog";
 
 const DAYS = [
   { label: "Thứ 2", short: "T2", value: 1, color: "bg-orange-500" },
@@ -55,6 +56,8 @@ export function ScheduleView() {
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
   const [activeDay, setActiveDay] = useState<number>(getVietnamDay(getVietnamNowInputValue()));
   const [userEmail, setUserEmail] = useState<string>("");
+  const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null);
+  const [tempEvent, setTempEvent] = useState<ScheduleEvent | null>(null);
   const { success, error, info } = useNotify();
 
   const fetchSchedule = useCallback(async (isRefresh = false) => {
@@ -148,6 +151,35 @@ export function ScheduleView() {
     const newEvents = [...events];
     newEvents[index] = { ...newEvents[index], [field]: value };
     setEvents(newEvents);
+  };
+
+  const startEditing = (idx: number) => {
+    setEditingEventIndex(idx);
+    setTempEvent({ ...events[idx] });
+  };
+
+  const saveEditedEvent = async () => {
+    if (editingEventIndex === null || !tempEvent) return;
+    
+    try {
+      setSaving(true);
+      const newEvents = [...events];
+      newEvents[editingEventIndex] = tempEvent;
+      
+      // Sync to server
+      await saveSchedule(newEvents);
+      
+      // Update local state and UI
+      setEvents(newEvents);
+      success("Cập nhật sự kiện thành công!");
+      setEditingEventIndex(null);
+      setTempEvent(null);
+    } catch (err) {
+      console.error(err);
+      error("Lỗi khi lưu sự kiện.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const formatForInput = (dateStr: string) => {
@@ -535,7 +567,7 @@ export function ScheduleView() {
                                 groupedEvents[day.value].map(({ event, originalIndex }) => (
                                     <Card 
                                         key={originalIndex} 
-                                        onClick={() => success(`Sự kiện: ${event.title}`)}
+                                        onClick={() => startEditing(originalIndex)}
                                         className="p-5 border-2 border-[var(--border-structural)] hover:border-indigo-500/50 dark:hover:border-indigo-400 shadow-[4px_4px_0px_rgba(0,0,0,0.05)] dark:shadow-[4px_4px_0px_rgba(0,0,0,0.2)] hover:shadow-[8px_8px_0px_rgba(79,70,229,0.1)] transition-all cursor-pointer bg-[var(--bg-surface)] group active:scale-[0.98] rounded-[1.75rem]"
                                     >
                                         <div className="flex items-center justify-between mb-3">
@@ -602,6 +634,105 @@ export function ScheduleView() {
         }}
         onClose={() => setShowClearConfirm(false)}
       />
+
+      {/* Edit Event Dialog */}
+      <Dialog 
+        open={editingEventIndex !== null} 
+        onClose={() => { setEditingEventIndex(null); setTempEvent(null); }}
+        title="Chỉnh sửa sự kiện"
+        maxWidth="lg"
+      >
+        {tempEvent && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Tên sự kiện</label>
+              <input 
+                type="text" 
+                value={tempEvent.title} 
+                onChange={(e) => setTempEvent({ ...tempEvent, title: e.target.value })} 
+                className="w-full text-xl font-black text-[var(--text-primary)] bg-[var(--bg-secondary)] border-2 border-[var(--border-structural)] rounded-2xl px-5 py-4 outline-none focus:border-indigo-500 transition-all sb-shadow-sm" 
+                placeholder="Nhập tên sự kiện..." 
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Bắt đầu</label>
+                <div className="relative">
+                  <input 
+                    type="datetime-local" 
+                    value={formatForInput(tempEvent.start_time)} 
+                    onChange={(e) => setTempEvent({ ...tempEvent, start_time: e.target.value })} 
+                    className="w-full bg-[var(--bg-secondary)] border-2 border-[var(--border-structural)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-indigo-500 transition-all cursor-pointer" 
+                  />
+                  <CalendarIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500/50 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Kết thúc</label>
+                <div className="relative">
+                  <input 
+                    type="datetime-local" 
+                    value={formatForInput(tempEvent.end_time || "")} 
+                    onChange={(e) => setTempEvent({ ...tempEvent, end_time: e.target.value })} 
+                    className="w-full bg-[var(--bg-secondary)] border-2 border-[var(--border-structural)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-indigo-500 transition-all cursor-pointer" 
+                  />
+                  <Clock className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Địa điểm</label>
+                <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-4 py-3.5 rounded-xl border-2 border-[var(--border-structural)] focus-within:border-indigo-500/40 transition-all">
+                  <MapPin className="w-5 h-5 text-indigo-500" />
+                  <input 
+                    type="text" 
+                    value={tempEvent.location || ""} 
+                    onChange={(e) => setTempEvent({ ...tempEvent, location: e.target.value })} 
+                    className="text-sm font-bold bg-transparent border-none focus:ring-0 p-0 w-full" 
+                    placeholder="Văn phòng / Online..." 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Ghi chú</label>
+                <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-4 py-3.5 rounded-xl border-2 border-[var(--border-structural)] focus-within:border-indigo-500/40 transition-all">
+                  <FileText className="w-5 h-5 text-indigo-500" />
+                  <input 
+                    type="text" 
+                    value={tempEvent.notes || ""} 
+                    onChange={(e) => setTempEvent({ ...tempEvent, notes: e.target.value })} 
+                    className="text-sm font-bold bg-transparent border-none focus:ring-0 p-0 w-full" 
+                    placeholder="Ghi chú thêm..." 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-structural)]">
+              <Button 
+                variant="outline" 
+                onClick={() => { setEditingEventIndex(null); setTempEvent(null); }}
+                className="rounded-xl px-6 font-bold"
+              >
+                Hủy
+              </Button>
+              <Button 
+                onClick={saveEditedEvent} 
+                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-8 font-bold sb-shadow"
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Lưu thay đổi
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useNotify } from "@/components/use-notify";
 import type { SttModel } from "@/types";
 
 const STT_MODEL_OPTIONS: Array<{ value: SttModel; label: string }> = [
@@ -168,6 +169,7 @@ export default function YoutubeInteractiveLessonPage() {
   const [manualTranscript, setManualTranscript] = useState("");
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [error, setError] = useState("");
+  const { success, error: notifyError } = useNotify();
 
   const recognitionRef = useRef<any>(null);
 
@@ -393,6 +395,7 @@ export default function YoutubeInteractiveLessonPage() {
       }
     } catch (err) {
       setError(`Lỗi tìm kiếm: ${String(err)}`);
+      notifyError(`Lỗi tìm kiếm: ${String(err)}`);
       setSearchResults([]);
     } finally {
       setSearchLoading(false);
@@ -431,10 +434,12 @@ export default function YoutubeInteractiveLessonPage() {
       // Reset manual entry state on success
       setShowManualEntry(false);
       setManualTranscript("");
+      success("Phân tích video và tạo bài học thành công!");
     } catch (err: any) {
       setPayload(null);
       const errorMsg = String(err);
       setError(`Lỗi phân tích: ${errorMsg}`);
+      notifyError(`Lỗi phân tích: ${errorMsg}`);
       
       // Tự động mở ô nhập thủ công nếu lỗi liên quan đến transcript
       if (errorMsg.includes("transcript") || errorMsg.includes("422")) {
@@ -471,10 +476,17 @@ export default function YoutubeInteractiveLessonPage() {
 
   async function handleDeleteHistory(id: string) {
     try {
+      const itemToDelete = historyItems.find((item) => item.id === id);
       await deleteYouTubeLessonHistory(id);
       setHistoryItems((prev) => prev.filter((item) => item.id !== id));
+
+      if (payload && itemToDelete && payload.video.video_id === itemToDelete.video.video_id) {
+        setPayload(null);
+      }
+      success("Đã xóa lịch sử bài học thành công");
     } catch (err) {
       setError(`Lỗi xóa lịch sử: ${String(err)}`);
+      notifyError(`Lỗi xóa lịch sử: ${String(err)}`);
     }
   }
 
@@ -501,8 +513,10 @@ export default function YoutubeInteractiveLessonPage() {
         ...prev,
         [transcriptLang]: result.transcript,
       }));
+      success(`Đã dịch xong sang ${transcriptLang.toUpperCase()}`);
     } catch (err) {
       setError(`Lỗi dịch transcript: ${String(err)}`);
+      notifyError(`Lỗi dịch transcript: ${String(err)}`);
     } finally {
       setTranslatingTranscript(false);
     }
@@ -1244,6 +1258,13 @@ export default function YoutubeInteractiveLessonPage() {
           </div>
         </div>
       ) : null}
+
+
+
+
+
+
+
     </motion.div>
   );
 }
