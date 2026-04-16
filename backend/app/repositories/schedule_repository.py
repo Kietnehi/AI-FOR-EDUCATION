@@ -45,7 +45,7 @@ class ScheduleRepository:
             return serialize_document({"_id": result.inserted_id, **payload})
 
     async def get_due_events(self) -> list[dict]:
-        """Find users with events that are starting soon or already passed but not yet notified."""
+        """Find users with events that are starting soon (next 10-12 mins) or already passed but not yet notified."""
         now = vietnam_now()
         cursor = self.collection.find({"events.notified": {"$ne": True}})
         due_schedules: list[dict] = []
@@ -70,9 +70,10 @@ class ScheduleRepository:
                 except ValueError:
                     continue
 
-                # Allow events that started in the last 5 minutes to be picked up
-                # to account for task execution delay.
-                if (now - timedelta(minutes=5)) <= event_dt:
+                # Notify if event starts in the next 12 minutes
+                # or started in the last 5 minutes (to account for task jitter)
+                diff_minutes = (event_dt - now).total_seconds() / 60
+                if -5 <= diff_minutes <= 12:
                     has_due_event = True
                     break
 

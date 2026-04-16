@@ -93,7 +93,10 @@ export default function KnowledgeGraphPage() {
           const latest = contents.reduce((a, b) => (b.version > a.version ? b : a));
           setGeneratedContent(latest);
           const kg = latest.json_content as KnowledgeGraphData;
-          if (kg?.nodes?.length) setGraphData(kg);
+          if (kg?.nodes?.length) {
+            setGraphData(kg);
+            success(`Đã tải Knowledge Graph phiên bản ${latest.version} thành công!`);
+          }
         }
       } catch (err) {
         if (!cancelled) notifyError(`Không thể tải dữ liệu: ${String(err)}`);
@@ -103,8 +106,7 @@ export default function KnowledgeGraphPage() {
     }
     load();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [materialId]);
+  }, [materialId, notifyError, success]);
 
   const handleGenerate = useCallback(async (forceRegenerate = false) => {
     if (!material) return;

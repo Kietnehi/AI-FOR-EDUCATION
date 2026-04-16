@@ -17,12 +17,10 @@ class EmailService:
         message["To"] = to_email
         message.set_content(body)
 
-        try:
-            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=15) as server:
-                server.login(settings.smtp_user, settings.smtp_pass)
-                server.send_message(message)
-        except smtplib.SMTPException as exc:
-            print(f"Failed to send email: {exc}")
+        # Increased timeout to 30s to avoid 'read operation timed out' on slow connections
+        with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=30) as server:
+            server.login(settings.smtp_user, settings.smtp_pass)
+            server.send_message(message)
 
     @classmethod
     async def send_email(cls, to_email: str, subject: str, body: str) -> None:
