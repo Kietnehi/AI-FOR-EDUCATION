@@ -1,12 +1,14 @@
 import asyncio
 
 from celery import Celery
+from celery.schedules import crontab
 from fastapi import HTTPException
 
 from app.core.config import settings
 from app.core.logging import configure_logging, logger
 from app.db.mongo import close_mongo, connect_mongo, get_db
 from app.services.generation_service import GenerationService
+from app.services.personalization_service import PersonalizationService
 
 celery_app = Celery(
     "ai_tasks",
@@ -28,6 +30,13 @@ celery_app.conf.update(
     task_acks_late=True,
     broker_connection_retry_on_startup=True,
 )
+
+celery_app.conf.beat_schedule = {
+    "send-daily-learning-reminders": {
+        "task": "app.tasks.send_scheduled_learning_reminders_task",
+        "schedule": crontab(minute=0),  # Top of every hour
+    },
+}
 
 
 async def _run_generate_slides(
@@ -165,4 +174,24 @@ def generate_minigame_task(self, material_id: str, game_type: str, difficulty: s
         raise RuntimeError(message) from None
     except Exception as exc:
         logger.exception("Generate minigame task failed for material_id=%s", material_id)
+        raise self.retry(exc=exc)
+
+
+async def _run_scheduled_learning_reminders() -> dict:
+    await connect_mongo()
+    try:
+        service = PersonalizationService(get_db())
+        return await service.dispatch_scheduled_reminders()
+    finally:
+        await close_mongo()
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30, retry_backoff=True)
+def send_scheduled_learning_reminders_task(self) -> dict:
+    configure_logging()
+    logger.info("Executing scheduled learning reminders task")
+    try:
+        return asyncio.run(_run_scheduled_learning_reminders())
+    except Exception as exc:
+        logger.exception("Scheduled learning reminders task failed")
         raise self.retry(exc=exc)
