@@ -8,6 +8,7 @@ import { useNotifications } from "@/components/notification-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, memo, useRef, useEffect } from "react";
 import { NotificationDropdown } from "@/components/notification-dropdown";
+import { VietnamClock } from "@/components/schedule/vietnam-clock";
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
@@ -58,6 +59,10 @@ export const Topbar = memo(function Topbar({
         border-b-2 border-[var(--border-structural)]
       "
     >
+      <div className="flex-1 flex justify-center">
+        <VietnamClock compact />
+      </div>
+
       {/* ── Right Actions ── */}
       <div className="flex items-center gap-2 ml-auto">
         {/* Mascot toggle */}

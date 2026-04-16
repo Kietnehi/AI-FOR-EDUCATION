@@ -32,6 +32,7 @@ import { getSchedule, saveSchedule, uploadScheduleFile, getMe } from "@/lib/api"
 import { addMinutesToInputValue, formatVietnamInputDateTime, formatVietnamTime, getVietnamDay, getVietnamNowInputValue, parseVietnamDateTime } from "@/lib/datetime";
 import { ScheduleEvent } from "@/types";
 import { cn } from "@/lib/utils";
+import { VietnamClock } from "./vietnam-clock";
 
 const DAYS = [
   { label: "Thứ 2", short: "T2", value: 1, color: "bg-orange-500" },
