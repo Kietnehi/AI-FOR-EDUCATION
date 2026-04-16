@@ -28,9 +28,6 @@ export default function SettingsPage() {
   const [deleteTargetModelId, setDeleteTargetModelId] = useState("");
   const [modelSupportsReasoning, setModelSupportsReasoning] = useState<boolean>(false);
   const [useGeminiRotation, setUseGeminiRotation] = useState<boolean>(true);
-  const [preferredLanguage, setPreferredLanguage] = useState<string>("vi");
-  const [learningPace, setLearningPace] = useState<"light" | "moderate" | "intensive">("moderate");
-  const [studyGoal, setStudyGoal] = useState<string>("");
   const [notice, setNotice] = useState("");
   const [noticeType, setNoticeType] = useState<"success" | "error" | "info">("info");
   const [noticeKey, setNoticeKey] = useState(0);
@@ -49,9 +46,6 @@ export default function SettingsPage() {
     const savedSupportsReasoning = localStorage.getItem("chat_model_supports_reasoning");
     const savedUseGeminiRotation = localStorage.getItem("chat_use_gemini_rotation");
     const savedCustomModels = localStorage.getItem("chat_custom_models");
-    const savedPreferredLanguage = localStorage.getItem("learning_pref_language");
-    const savedLearningPace = localStorage.getItem("learning_pref_pace");
-    const savedStudyGoal = localStorage.getItem("learning_pref_goal");
 
     let parsedCustomModels: CustomModelOption[] = [];
     if (savedCustomModels) {
@@ -78,13 +72,6 @@ export default function SettingsPage() {
     setDeleteTargetModelId(parsedCustomModels[0]?.id || "");
     setModelSupportsReasoning(savedSupportsReasoning === "true");
     setUseGeminiRotation(savedUseGeminiRotation !== "false");
-    setPreferredLanguage((savedPreferredLanguage || "vi").trim() || "vi");
-    if (savedLearningPace === "light" || savedLearningPace === "intensive") {
-      setLearningPace(savedLearningPace);
-    } else {
-      setLearningPace("moderate");
-    }
-    setStudyGoal(savedStudyGoal || "");
   }, []);
 
   useEffect(() => {
@@ -102,13 +89,6 @@ export default function SettingsPage() {
         setChatModelName((prefs.chat_model_name || prefs.chat_model_id || "GPT-4o Mini").trim());
         setModelSupportsReasoning(Boolean(prefs.chat_model_supports_reasoning));
         setUseGeminiRotation(prefs.chat_use_gemini_rotation !== false);
-        setPreferredLanguage((prefs.preferred_language || "vi").trim() || "vi");
-        if (prefs.learning_pace === "light" || prefs.learning_pace === "intensive") {
-          setLearningPace(prefs.learning_pace);
-        } else {
-          setLearningPace("moderate");
-        }
-        setStudyGoal(prefs.study_goal || "");
 
         const serverCustomModels = Array.isArray(prefs.chat_custom_models)
           ? prefs.chat_custom_models
@@ -151,9 +131,6 @@ export default function SettingsPage() {
       localStorage.setItem("chat_model_supports_reasoning", String(modelSupportsReasoning));
       localStorage.removeItem("chat_show_reasoning_toggle");
       localStorage.setItem("chat_use_gemini_rotation", String(useGeminiRotation));
-      localStorage.setItem("learning_pref_language", preferredLanguage.trim() || "vi");
-      localStorage.setItem("learning_pref_pace", learningPace);
-      localStorage.setItem("learning_pref_goal", studyGoal.trim());
 
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("chat-settings-updated"));
@@ -168,9 +145,6 @@ export default function SettingsPage() {
             chat_custom_models: customModels,
             chat_model_supports_reasoning: modelSupportsReasoning,
             chat_use_gemini_rotation: useGeminiRotation,
-            preferred_language: preferredLanguage.trim() || "vi",
-            learning_pace: learningPace,
-            study_goal: studyGoal.trim() ? studyGoal.trim() : null,
           });
         } catch {
           setNoticeType("info");
@@ -181,9 +155,9 @@ export default function SettingsPage() {
       }
 
       setNoticeType("success");
-      setNotice("Đã lưu cấu hình model AI");
+      setNotice("Đã lưu cấu hình AI");
       setNoticeKey((prev) => prev + 1);
-      notifySuccess("Đã lưu cấu hình model AI");
+      notifySuccess("Đã lưu cấu hình AI");
     } catch {
       setNoticeType("error");
       setNotice("Không thể lưu cấu hình. Hãy kiểm tra quyền localStorage của trình duyệt.");
@@ -472,49 +446,6 @@ export default function SettingsPage() {
                 </label>
               </div>
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-              Cá nhân hóa học tập
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1.5">
-                <span className="block text-xs font-semibold text-[var(--text-secondary)]">Ngôn ngữ ưu tiên</span>
-                <select
-                  value={preferredLanguage}
-                  onChange={(e) => setPreferredLanguage(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--text-primary)] cursor-pointer outline-none focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="vi">Tiếng Việt</option>
-                  <option value="en">English</option>
-                </select>
-              </label>
-
-              <label className="space-y-1.5">
-                <span className="block text-xs font-semibold text-[var(--text-secondary)]">Nhịp học mong muốn</span>
-                <select
-                  value={learningPace}
-                  onChange={(e) => setLearningPace(e.target.value as "light" | "moderate" | "intensive")}
-                  className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--text-primary)] cursor-pointer outline-none focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="light">Nhẹ</option>
-                  <option value="moderate">Vừa</option>
-                  <option value="intensive">Chuyên sâu</option>
-                </select>
-              </label>
-            </div>
-
-            <label className="space-y-1.5">
-              <span className="block text-xs font-semibold text-[var(--text-secondary)]">Mục tiêu học tập</span>
-              <input
-                type="text"
-                value={studyGoal}
-                onChange={(e) => setStudyGoal(e.target.value)}
-                placeholder="Ví dụ: Nắm chắc xác suất trong 4 tuần"
-                className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-medium text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </label>
           </div>
 
           <div className="pt-2">

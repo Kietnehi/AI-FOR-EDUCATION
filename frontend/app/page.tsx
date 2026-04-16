@@ -28,7 +28,13 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { TurnstileCaptcha } from "@/components/auth/turnstile-captcha";
-import { getDashboardPersonalization, listMaterials, submitCooperationContact } from "@/lib/api";
+import {
+  checkInDaily,
+  getDashboardPersonalization,
+  listMaterials,
+  sendLearningReminderEmail,
+  submitCooperationContact,
+} from "@/lib/api";
 import { DashboardPersonalization, Material } from "@/types";
 import { subscribeToMaterialsRealtime } from "@/lib/api";
 import dynamic from "next/dynamic";
@@ -101,10 +107,12 @@ export default function DashboardPage() {
     useState<DashboardPersonalization | null>(null);
   const [loading, setLoading] = useState(true);
   const [personalizationLoading, setPersonalizationLoading] = useState(false);
+  const [checkinSubmitting, setCheckinSubmitting] = useState(false);
+  const [reminderSubmitting, setReminderSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showVisualizer, setShowVisualizer] = useState(false);
   const { user, loading: authLoading } = useAuth();
-  const { info } = useNotify();
+  const { info, success, warning, error: notifyError } = useNotify();
   const hasShownWelcome = useRef(false);
   
   // Quản lý trạng thái Custom Video Player
@@ -121,6 +129,46 @@ export default function DashboardPage() {
   const [contactSuccess, setContactSuccess] = useState("");
   const [contactError, setContactError] = useState("");
   const [contactExpanded, setContactExpanded] = useState(false);
+
+  const refreshPersonalization = async () => {
+    if (!user) return;
+    const payload = await getDashboardPersonalization().catch(() => null);
+    if (payload) {
+      setDashboardPersonalization(payload);
+    }
+  };
+
+  const handleCheckIn = async (useStreakFreeze: boolean) => {
+    if (!user || checkinSubmitting) return;
+    setCheckinSubmitting(true);
+    try {
+      const result = await checkInDaily(useStreakFreeze);
+      success(result.message, "Điểm danh");
+      await refreshPersonalization();
+    } catch {
+      notifyError("Không thể điểm danh lúc này. Vui lòng thử lại sau.", "Điểm danh");
+    } finally {
+      setCheckinSubmitting(false);
+    }
+  };
+
+  const handleSendReminder = async () => {
+    if (!user || reminderSubmitting) return;
+    setReminderSubmitting(true);
+    try {
+      const result = await sendLearningReminderEmail(false);
+      if (result.sent) {
+        success(result.message || "Đã gửi email nhắc học.", "Nhắc học");
+      } else {
+        warning(result.message || "Hiện chưa gửi được email nhắc học.", "Nhắc học");
+      }
+      await refreshPersonalization();
+    } catch {
+      notifyError("Không thể gửi email nhắc học lúc này.", "Nhắc học");
+    } finally {
+      setReminderSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -262,6 +310,60 @@ export default function DashboardPage() {
       animate="show"
       className="flex flex-col gap-8"
     >
+      {user && dashboardPersonalization?.habit_overview ? (
+        <motion.div variants={item} className="order-0 sticky top-20 z-20">
+          <Card className="!p-4 border border-brand-200/60 bg-[var(--bg-elevated)] shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="grid gap-2 sm:grid-cols-3 text-sm">
+                <p className="text-[var(--text-primary)]">
+                  Streak hiện tại: <strong>{dashboardPersonalization.habit_overview.current_streak_days}</strong> ngày
+                </p>
+                <p className="text-[var(--text-primary)]">
+                  Kỷ lục: <strong>{dashboardPersonalization.habit_overview.longest_streak_days}</strong> ngày
+                </p>
+                <p className="text-[var(--text-primary)]">
+                  Mục tiêu tuần: <strong>{dashboardPersonalization.habit_overview.weekly_goal.completion_rate}%</strong>
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleCheckIn(false)}
+                  disabled={checkinSubmitting || dashboardPersonalization.habit_overview.checkin_today}
+                >
+                  {dashboardPersonalization.habit_overview.checkin_today ? "Đã điểm danh hôm nay" : (checkinSubmitting ? "Đang điểm danh..." : "Điểm danh hôm nay")}
+                </Button>
+
+                {!dashboardPersonalization.habit_overview.checkin_today
+                && dashboardPersonalization.habit_overview.days_since_last_checkin === 2
+                && dashboardPersonalization.habit_overview.freeze_remaining_this_week > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCheckIn(true)}
+                    disabled={checkinSubmitting}
+                  >
+                    Dùng đóng băng streak
+                  </Button>
+                ) : null}
+
+                {dashboardPersonalization.reminders.some((item) => item.channel === "email" && item.due_now) ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSendReminder}
+                    disabled={reminderSubmitting}
+                  >
+                    {reminderSubmitting ? "Đang gửi mail..." : "Gửi email nhắc học"}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      ) : null}
+
       {/* Hero Section — Soft Brutalism: Dark slate + Mint accents */}
       <motion.div variants={item} className="order-1">
         <div className="relative overflow-hidden rounded-2xl border-2 border-slate-800 bg-slate-900 text-white p-8 sm:p-12 min-h-[380px] flex flex-col justify-center" style={{ boxShadow: "var(--shadow-soft)" }}>
@@ -607,8 +709,8 @@ export default function DashboardPage() {
       </motion.div>
 
       {user && dashboardPersonalization && (
-        <motion.div variants={item} className="order-5">
-          <div className="grid gap-4 lg:grid-cols-3">
+        <motion.div variants={item} className="order-4">
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
             <Card className="!p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
@@ -690,6 +792,49 @@ export default function DashboardPage() {
                     <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">{item.reason}</p>
                   </div>
                 ))}
+              </div>
+            </Card>
+
+            <Card className="!p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: "var(--font-display)" }}>
+                Tiến độ học tập
+              </h2>
+              <div className="space-y-3 text-sm">
+                <p className="text-[var(--text-secondary)]">
+                  Streak: <span className="font-semibold text-[var(--text-primary)]">{dashboardPersonalization.habit_overview.current_streak_days} ngày</span>
+                </p>
+                <p className="text-[var(--text-secondary)]">
+                  Đóng băng tuần này: <span className="font-semibold text-[var(--text-primary)]">{dashboardPersonalization.habit_overview.freeze_used_this_week}</span>/1
+                </p>
+
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[var(--text-primary)]">Mục tiêu tuần</span>
+                    <span className="text-[var(--text-tertiary)]">{dashboardPersonalization.habit_overview.weekly_goal.completion_rate}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[var(--bg-secondary)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-brand-500"
+                      style={{ width: `${Math.max(4, Math.min(dashboardPersonalization.habit_overview.weekly_goal.completion_rate, 100))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {dashboardPersonalization.risk_alert.status !== "stable" ? (
+                  <div className="rounded-lg border border-amber-300/50 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    {dashboardPersonalization.risk_alert.reasons[0] || "Bạn có dấu hiệu giảm nhịp học."}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-emerald-300/50 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                    Nhịp học đang ổn định. Tiếp tục duy trì streak mỗi ngày.
+                  </div>
+                )}
+
+                {dashboardPersonalization.reminders.find((row) => row.channel === "in_app") ? (
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {dashboardPersonalization.reminders.find((row) => row.channel === "in_app")?.message}
+                  </p>
+                ) : null}
               </div>
             </Card>
           </div>

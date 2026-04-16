@@ -43,11 +43,17 @@ class FakeCollection:
         for key, expected in query.items():
             value = row.get(key)
             if isinstance(expected, dict):
-                if "$gte" in expected:
-                    if value is None or value < expected["$gte"]:
-                        return False
-                    continue
-                return False
+                if value is None:
+                    return False
+                if "$gte" in expected and value < expected["$gte"]:
+                    return False
+                if "$gt" in expected and value <= expected["$gt"]:
+                    return False
+                if "$lte" in expected and value > expected["$lte"]:
+                    return False
+                if "$lt" in expected and value >= expected["$lt"]:
+                    return False
+                continue
             if value != expected:
                 return False
         return True
@@ -90,9 +96,13 @@ class FakeDB:
 
 class FakePreferencesRepo:
     def __init__(self, payload: dict) -> None:
-        self.payload = payload
+        self.payload = dict(payload)
 
     async def get_or_create_by_user_id(self, user_id: str) -> dict:
+        return {"user_id": user_id, **self.payload}
+
+    async def upsert_by_user_id(self, user_id: str, payload: dict) -> dict:
+        self.payload.update(payload)
         return {"user_id": user_id, **self.payload}
 
 
@@ -296,3 +306,90 @@ async def test_dashboard_aggregation_populates_study_rhythm_and_top_feature(
     assert payload["study_rhythm"]["days_since_last_active"] == 1
     assert payload["study_rhythm"]["top_feature"] == "chat"
     assert payload["feature_affinity"][0]["feature"] == "chat"
+
+
+@pytest.mark.asyncio
+async def test_check_in_uses_weekly_streak_freeze_when_gap_is_two_days(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 4, 15, 13, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(personalization_module, "utc_now", lambda: now)
+
+    db = FakeDB(
+        materials=[],
+        generated_contents=[],
+        chat_sessions=[],
+        game_attempts=[],
+        analytics_events=[],
+    )
+
+    service = PersonalizationService(db)
+    service.preferences_repo = FakePreferencesRepo(
+        {
+            "reminder_timezone": "Asia/Ho_Chi_Minh",
+            "streak_current_days": 3,
+            "streak_longest_days": 6,
+            "streak_last_checkin_date": "2026-04-13",
+            "streak_total_checkins": 8,
+            "streak_freeze_used_week": 0,
+            "streak_freeze_week_start": "2026-04-13",
+            "weekly_goal_active_days": 5,
+            "weekly_goal_minutes": 180,
+            "weekly_goal_items": 6,
+        }
+    )
+
+    result = await service.check_in("u1", use_streak_freeze=True)
+
+    assert result["checked_in"] is True
+    assert result["used_streak_freeze"] is True
+    assert result["habit_overview"]["current_streak_days"] == 4
+    assert result["habit_overview"]["freeze_used_this_week"] == 1
+    assert result["habit_overview"]["freeze_remaining_this_week"] == 0
+
+
+@pytest.mark.asyncio
+async def test_dashboard_risk_alert_detects_inactivity_and_activity_drop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 4, 16, 9, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(personalization_module, "utc_now", lambda: now)
+
+    previous_week_events = [
+        {
+            "user_id": "u1",
+            "event_type": "chat_message_sent",
+            "created_at": now - timedelta(days=9, hours=index),
+        }
+        for index in range(12)
+    ]
+    current_week_events = [
+        {
+            "user_id": "u1",
+            "event_type": "chat_message_sent",
+            "created_at": now - timedelta(days=4),
+        }
+    ]
+
+    db = FakeDB(
+        materials=[],
+        generated_contents=[],
+        chat_sessions=[],
+        game_attempts=[],
+        analytics_events=previous_week_events + current_week_events,
+    )
+
+    service = PersonalizationService(db)
+    service.preferences_repo = FakePreferencesRepo(
+        {
+            "reminder_timezone": "Asia/Ho_Chi_Minh",
+            "weekly_goal_active_days": 5,
+            "weekly_goal_minutes": 180,
+            "weekly_goal_items": 6,
+        }
+    )
+
+    payload = await service.build_dashboard_personalization("u1")
+
+    assert payload["risk_alert"]["status"] in {"warning", "high_risk"}
+    assert len(payload["risk_alert"]["reasons"]) >= 1
