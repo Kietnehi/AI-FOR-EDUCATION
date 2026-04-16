@@ -10,6 +10,12 @@ from app.services.turnstile_service import TurnstileVerificationError, verify_tu
 
 router = APIRouter()
 
+
+def _cookie_samesite_value() -> str:
+    # Cross-origin requests (frontend tunnel -> backend tunnel) need SameSite=None.
+    # Browsers require Secure=true when SameSite=None.
+    return "none" if settings.auth_cookie_secure else "lax"
+
 @router.post("/auth/google/login", response_model=AuthResponse)
 async def google_login(
     payload: GoogleAuthRequest,
@@ -32,7 +38,7 @@ async def google_login(
         value=jwt_token,
         httponly=True,
         secure=settings.auth_cookie_secure,
-        samesite="lax",  # Prevent CSRF
+        samesite=_cookie_samesite_value(),
         max_age=settings.jwt_expiration_minutes * 60,
         path="/"
     )
@@ -62,7 +68,7 @@ async def google_register(
         value=jwt_token,
         httponly=True,
         secure=settings.auth_cookie_secure,
-        samesite="lax",
+        samesite=_cookie_samesite_value(),
         max_age=settings.jwt_expiration_minutes * 60,
         path="/",
     )
@@ -76,7 +82,7 @@ async def logout(response: Response) -> LogoutResponse:
         path="/",
         secure=settings.auth_cookie_secure,
         httponly=True,
-        samesite="lax"
+        samesite=_cookie_samesite_value()
     )
     return LogoutResponse(message="Successfully logged out")
 

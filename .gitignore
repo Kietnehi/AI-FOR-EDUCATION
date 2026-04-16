@@ -84,6 +84,7 @@ backend/storage/outputs/*
 .env.*
 !.env.example
 !.env.docker.example
+!.env.prod.example
 backend/.env
 frontend/.env.local
 

@@ -178,6 +178,12 @@ jobs:
       - name: Cài đặt Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Kiểm tra secrets publish Docker Hub
+        shell: bash
+        run: |
+          [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] || { echo "Missing secret: DOCKERHUB_USERNAME"; exit 1; }
+          [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ] || { echo "Missing secret: DOCKERHUB_TOKEN"; exit 1; }
+
       - name: Chuẩn bị file môi trường Docker
         run: cp .env.docker.example .env
 
@@ -189,7 +195,10 @@ jobs:
         run: |
           mkdir -p release/docker
           cp docker-compose.yml release/docker/docker-compose.yml
+          cp docker-compose.prod.yml release/docker/docker-compose.prod.yml
           cp .env.docker.example release/docker/.env.docker.example
+          cp .env.prod.example release/docker/.env.prod.example
+          cp scripts/deploy.ps1 release/docker/deploy.ps1
           cp release-docker-compose.resolved.yml release/docker/docker-compose.resolved.yml
 
       - name: Tải artifact Docker lên
@@ -211,23 +220,17 @@ jobs:
       - name: Cài đặt Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Đăng nhập GitHub Container Registry
+      - name: Đăng nhập Docker Hub
         uses: docker/login-action@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Chuẩn hóa tên namespace image
-        id: owner
-        shell: bash
-        run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Tạo metadata image backend
         id: backend-meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.owner.outputs.value }}/ai-for-education-backend
+          images: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/ai-for-education-backend
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ needs.prepare-release.outputs.release_sha_short }}
@@ -237,13 +240,13 @@ jobs:
         id: frontend-meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.owner.outputs.value }}/ai-for-education-frontend
+          images: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/ai-for-education-frontend
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ needs.prepare-release.outputs.release_sha_short }}
             type=raw,value=${{ env.SOURCE_BRANCH }}
 
-      - name: Build và đẩy image backend lên GHCR
+      - name: Build và đẩy image backend lên Docker Hub
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -258,13 +261,15 @@ jobs:
           tags: ${{ steps.backend-meta.outputs.tags }}
           labels: ${{ steps.backend-meta.outputs.labels }}
 
-      - name: Build và đẩy image frontend lên GHCR
+      - name: Build và đẩy image frontend lên Docker Hub
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          # Dockerfile.dev bám local hơn; nếu muốn image production gọn hơn thì đổi sang frontend/Dockerfile.
           file: ./frontend/Dockerfile
           push: true
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+            NEXT_PUBLIC_API_HOST=${{ vars.NEXT_PUBLIC_API_HOST }}
           tags: ${{ steps.frontend-meta.outputs.tags }}
           labels: ${{ steps.frontend-meta.outputs.labels }}
 
@@ -272,8 +277,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p release/images
-          cat > release/images/ghcr-images.md <<EOF
-          # Docker images đã publish lên GHCR
+          cat > release/images/dockerhub-images.md <<EOF
+          # Docker images đã publish lên Docker Hub
 
           ## Backend
 
@@ -287,8 +292,8 @@ jobs:
       - name: Tải artifact báo cáo image lên
         uses: actions/upload-artifact@v7
         with:
-          name: ghcr-images-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release/images/ghcr-images.md
+          name: dockerhub-images-${{ needs.prepare-release.outputs.release_sha_short }}
+          path: release/images/dockerhub-images.md
 
   deploy-placeholder:
     runs-on: ubuntu-latest
@@ -299,21 +304,33 @@ jobs:
       - package-docker-bundle
       - publish-container-images
     environment:
-      name: ${{ github.event.inputs.target_environment || 'staging-placeholder' }}
+      name: ${{ github.event.inputs.target_environment || 'production-local' }}
 
     steps:
-      - name: Tải artifact metadata phát hành xuống
-        uses: actions/download-artifact@v7
-        with:
-          name: cd-release-metadata
-          path: release/metadata
+      - name: Kiểm tra secrets deploy SSH
+        shell: bash
+        run: |
+          [ -n "${{ secrets.DEPLOY_HOST }}" ] || { echo "Missing secret: DEPLOY_HOST"; exit 1; }
+          [ -n "${{ secrets.DEPLOY_USERNAME }}" ] || { echo "Missing secret: DEPLOY_USERNAME"; exit 1; }
+          [ -n "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" ] || { echo "Missing secret: DEPLOY_SSH_PRIVATE_KEY"; exit 1; }
 
-      - name: Tạo báo cáo triển khai tượng trưng
+      - name: Triển khai lên máy local qua SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            powershell -NoProfile -ExecutionPolicy Bypass -File D:\DACN\scripts\deploy.ps1
+
+      - name: Tạo báo cáo triển khai
         shell: bash
         run: |
           mkdir -p release/deploy
           cat > release/deploy/deployment-summary.md <<EOF
-          # Báo cáo triển khai tượng trưng
+          # Báo cáo triển khai tự động
 
           - Bản phát hành: ${{ needs.prepare-release.outputs.release_name }}
           - Phiên bản: ${{ needs.prepare-release.outputs.release_version }}
@@ -322,16 +339,14 @@ jobs:
           - Commit: ${SOURCE_SHA}
           - Người kích hoạt: ${GITHUB_ACTOR}
           - Lần chạy workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          - URL công khai: chưa-cấu-hình
-          - Chế độ triển khai: chỉ tượng trưng
+          - Registry image: Docker Hub
+          - Cách triển khai: GitHub Actions SSH vào host và chạy scripts/deploy.ps1
 
           Trạng thái hiện tại:
 
-          - Frontend đã build xong và đã tải bundle artifact lên
-          - Backend đã kiểm tra cú pháp và đã tải bundle artifact lên
-          - Cấu hình docker compose đã được resolve thành công
-          - Docker image frontend/backend đã được publish lên GHCR
-          - Chưa thực hiện triển khai lên server thật
+          - Frontend/Backend images đã publish lên Docker Hub
+          - Deploy đã chạy tự động trên host mục tiêu
+          - Host thực hiện pull image mới và restart stack theo docker-compose.prod.yml
           EOF
           cat release/deploy/deployment-summary.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -388,7 +403,7 @@ jobs:
       - name: Tải artifact báo cáo image xuống
         uses: actions/download-artifact@v7
         with:
-          name: ghcr-images-${{ needs.prepare-release.outputs.release_sha_short }}
+          name: dockerhub-images-${{ needs.prepare-release.outputs.release_sha_short }}
           path: release-bundle/images
 
       - name: Tải artifact bundle phát hành tổng hợp lên
@@ -446,8 +461,8 @@ jobs:
             | 🖥️ **Build Frontend** | ${statusIcon(results.frontend)} | ${statusText(results.frontend)} |
             | ⚙️ **Package Backend** | ${statusIcon(results.backend)} | ${statusText(results.backend)} |
             | 🐳 **Resolve Docker** | ${statusIcon(results.docker)} | ${statusText(results.docker)} |
-            | 📦 **Publish GHCR Images** | ${statusIcon(results.images)} | ${statusText(results.images)} |
-            | 🚀 **Deploy Placeholder** | ${statusIcon(results.deploy)} | ${statusText(results.deploy)} |
+            | 📦 **Publish Docker Hub Images** | ${statusIcon(results.images)} | ${statusText(results.images)} |
+            | 🚀 **Deploy qua SSH** | ${statusIcon(results.deploy)} | ${statusText(results.deploy)} |
             | 📚 **Tổng hợp Release Bundle** | ${statusIcon(results.bundle)} | ${statusText(results.bundle)} |
             
             ---
@@ -456,10 +471,10 @@ jobs:
             - **Full Release Bundle:** \`full-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
             - **Frontend Build:** \`frontend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
             - **Backend Package:** \`backend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
-            - **GHCR Image Report:** \`ghcr-images-${{ needs.prepare-release.outputs.release_sha_short }}\`
+            - **Docker Hub Image Report:** \`dockerhub-images-${{ needs.prepare-release.outputs.release_sha_short }}\`
             
             ---
-            *Ghi chú: Bản phát hành này là một bước triển khai tượng trưng để kiểm tra luồng phát hành.*
+            *Ghi chú: Pipeline này publish image lên Docker Hub và deploy tự động qua SSH vào host local đã cấu hình.*
             `;
             
             core.summary.addRaw(summary).write();
@@ -510,8 +525,8 @@ jobs:
               ['Bundle frontend', process.env.FRONTEND_RESULT],
               ['Bundle backend', process.env.BACKEND_RESULT],
               ['Bundle Docker', process.env.DOCKER_RESULT],
-              ['Publish GHCR images', process.env.IMAGES_RESULT],
-              ['Triển khai tượng trưng', process.env.DEPLOY_RESULT],
+              ['Publish Docker Hub images', process.env.IMAGES_RESULT],
+              ['Triển khai qua SSH', process.env.DEPLOY_RESULT],
               ['Bundle phát hành tổng hợp', process.env.BUNDLE_RESULT],
             ];
 

@@ -148,7 +148,7 @@ Dự án được chia thành 2 luồng xử lý chính:
 |-----------|-------|
 | Docker / Docker Compose | Môi trường chạy local, CI smoke test và đóng gói dịch vụ |
 | GitHub Actions | CI/CD pipeline |
-| GHCR | Publish container image frontend và backend |
+| Docker Hub | Publish container image frontend và backend |
 | Vitest + Testing Library + jsdom | Unit test / integration test frontend |
 | Pytest | Test backend |
 | ESLint | Kiểm tra chất lượng mã frontend |
@@ -619,6 +619,7 @@ Hiện tại dự án có **CI đầy đủ**, và **CD bán thực tế**: đã
 - Tài liệu chi tiết:
   - `markdown_docs/CI_SUMMARY_2026-03-28.md`
   - `markdown_docs/TOM_TAT_CD_2026-03-28.md`
+  - `markdown_docs/CD_DOCKERHUB_WINDOWS_TUNNEL.md`
 
 ### 6.1 Sơ đồ CI/CD tổng thể
 
@@ -776,6 +777,7 @@ Coverage report sau khi chạy:
 - Tài liệu chi tiết hơn:
   - `markdown_docs/CI_SUMMARY_2026-03-28.md`
   - `markdown_docs/TOM_TAT_CD_2026-03-28.md`
+  - `markdown_docs/CD_DOCKERHUB_WINDOWS_TUNNEL.md`
 
 ### 6.6 Hướng dẫn tải full-release-bundle từ CD
 

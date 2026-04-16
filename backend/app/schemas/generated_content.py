@@ -27,7 +27,7 @@ class GeneratePodcastRequest(BaseModel):
 
 
 class GenerateMinigameRequest(BaseModel):
-    game_type: Literal["quiz_mixed", "flashcard", "shooting_quiz"] = "quiz_mixed"
+    game_type: Literal["quiz_mixed", "flashcard", "scenario_branching"] = "quiz_mixed"
     difficulty: Literal["easy", "medium", "hard"] = "medium"
     force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
 

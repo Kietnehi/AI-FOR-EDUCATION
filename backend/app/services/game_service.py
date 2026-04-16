@@ -1,7 +1,10 @@
+import re
+
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.ai.generation.llm_client import LLMClient
+from app.core.logging import logger
 from app.repositories.game_repository import GameRepository
 from app.services.generation_service import GenerationService
 from app.services.material_service import MaterialService
@@ -21,26 +24,42 @@ class GameService:
             generated_content_id,
             user_id=user_id,
         )
-        if generated.get("content_type") != "minigame":
+        # Backward-compatible: legacy data may store interactive games as "quiz".
+        if generated.get("content_type") not in {"minigame", "quiz"}:
             raise HTTPException(status_code=400, detail="generated_content_id must be a minigame")
 
         game_type = generated.get("game_type", "quiz_mixed")
         difficulty = generated.get("difficulty", "medium")
         json_content = generated.get("json_content", {})
 
-        if game_type == "scenario_branching":
-            scored_items, score, max_score = self._score_scenario(json_content, answers)
-            skills_gained = self._extract_skills_from_scenario(json_content, answers)
-            improvement_tips = self._extract_tips_from_scenario(json_content, answers)
-        elif game_type == "shooting_quiz":
-            scored_items, score, max_score = self._score_shooting_quiz(json_content, answers)
-            skills_gained = self._extract_skills_from_shooting(json_content)
-            improvement_tips = self._extract_tips_from_shooting(score, max_score)
-        else:
-            # quiz_mixed or flashcard
-            scored_items = self._score_quiz(json_content, answers, game_type)
-            score = float(sum(1 for item in scored_items if item["is_correct"]))
-            max_score = float(len(scored_items)) if scored_items else 1.0
+        try:
+            if game_type == "scenario_branching":
+                scored_items, score, max_score = self._score_scenario(json_content, answers)
+                skills_gained = self._extract_skills_from_scenario(json_content, answers)
+                improvement_tips = self._extract_tips_from_scenario(json_content, answers)
+            elif game_type == "shooting_quiz":
+                scored_items, score, max_score = self._score_shooting_quiz(json_content, answers)
+                skills_gained = self._extract_skills_from_shooting(json_content)
+                improvement_tips = self._extract_tips_from_shooting(score, max_score)
+            else:
+                # quiz_mixed or flashcard
+                scored_items = self._score_quiz(json_content, answers, game_type)
+                score = float(sum(1 for item in scored_items if item["is_correct"]))
+                max_score = float(len(scored_items)) if scored_items else 1.0
+                skills_gained = []
+                improvement_tips = []
+        except Exception:
+            # Do not drop user attempt if scoring fails unexpectedly.
+            logger.exception(
+                "Failed to score minigame attempt, falling back to raw attempt persistence",
+                extra={
+                    "generated_content_id": generated_content_id,
+                    "game_type": game_type,
+                },
+            )
+            scored_items = []
+            score = 0.0
+            max_score = 1.0
             skills_gained = []
             improvement_tips = []
 
@@ -384,6 +403,22 @@ class GameService:
         }
 
     @staticmethod
+    def _normalize_text_key(value: str | None) -> str:
+        text = str(value or "").strip().lower()
+        if not text:
+            return ""
+        text = re.sub(r"[^\w\s]", " ", text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    @classmethod
+    def _build_wrong_question_key(cls, question: str, correct_answer: str | None) -> str:
+        normalized_question = cls._normalize_text_key(question)
+        normalized_answer = cls._normalize_text_key(correct_answer)
+        if normalized_answer:
+            return f"{normalized_question}||{normalized_answer}"
+        return normalized_question
+
+    @staticmethod
     def _collect_top_wrong_questions(attempts: list[dict], limit: int = 10) -> list[dict]:
         normalized_limit = max(1, min(limit, 20))
         question_map: dict[str, dict] = {}
@@ -403,11 +438,16 @@ class GameService:
                 if not normalized_question:
                     continue
 
-                key = normalized_question[:220]
+                correct_answer = row.get("correct_answer") or row.get("correct_answer_text")
+                canonical_key = GameService._build_wrong_question_key(
+                    normalized_question[:220],
+                    str(correct_answer)[:120] if isinstance(correct_answer, str) else None,
+                )
+                key = canonical_key or normalized_question[:220]
                 entry = question_map.get(key)
                 if entry is None:
                     entry = {
-                        "question": key,
+                        "question": normalized_question[:220],
                         "wrong_count": 0,
                         "correct_answer": None,
                     }
@@ -416,7 +456,6 @@ class GameService:
                 entry["wrong_count"] += 1
 
                 if entry["correct_answer"] is None:
-                    correct_answer = row.get("correct_answer") or row.get("correct_answer_text")
                     if isinstance(correct_answer, str) and correct_answer.strip():
                         entry["correct_answer"] = correct_answer.strip()[:120]
 

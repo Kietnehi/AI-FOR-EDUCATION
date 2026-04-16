@@ -1,5 +1,7 @@
 # Review đầy đủ CI của dự án (2026-03-28)
 
+> Cập nhật 2026-04-12: luồng CD đã được mở rộng để publish Docker Hub và deploy tự động qua SSH + Named Tunnel. Xem thêm `markdown_docs/CD_DOCKERHUB_WINDOWS_TUNNEL.md`.
+
 Tài liệu này là bản review đầy đủ luồng Continuous Integration (CI) hiện tại của repo `AI-FOR-EDUCATION`. Mục tiêu là để chỉ cần đọc một tài liệu này, người mới vào repo vẫn hiểu được CI đang chạy gì, tại sao chạy như vậy, đầu ra là gì, và giới hạn hiện tại nằm ở đâu.
 
 Nội dung dưới đây phản ánh cấu hình thực tế trong:
