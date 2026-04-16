@@ -24,6 +24,7 @@ from app.services.converter import (
 )
 
 router = APIRouter()
+extraction_semaphore = asyncio.Semaphore(1) # Limit to 1 heavy extraction at a time to prevent OOM
 
 async def cleanup_files(input_p=None, output_p=None):
     await asyncio.sleep(60)
@@ -123,20 +124,27 @@ async def extract_pdf(
     with open(input_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, extract_from_pdf, str(input_path), extract_id)
-    
-    if not result.get("success"):
-        personalization_service = PersonalizationService(db)
-        await personalization_service.track_event(
-            user_id=user.id,
-            event_type="converter_extract_used",
-            resource_type="converter",
-            metadata={"success": False, "file_name": file.filename},
-            success=False,
-        )
+    try:
+        async with extraction_semaphore:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, extract_from_pdf, str(input_path), extract_id)
+        
+        if not result.get("success"):
+            personalization_service = PersonalizationService(db)
+            await personalization_service.track_event(
+                user_id=user.id,
+                event_type="converter_extract_used",
+                resource_type="converter",
+                metadata={"success": False, "file_name": file.filename},
+                success=False,
+            )
+            background_tasks.add_task(cleanup_files, str(input_path))
+            raise HTTPException(status_code=500, detail=f"Extraction failed: {result.get('error', 'Unknown')}")
+    except HTTPException:
+        raise
+    except Exception as e:
         background_tasks.add_task(cleanup_files, str(input_path))
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {result.get('error', 'Unknown')}")
+        raise HTTPException(status_code=500, detail=f"Internal server error during extraction: {str(e)}")
     
     # Just cleanup the uploaded PDF, keep the extracted dir for viewing
     background_tasks.add_task(cleanup_files, str(input_path))

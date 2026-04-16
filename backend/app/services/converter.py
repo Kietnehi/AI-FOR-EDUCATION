@@ -112,7 +112,7 @@ def _sync_web_to_pdf(url: str, output_path: Path) -> bool:
         if url.lower().endswith('.pdf') or '/pdf/' in url.lower():
             import httpx as _httpx
             try:
-                r = _httpx.get(url, follow_redirects=True, timeout=60.0)
+                r = _httpx.get(url, follow_redirects=True, timeout=120.0)
                 r.raise_for_status()
                 content_type = r.headers.get('content-type', '').lower()
                 if 'application/pdf' in content_type:
@@ -126,7 +126,7 @@ def _sync_web_to_pdf(url: str, output_path: Path) -> bool:
         with sync_playwright() as p:
             browser = p.chromium.launch(args=['--no-sandbox'])
             page = browser.new_page()
-            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            page.goto(url, wait_until="domcontentloaded", timeout=120000)
             # Auto scroll to load lazy content
             page.evaluate("""
                 () => new Promise(resolve => {
@@ -247,12 +247,37 @@ async def convert_file_to_pdf(input_path: str, output_path: str):
         return False
 
 
+# Global singleton instance for Docling
+_doc_converter = None
+
+def get_doc_converter():
+    """Get or create a singleton DocumentConverter instance."""
+    global _doc_converter
+    if _doc_converter is None:
+        try:
+            from docling.document_converter import DocumentConverter, PdfFormatOption
+            from docling.datamodel.base_models import InputFormat
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+
+            pipeline_options = PdfPipelineOptions()
+            pipeline_options.do_formula_enrichment = True
+            pipeline_options.do_ocr = False
+            pipeline_options.do_table_structure = True
+            pipeline_options.generate_picture_images = True
+            
+            _doc_converter = DocumentConverter(
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+                }
+            )
+            print("[*] Docling DocumentConverter initialized (singleton)")
+        except Exception as e:
+            print(f"[!] Failed to initialize Docling: {e}")
+            raise
+    return _doc_converter
+
 def extract_from_pdf(pdf_path: str, extract_id: str):
     try:
-        from docling.document_converter import DocumentConverter, PdfFormatOption
-        from docling.datamodel.base_models import InputFormat
-        from docling.datamodel.pipeline_options import PdfPipelineOptions
-
         pdf_p = Path(pdf_path)
         output_base = EXTRACTED_DIR / extract_id
         output_base.mkdir(exist_ok=True)
@@ -266,18 +291,7 @@ def extract_from_pdf(pdf_path: str, extract_id: str):
         images_dir.mkdir(exist_ok=True)
         equations_dir.mkdir(exist_ok=True)
         
-        pipeline_options = PdfPipelineOptions()
-        pipeline_options.do_formula_enrichment = True
-        pipeline_options.do_ocr = False
-        pipeline_options.do_table_structure = True
-        pipeline_options.generate_picture_images = True
-        
-        doc_converter = DocumentConverter(
-            format_options={
-                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
-            }
-        )
-        
+        doc_converter = get_doc_converter()
         result = doc_converter.convert(str(pdf_p))
         doc = result.document
         

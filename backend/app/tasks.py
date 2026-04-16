@@ -9,6 +9,11 @@ from app.core.logging import configure_logging, logger
 from app.db.mongo import close_mongo, connect_mongo, get_db
 from app.services.generation_service import GenerationService
 from app.services.personalization_service import PersonalizationService
+from app.services.email_service import EmailService
+from app.repositories.schedule_repository import ScheduleRepository
+from app.ai.generation.llm_client import LLMClient
+from app.utils.time import vietnam_now, parse_vietnam_datetime
+from bson import ObjectId
 
 celery_app = Celery(
     "ai_tasks",
@@ -195,3 +200,102 @@ def send_scheduled_learning_reminders_task(self) -> dict:
     except Exception as exc:
         logger.exception("Scheduled learning reminders task failed")
         raise self.retry(exc=exc)
+
+
+async def _run_check_schedule_reminders():
+    """Logic to check and send notifications for 'Lập lịch học tập & làm việc'"""
+    # Note: connect_mongo and get_db are already available in tasks.py
+    logger.info("DEBUG: Entering _run_check_schedule_reminders")
+    try:
+        await connect_mongo()
+        logger.info("DEBUG: Mongo connected in task")
+        db = get_db()
+        repo = ScheduleRepository(db)
+        
+        # 1. Get schedules with due events (logic in repo handles the 10-12 min window)
+        logger.info("DEBUG: Getting due events...")
+        due_schedules = await repo.get_due_events()
+        logger.info(f"DEBUG: Found {len(due_schedules)} schedules")
+        if not due_schedules:
+            return
+            
+        llm = LLMClient()
+        now = vietnam_now()
+        
+        for schedule in due_schedules:
+            user_id = schedule.get("user_id")
+            if not user_id:
+                continue
+                
+            # Fetch user email - we need the users collection
+            user_profile = await db.users.find_one({"_id": ObjectId(user_id)})
+            if not user_profile or not user_profile.get("email"):
+                continue
+                
+            email = user_profile["email"]
+            user_name = user_profile.get("name", "người dùng")
+            
+            for event in schedule.get("events", []):
+                # Extra check to ensure we only process events that are due right now
+                if event.get("notified"):
+                    continue
+                    
+                start_time_str = event.get("start_time")
+                try:
+                    event_dt = parse_vietnam_datetime(start_time_str)
+                except:
+                    continue
+                    
+                # Re-verify window: notify if starts in next 12 mins or started in last 5 mins
+                diff_minutes = (event_dt - now).total_seconds() / 60
+                
+                if -5 <= diff_minutes <= 12:  # It's due!
+                    logger.info(f"Processing reminder for {email} - Event: {event.get('title')} at {start_time_str}")
+                    
+                    # 2. Generate AI message (Funny & Personalized)
+                    prompt = f"""
+                    Bạn là một trợ lý nhắc nhở học tập và làm việc thông minh, hài hước và nhiệt huyết.
+                    Hãy viết một lời nhắc nhở ngắn gọn cho người dùng về sự kiện sắp tới.
+                    
+                    Sự kiện: {event.get('title')}
+                    Thời gian: {start_time_str}
+                    Địa điểm: {event.get('location', 'Không có')}
+                    Ghi chú: {event.get('notes', 'Không có')}
+                    
+                    Người nhận: {user_name}
+                    
+                    Yêu cầu: 
+                    - Viết khoảng 2-3 câu. 
+                    - Văn phong: Thân thiện, có thể trêu đùa một chút để tạo động lực (ví dụ: 'Đừng ngủ quên nhé!').
+                    - Ngôn ngữ: Tiếng Việt.
+                    """
+                    
+                    ai_msg = ""
+                    try:
+                        ai_msg = llm.generate("Bạn là trợ lý nhắc nhở AI Learning Studio.", prompt)
+                    except Exception as e:
+                        logger.warning(f"Failed to generate AI message for reminder: {e}")
+                        ai_msg = "Sắp đến giờ cho sự kiện của bạn rồi đấy! Hãy chuẩn bị sẵn sàng nhé."
+                    
+                    # 3. Send Email using EmailService
+                    try:
+                        await EmailService.send_event_reminder(
+                            to_email=email,
+                            event_title=event.get("title", "Sự kiện"),
+                            start_time=start_time_str,
+                            location=event.get("location"),
+                            notes=event.get("notes"),
+                            ai_message=ai_msg
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send email reminder to {email}: {e}")
+                        continue
+                    
+                    # 4. Mark as notified in DB
+                    await repo.mark_event_notified(user_id, event.get("title"), start_time_str)
+                    logger.info(f"Successfully notified {email} for event '{event.get('title')}'")
+    except Exception as e:
+        logger.error(f"Error in _run_check_schedule_reminders: {e}")
+    finally:
+        # Note: main.py worker handles the loop, we just do one pass
+        pass

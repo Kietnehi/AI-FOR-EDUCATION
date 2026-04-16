@@ -25,8 +25,8 @@ import { useAuth } from "@/components/auth-provider";
 import type { SttModel } from "@/types";
 
 const API_BASE = typeof window !== "undefined"
-  ? "/api"
-  : ((process.env.BACKEND_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api").replace(/\/+$/, ""));
+  ? (process.env.NEXT_PUBLIC_API_BASE_URL || "/api").replace(/\/+$/, "")
+  : ((process.env.BACKEND_API_BASE_URL || "http://backend:8000/api").replace(/\/+$/, ""));
 
 type UploadMode = "file" | "image" | "audio" | "text";
 
