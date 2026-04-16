@@ -3,6 +3,5 @@
     "allow": [
       "Bash(npx *)"
     ]
-  },
-  "$version": 3
+  }
 }

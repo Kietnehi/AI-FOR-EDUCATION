@@ -2,6 +2,7 @@ import asyncio
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,12 +46,27 @@ async def lifespan(_: FastAPI):
         logger.info("Object storage disabled; using local filesystem storage")
     
     logger.info("Application startup complete")
+    
+    # Start background notification loop (Simple alternative to Celery/Redis for notifications)
+    async def notification_worker():
+        from app.tasks import _run_check_schedule_reminders
+        logger.info("Starting background notification worker (non-Celery mode)")
+        while True:
+            try:
+                await _run_check_schedule_reminders()
+            except Exception as e:
+                logger.error(f"Error in background notification worker: {e}")
+            await asyncio.sleep(60) # Run every minute
+
+    notification_task = asyncio.create_task(notification_worker())
+    
     try:
         yield
     except asyncio.CancelledError:
         # Uvicorn may cancel lifespan tasks during Ctrl+C/reload on Windows.
         logger.info("Application lifespan cancelled during shutdown")
     finally:
+        notification_task.cancel()
         await close_mongo()
         logger.info("Application shutdown complete")
 

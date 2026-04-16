@@ -26,6 +26,7 @@ class YouTubeLessonRequest(BaseModel):
     youtube_url: str | None = None
     video_id: str | None = None
     query: str | None = None
+    manual_transcript: str | None = None
     max_checkpoints: int = Field(default=5, ge=3, le=10)
     stt_model: Literal[
         "local-base",

@@ -393,3 +393,5 @@ export type SttModel =
 export type DuckDuckGoSearchType = "text" | "news" | "images" | "videos" | "books";
 
 export type DuckDuckGoSearchItem = Record<string, any>;
+
+export * from "./schedule";
