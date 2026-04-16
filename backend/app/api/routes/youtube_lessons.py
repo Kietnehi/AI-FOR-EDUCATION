@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+import asyncio
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.api.dependencies import get_current_user, get_database
@@ -28,7 +29,7 @@ async def search_youtube_videos(
 ) -> YouTubeSearchResponse:
     service = YouTubeLessonService()
     try:
-        items = service.search_videos(payload.query, payload.limit)
+        items = await asyncio.to_thread(service.search_videos, payload.query, payload.limit)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Không thể tìm video YouTube: {exc}") from exc
 
@@ -55,7 +56,7 @@ async def generate_interactive_youtube_lesson(
                 detail="Cần cung cấp youtube_url, video_id hoặc query để phân tích",
             )
         try:
-            candidates = service.search_videos(query_text, limit=1)
+            candidates = await asyncio.to_thread(service.search_videos, query_text, limit=1)
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Không thể tìm video YouTube: {exc}") from exc
 
@@ -67,17 +68,18 @@ async def generate_interactive_youtube_lesson(
 
     try:
         if video_meta is None:
-            video_meta = service.get_video_meta(video_id)
+            video_meta = await asyncio.to_thread(service.get_video_meta, video_id)
         
         # Ưu tiên sử dụng transcript thủ công nếu có
         if payload.manual_transcript:
-            transcript = service.parse_manual_transcript(payload.manual_transcript)
+            transcript = await asyncio.to_thread(service.parse_manual_transcript, payload.manual_transcript)
             if not transcript:
                 raise RuntimeError("Không thể parse nội dung transcript thủ công. Vui lòng kiểm tra định dạng.")
         else:
-            transcript = service.get_transcript(video_id, stt_model=payload.stt_model)
+            transcript = await asyncio.to_thread(service.get_transcript, video_id, stt_model=payload.stt_model)
             
-        lesson = service.build_interactive_lesson(
+        lesson = await asyncio.to_thread(
+            service.build_interactive_lesson,
             transcript,
             title=video_meta.get("title") or "YouTube Lesson",
             max_checkpoints=payload.max_checkpoints,
@@ -165,7 +167,8 @@ async def translate_youtube_transcript(
     history_repo = YouTubeLessonHistoryRepository(db)
     transcript = [item.model_dump() for item in payload.transcript]
     try:
-        translated = service.translate_transcript(
+        translated = await asyncio.to_thread(
+            service.translate_transcript,
             transcript,
             target_language=payload.target_language,
         )
