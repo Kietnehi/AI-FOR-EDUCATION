@@ -311,6 +311,10 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - backend_venv:/app/.venv
+      - backend_storage:/app/storage
 
   celery-flower:
     image: mher/flower:latest

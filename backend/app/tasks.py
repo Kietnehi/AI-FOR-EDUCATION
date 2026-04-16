@@ -41,6 +41,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.send_scheduled_learning_reminders_task",
         "schedule": crontab(minute=0),  # Top of every hour
     },
+    "check-schedule-reminders": {
+        "task": "app.tasks.check_schedule_reminders_task",
+        "schedule": crontab(minute="*"),  # Every minute
+    },
 }
 
 
@@ -297,5 +301,17 @@ async def _run_check_schedule_reminders():
     except Exception as e:
         logger.error(f"Error in _run_check_schedule_reminders: {e}")
     finally:
-        # Note: main.py worker handles the loop, we just do one pass
+        # Note: Celery beat worker handles the loop, we just do one pass
         pass
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30, retry_backoff=True)
+def check_schedule_reminders_task(self) -> dict:
+    configure_logging()
+    logger.info("Executing schedule reminders checking task")
+    try:
+        asyncio.run(_run_check_schedule_reminders())
+        return {"status": "ok"}
+    except Exception as exc:
+        logger.exception("Schedule reminders checking task failed")
+        raise self.retry(exc=exc)
