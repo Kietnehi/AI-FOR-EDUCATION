@@ -1,11 +1,12 @@
 "use client";
 
-import { memo, useEffect } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  TrendingUp,
   BookOpen,
   Upload,
   MessageSquareText,
@@ -16,9 +17,12 @@ import {
   PlayCircle,
   ChevronLeft,
   Settings,
+  GripVertical,
   Calendar,
 } from "lucide-react";
+import { Reorder, useDragControls } from "framer-motion";
 import { useAuth } from "@/components/auth-provider";
+import { getUserPreferences, updateUserPreferences } from "@/lib/api";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -31,6 +35,7 @@ interface SidebarProps {
 
 const navItems = [
   { href: "/",                  label: "Dashboard",              icon: LayoutDashboard },
+  { href: "/learning-progress", label: "Tiến độ học tập",        icon: TrendingUp },
   { href: "/materials",         label: "Học liệu",               icon: BookOpen },
   { href: "/materials/upload",  label: "Tải lên",                icon: Upload },
   { href: "/materials/video",   label: "Tạo Video AI",           icon: Clapperboard },
@@ -42,6 +47,94 @@ const navItems = [
   { href: "/converter",         label: "Chuyển đổi & trích xuất", icon: FileText },
 ];
 
+const navHrefSet = new Set(navItems.map((item) => item.href));
+
+type NavItem = (typeof navItems)[number];
+
+interface SidebarReorderItemProps {
+  item: NavItem;
+  collapsed: boolean;
+  isActive: boolean;
+  isDragging: boolean;
+  setIsDragging: (isDragging: boolean) => void;
+}
+
+function SidebarReorderItem({
+  item,
+  collapsed,
+  isActive,
+  isDragging,
+  setIsDragging,
+}: SidebarReorderItemProps) {
+  const Icon = item.icon;
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={item.href}
+      className="relative"
+      dragListener={false}
+      dragControls={dragControls}
+      onDragStart={() => setIsDragging(true)}
+      onDragEnd={() => {
+        window.setTimeout(() => setIsDragging(false), 0);
+      }}
+    >
+      {!collapsed && (
+        <button
+          type="button"
+          title="Giữ và kéo để sắp xếp"
+          aria-label={`Kéo để sắp xếp ${item.label}`}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            dragControls.start(event);
+          }}
+          className="
+            absolute left-1.5 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center
+            rounded-md text-[var(--text-muted)] opacity-80 transition hover:bg-[var(--bg-section)]
+            hover:text-[var(--text-primary)] hover:opacity-100 cursor-grab active:cursor-grabbing touch-none
+          "
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
+
+      <Link
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        onClick={(e) => {
+          if (isDragging) e.preventDefault();
+        }}
+        className={`
+          group flex items-center gap-3.5
+          px-4 py-2.5 cursor-pointer no-underline
+          text-[13.5px] font-semibold
+          transition-all duration-200 rounded-full
+          ${!collapsed ? "pl-10" : ""}
+          ${isActive
+            ? "bg-[#A1E8AF] text-slate-900"
+            : "text-[var(--text-secondary)] hover:bg-[var(--bg-section)] hover:text-[var(--text-primary)]"
+          }
+        `}
+      >
+        <Icon
+          className="w-[18px] h-[18px] flex-shrink-0"
+          strokeWidth={isActive ? 2.5 : 2}
+        />
+        <span
+          className="whitespace-nowrap overflow-hidden transition-all duration-300"
+          style={{ opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 200 }}
+        >
+          {item.label}
+        </span>
+        {isActive && !collapsed && (
+          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-slate-900 flex-shrink-0" />
+        )}
+      </Link>
+    </Reorder.Item>
+  );
+}
+
 export const Sidebar = memo(function Sidebar({
   collapsed,
   onToggle,
@@ -52,6 +145,62 @@ export const Sidebar = memo(function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const [orderedHrefs, setOrderedHrefs] = useState<string[]>(
+    navItems.map((item) => item.href)
+  );
+  const [isDragging, setIsDragging] = useState(false);
+  const loadedFromPreferencesRef = useRef(false);
+
+  const orderedItems = useMemo(() => {
+    const lookup = new Map(navItems.map((item) => [item.href, item]));
+    return orderedHrefs
+      .map((href) => lookup.get(href))
+      .filter((item): item is (typeof navItems)[number] => Boolean(item));
+  }, [orderedHrefs]);
+
+  useEffect(() => {
+    loadedFromPreferencesRef.current = false;
+    if (user) {
+      getUserPreferences()
+        .then((prefs) => {
+          const baseOrder = navItems.map((item) => item.href);
+          const preferred = (prefs.sidebar_order ?? []).filter((href) =>
+            navHrefSet.has(href)
+          );
+
+          if (preferred.length === 0) {
+            setOrderedHrefs(baseOrder);
+            return;
+          }
+
+          const remaining = baseOrder.filter((href) => !preferred.includes(href));
+          setOrderedHrefs([...preferred, ...remaining]);
+        })
+        .catch(() => {
+          setOrderedHrefs(navItems.map((item) => item.href));
+        })
+        .finally(() => {
+          loadedFromPreferencesRef.current = true;
+        });
+    } else {
+      setOrderedHrefs(navItems.map((item) => item.href));
+      loadedFromPreferencesRef.current = true;
+    }
+  }, [user]);
+
+  const handleReorder = (newOrder: string[]) => {
+    setOrderedHrefs(newOrder);
+  };
+
+  useEffect(() => {
+    if (!user || !loadedFromPreferencesRef.current) return;
+
+    const saveTimer = window.setTimeout(() => {
+      updateUserPreferences({ sidebar_order: orderedHrefs }).catch(() => {});
+    }, 250);
+
+    return () => window.clearTimeout(saveTimer);
+  }, [orderedHrefs, user]);
 
   /* ── resize drag logic ─────────────────────────── */
   useEffect(() => {
@@ -149,49 +298,29 @@ export const Sidebar = memo(function Sidebar({
       </Link>
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 py-5 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-5 px-3 space-y-1 overflow-y-auto hidden-scrollbar">
         {!collapsed && (
-          <p className="px-4 mb-3 text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--text-muted)]">
+          <p className="px-4 mb-3 text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors">
             Overview
           </p>
         )}
 
-        {navItems.map((item) => {
-          const isActive = getIsActive(item.href);
-          const Icon = item.icon;
+        <Reorder.Group axis="y" values={orderedHrefs} onReorder={handleReorder} className="space-y-1">
+          {orderedItems.map((item) => {
+            const isActive = getIsActive(item.href);
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`
-                group flex items-center gap-3.5
-                px-4 py-2.5 cursor-pointer no-underline
-                text-[13.5px] font-semibold
-                transition-all duration-200 rounded-full
-                ${isActive
-                  ? "bg-[#A1E8AF] text-slate-900"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--bg-section)] hover:text-[var(--text-primary)]"
-                }
-              `}
-            >
-              <Icon
-                className="w-[18px] h-[18px] flex-shrink-0"
-                strokeWidth={isActive ? 2.5 : 2}
+            return (
+              <SidebarReorderItem
+                key={item.href}
+                item={item}
+                collapsed={collapsed}
+                isActive={isActive}
+                isDragging={isDragging}
+                setIsDragging={setIsDragging}
               />
-              <span
-                className="whitespace-nowrap overflow-hidden transition-all duration-300"
-                style={{ opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 200 }}
-              >
-                {item.label}
-              </span>
-              {isActive && !collapsed && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-slate-900 flex-shrink-0" />
-              )}
-            </Link>
-          );
-        })}
+            );
+          })}
+        </Reorder.Group>
       </nav>
 
       {/* ── Footer ── */}

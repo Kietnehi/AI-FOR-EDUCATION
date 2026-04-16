@@ -4,9 +4,13 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.api.dependencies import get_current_user, get_database
 from app.schemas.auth import AuthUser
 from app.schemas.personalization import (
+    CheckInRequest,
+    CheckInResponse,
     DashboardPersonalizationResponse,
     PersonalizationPreferencesResponse,
     PersonalizationPreferencesUpdateRequest,
+    ReminderDispatchRequest,
+    ReminderDispatchResponse,
 )
 from app.services.personalization_service import PersonalizationService
 
@@ -72,3 +76,39 @@ async def get_dashboard_personalization(
         metadata={"next_actions_count": len(payload.get("next_actions", []))},
     )
     return DashboardPersonalizationResponse(**payload)
+
+
+@router.post(
+    "/personalization/check-in",
+    response_model=CheckInResponse,
+)
+async def check_in_personalization(
+    payload: CheckInRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> CheckInResponse:
+    service = PersonalizationService(db)
+    result = await service.check_in(
+        user_id=user.id,
+        use_streak_freeze=payload.use_streak_freeze,
+    )
+    return CheckInResponse(**result)
+
+
+@router.post(
+    "/personalization/reminders/email",
+    response_model=ReminderDispatchResponse,
+)
+async def send_personalization_reminder_email(
+    payload: ReminderDispatchRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> ReminderDispatchResponse:
+    service = PersonalizationService(db)
+    result = await service.send_learning_reminder_email(
+        user_id=user.id,
+        recipient_email=user.email,
+        recipient_name=user.name,
+        force=payload.force,
+    )
+    return ReminderDispatchResponse(**result)

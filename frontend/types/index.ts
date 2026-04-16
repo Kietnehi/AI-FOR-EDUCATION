@@ -132,6 +132,21 @@ export type UserPreferences = {
   preferred_language: string;
   learning_pace: "light" | "moderate" | "intensive";
   study_goal?: string | null;
+  reminder_timezone: string;
+  reminder_hour_local: number;
+  reminder_days_of_week?: number[];
+  reminder_in_app_enabled: boolean;
+  reminder_email_enabled: boolean;
+  weekly_goal_active_days: number;
+  weekly_goal_minutes: number;
+  weekly_goal_items: number;
+  sidebar_order: string[];
+  streak_current_days: number;
+  streak_longest_days: number;
+  streak_last_checkin_date?: string | null;
+  streak_total_checkins: number;
+  streak_freeze_used_week: number;
+  streak_freeze_week_start?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -147,6 +162,50 @@ export type UserPreferencesUpdate = {
   preferred_language?: string;
   learning_pace?: "light" | "moderate" | "intensive";
   study_goal?: string | null;
+  reminder_timezone?: string;
+  reminder_hour_local?: number;
+  reminder_days_of_week?: number[];
+  reminder_in_app_enabled?: boolean;
+  reminder_email_enabled?: boolean;
+  weekly_goal_active_days?: number;
+  weekly_goal_minutes?: number;
+  weekly_goal_items?: number;
+  sidebar_order?: string[];
+};
+
+export type WeeklyGoalProgress = {
+  active_days: number;
+  active_days_goal: number;
+  minutes: number;
+  minutes_goal: number;
+  completed_items: number;
+  completed_items_goal: number;
+  completion_rate: number;
+};
+
+export type HabitOverview = {
+  checkin_today: boolean;
+  current_streak_days: number;
+  longest_streak_days: number;
+  last_checkin_date?: string | null;
+  days_since_last_checkin?: number | null;
+  freeze_used_this_week: number;
+  freeze_remaining_this_week: number;
+  week_start?: string | null;
+  weekly_goal: WeeklyGoalProgress;
+};
+
+export type PersonalizationReminder = {
+  channel: "in_app" | "email";
+  title: string;
+  message: string;
+  due_now: boolean;
+};
+
+export type PersonalizationRiskAlert = {
+  status: "stable" | "warning" | "high_risk";
+  reasons: string[];
+  suggested_actions: string[];
 };
 
 export type DashboardContinueLearningItem = {
@@ -177,6 +236,9 @@ export type DashboardPersonalization = {
     days_since_last_active?: number | null;
     top_feature?: string | null;
   };
+  habit_overview: HabitOverview;
+  reminders: PersonalizationReminder[];
+  risk_alert: PersonalizationRiskAlert;
   summary: {
     materials_total: number;
     generated_total: number;
@@ -184,6 +246,21 @@ export type DashboardPersonalization = {
     game_attempts_total: number;
     average_game_accuracy: number;
   };
+};
+
+export type CheckInResponse = {
+  checked_in: boolean;
+  already_checked_in_today: boolean;
+  used_streak_freeze: boolean;
+  message: string;
+  habit_overview: HabitOverview;
+};
+
+export type ReminderDispatchResponse = {
+  sent: boolean;
+  channel: "email";
+  message: string;
+  sent_at?: string | null;
 };
 
 export type NotebookLMMediaFile = {

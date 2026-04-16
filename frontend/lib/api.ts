@@ -19,6 +19,8 @@ import {
   DuckDuckGoSearchItem,
   DuckDuckGoSearchType,
   DashboardPersonalization,
+  CheckInResponse,
+  ReminderDispatchResponse,
   UserPreferences,
   UserPreferencesUpdate,
   Schedule,
@@ -41,7 +43,16 @@ export interface CooperationContactPayload {
   captchaToken: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
+const normalizeBase = (value: string): string => value.replace(/\/+$/, "");
+const configuredApiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+const serverSideFallbackApiBase = (
+  process.env.BACKEND_API_BASE_URL
+  || configuredApiBase
+  || "http://localhost:8000/api"
+).trim();
+const API_BASE = typeof window !== "undefined"
+  ? "/api"
+  : normalizeBase(serverSideFallbackApiBase);
 
 type ApiFetchOptions = RequestInit & {
   cacheTtlMs?: number;
@@ -248,6 +259,24 @@ export async function getDashboardPersonalization(): Promise<DashboardPersonaliz
   return apiFetch<DashboardPersonalization>("/personalization/dashboard", {
     skipCache: true,
   });
+}
+
+export async function checkInDaily(useStreakFreeze: boolean = false): Promise<CheckInResponse> {
+  const result = await apiFetch<CheckInResponse>("/personalization/check-in", {
+    method: "POST",
+    body: JSON.stringify({ use_streak_freeze: useStreakFreeze }),
+  });
+  invalidateCache("/personalization/dashboard", "/personalization/preferences");
+  return result;
+}
+
+export async function sendLearningReminderEmail(force: boolean = true): Promise<ReminderDispatchResponse> {
+  const result = await apiFetch<ReminderDispatchResponse>("/personalization/reminders/email", {
+    method: "POST",
+    body: JSON.stringify({ force }),
+  });
+  invalidateCache("/personalization/dashboard", "/personalization/preferences");
+  return result;
 }
 
 export async function submitCooperationContact(
