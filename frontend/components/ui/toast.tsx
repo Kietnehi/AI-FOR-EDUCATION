@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, AlertCircle, X } from "lucide-react";
 
@@ -38,7 +39,10 @@ const config = {
 };
 
 export function Toast({ message, type, onClose }: ToastProps) {
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     if (!message || !onClose) return;
 
     const timeoutId = window.setTimeout(() => {
@@ -50,41 +54,51 @@ export function Toast({ message, type, onClose }: ToastProps) {
     };
   }, [message, onClose]);
 
-  if (!message) return null;
+  if (!message || !mounted) return null;
   const { icon: Icon, bg, text, iconColor, badge, accent } = config[type] || config.info;
 
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -18, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -16, scale: 0.96 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
-        role="alert"
-        aria-live="polite"
-        className={`fixed top-20 right-4 left-4 sm:left-auto sm:w-[420px] z-[80] overflow-hidden rounded-2xl border ${bg} ${text} shadow-[0_20px_60px_rgba(15,23,42,0.18)] dark:shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl`}
-      >
-        <div className={`h-1 w-full bg-gradient-to-r ${accent}`} />
-        <div className="flex items-start gap-3 px-4 py-4">
-          <div className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--bg-secondary)] shadow-sm dark:shadow-none ${iconColor}`}>
-            <Icon className="h-5 w-5" />
+  const toastContent = (
+    <AnimatePresence mode="wait">
+      {message && (
+        <motion.div
+          key="toast-message"
+          initial={{ opacity: 0, y: -20, x: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, x: 20, scale: 0.95 }}
+          transition={{ 
+            type: "spring",
+            damping: 25,
+            stiffness: 350
+          }}
+          role="alert"
+          aria-live="polite"
+          className={`fixed top-20 right-6 z-[9999] w-[calc(100%-3rem)] sm:w-[420px] overflow-hidden rounded-2xl border ${bg} ${text} shadow-[0_20px_60px_rgba(15,23,42,0.18)] dark:shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl`}
+        >
+          <div className={`h-1.5 w-full bg-gradient-to-r ${accent}`} />
+          <div className="flex items-start gap-3 px-4 py-4">
+            <div className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--bg-secondary)] shadow-sm dark:shadow-none ${iconColor}`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                {badge}
+              </p>
+              <p className="text-sm font-medium leading-6 text-[var(--text-primary)]">{message}</p>
+            </div>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-              {badge}
-            </p>
-            <p className="text-sm font-medium leading-6 text-[var(--text-primary)]">{message}</p>
-          </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
+
+  return createPortal(toastContent, document.body);
 }
+

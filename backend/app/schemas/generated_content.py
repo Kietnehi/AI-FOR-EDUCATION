@@ -4,7 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-ContentType = Literal["slides", "podcast", "minigame", "chatbot_config", "quiz", "video", "infographic"]
+ContentType = Literal["slides", "podcast", "minigame", "chatbot_config", "quiz", "video", "infographic", "knowledge_graph"]
 GenerationStatus = Literal["queued", "generating", "generated", "failed"]
 
 
@@ -30,6 +30,11 @@ class GenerateMinigameRequest(BaseModel):
     game_type: Literal["quiz_mixed", "flashcard", "scenario_branching"] = "quiz_mixed"
     difficulty: Literal["easy", "medium", "hard"] = "medium"
     force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
+
+
+class GenerateKnowledgeGraphRequest(BaseModel):
+    force_regenerate: bool = Field(default=False, description="Bắt buộc tạo mới nội dung")
+
 
 
 class GenerateNotebookLMMediaRequest(BaseModel):

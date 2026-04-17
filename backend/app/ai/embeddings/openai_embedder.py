@@ -3,6 +3,7 @@ import hashlib
 from openai import OpenAI
 
 from app.core.config import settings
+from app.core.logging import logger
 
 
 class OpenAIEmbedder:
@@ -29,8 +30,24 @@ class OpenAIEmbedder:
             }
             if self.extra_headers:
                 request_kwargs["extra_headers"] = self.extra_headers
-            response = self.client.embeddings.create(**request_kwargs)
-            return [item.embedding for item in response.data]
+            try:
+                response = self.client.embeddings.create(**request_kwargs)
+                data = getattr(response, "data", None)
+                if not data:
+                    raise ValueError("empty embedding response data")
+
+                embeddings = [getattr(item, "embedding", None) for item in data]
+                if len(embeddings) != len(texts) or any(e is None for e in embeddings):
+                    raise ValueError("embedding response shape mismatch")
+                return embeddings
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "Embedding API failed for model %s (base_url=%s). Using deterministic fallback. Error: %s",
+                    self.model,
+                    self.base_url,
+                    exc,
+                )
+                return [self._fallback_embedding(text) for text in texts]
 
         # Deterministic fallback embedding for local testing without OpenAI key.
         return [self._fallback_embedding(text) for text in texts]

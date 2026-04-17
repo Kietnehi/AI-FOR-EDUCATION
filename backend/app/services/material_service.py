@@ -1,4 +1,5 @@
 import asyncio
+import mimetypes
 import shutil
 import uuid
 from pathlib import Path
@@ -10,6 +11,7 @@ from app.ai.chunking.text_chunker import TextChunker
 from app.ai.embeddings.openai_embedder import OpenAIEmbedder
 from app.ai.ingestion.text_cleaner import TextCleaner
 from app.ai.parsing.file_parser import FileParser
+from app.ai.parsing.ocr_space_parser import OCRSpaceParser
 from app.ai.vector_store.chroma_store import ChromaVectorStore
 from app.core.config import settings
 from app.core.logging import logger
@@ -18,7 +20,9 @@ from app.repositories.game_repository import GameRepository
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.material_repository import MaterialRepository
+from app.services.groq_speech_service import GroqSpeechToTextService
 from app.services.material_guardrail_service import MaterialGuardrailService
+from app.services.speech_service import SpeechToTextService
 from app.services.storage import storage_service
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
@@ -29,6 +33,55 @@ _SHARED_CHUNKER = TextChunker(
 _SHARED_EMBEDDER = OpenAIEmbedder()
 _SHARED_VECTOR_STORE = ChromaVectorStore()
 _SHARED_GUARDRAIL = MaterialGuardrailService()
+_SUPPORTED_TEXT_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
+_SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+_SUPPORTED_AUDIO_EXTENSIONS = {
+    ".mp3",
+    ".wav",
+    ".m4a",
+    ".webm",
+    ".ogg",
+    ".opus",
+    ".aac",
+    ".flac",
+    ".mpga",
+    ".mpeg",
+    ".mp4",
+}
+_SUPPORTED_UPLOAD_EXTENSIONS = (
+    _SUPPORTED_TEXT_EXTENSIONS | _SUPPORTED_IMAGE_EXTENSIONS | _SUPPORTED_AUDIO_EXTENSIONS
+)
+_LOCAL_WHISPER_MODELS = {
+    "local-base": "base",
+    "local-small": "small",
+}
+_GROQ_WHISPER_MODELS = {"whisper-large-v3", "whisper-large-v3-turbo"}
+
+
+def _allowed_extensions_message() -> str:
+    ordered = [
+        ".pdf",
+        ".docx",
+        ".txt",
+        ".md",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".bmp",
+        ".mp3",
+        ".wav",
+        ".m4a",
+        ".webm",
+        ".ogg",
+        ".opus",
+        ".aac",
+        ".flac",
+        ".mpga",
+        ".mpeg",
+        ".mp4",
+    ]
+    return f"Unsupported file type. Allowed: {', '.join(ordered)}"
 
 
 class MaterialService:
@@ -55,6 +108,21 @@ class MaterialService:
 
         await asyncio.to_thread(_copy_file)
 
+    @staticmethod
+    def _resolve_upload_extension(file: UploadFile) -> str:
+        extension = Path(file.filename or "").suffix.lower()
+        if extension in _SUPPORTED_UPLOAD_EXTENSIONS:
+            return extension
+
+        content_type = (file.content_type or "").split(";")[0].strip().lower()
+        guessed_extension = mimetypes.guess_extension(content_type) if content_type else None
+        if guessed_extension == ".oga":
+            guessed_extension = ".ogg"
+        if guessed_extension and guessed_extension.lower() in _SUPPORTED_UPLOAD_EXTENSIONS:
+            return guessed_extension.lower()
+
+        raise HTTPException(status_code=400, detail=_allowed_extensions_message())
+
     async def create_material(self, payload: dict) -> dict:
         decision = self.guardrail.assert_allowed(
             raw_text=payload.get("raw_text", ""),
@@ -79,6 +147,102 @@ class MaterialService:
         }
         return await self.material_repo.create(doc)
 
+    async def _transcribe_audio_file(
+        self,
+        file_path: Path,
+        stt_model: str,
+        language: str | None,
+    ) -> str:
+        local_whisper_model = _LOCAL_WHISPER_MODELS.get(stt_model)
+        if local_whisper_model:
+            service = SpeechToTextService(local_whisper_model)
+            transcript = await asyncio.to_thread(
+                service.transcribe_file,
+                str(file_path),
+                language,
+            )
+            return transcript.strip()
+
+        if stt_model in _GROQ_WHISPER_MODELS:
+            if not settings.groq_api_key:
+                raise HTTPException(status_code=500, detail="Missing Groq API key")
+            groq_service = GroqSpeechToTextService(
+                api_key=settings.groq_api_key,
+                base_url=settings.groq_base_url,
+            )
+            transcript = await asyncio.to_thread(
+                groq_service.transcribe_file,
+                str(file_path),
+                stt_model,
+                language,
+            )
+            return transcript.strip()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported stt_model. Allowed: local-base, local-small, whisper-large-v3, whisper-large-v3-turbo",
+        )
+
+    async def _extract_raw_text_from_file(
+        self,
+        file_path: Path,
+        extension: str,
+        metadata: dict | None = None,
+    ) -> str:
+        metadata = metadata or {}
+        if extension in _SUPPORTED_IMAGE_EXTENSIONS:
+            ocr_result = await self._parse_image_ocr(file_path)
+            return ocr_result["text"]
+
+        if extension in _SUPPORTED_AUDIO_EXTENSIONS:
+            stt_model = str(metadata.get("stt_model") or "local-base")
+            language_value = metadata.get("whisper_language")
+            language = str(language_value).strip() if language_value else None
+            transcript = await self._transcribe_audio_file(file_path, stt_model, language)
+            if not transcript:
+                raise HTTPException(status_code=422, detail="No speech detected")
+            return transcript
+
+        return await asyncio.to_thread(FileParser.parse, str(file_path))
+
+    async def _parse_image_ocr(self, file_path: Path) -> dict:
+        if not settings.ocr_space_api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="OCR for image files is not configured. Please set OCR_SPACE_API_KEY.",
+            )
+        try:
+            return await asyncio.to_thread(OCRSpaceParser.parse_image, str(file_path))
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Image OCR failed: {exc}",
+            ) from exc
+
+    async def preview_image_ocr_upload(self, file: UploadFile) -> dict:
+        extension = Path(file.filename or "").suffix.lower()
+        if extension not in _SUPPORTED_IMAGE_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail="Only image files are allowed: .png, .jpg, .jpeg, .webp, .bmp",
+            )
+
+        file_name = f"ocr-preview-{uuid.uuid4().hex}{extension}"
+        destination = Path(settings.upload_dir) / file_name
+        await self._persist_upload_file(file, destination)
+
+        try:
+            ocr_result = await self._parse_image_ocr(destination)
+            return {
+                "text": ocr_result.get("text", ""),
+                "words": ocr_result.get("words", []),
+            }
+        finally:
+            if destination.exists():
+                destination.unlink()
+
     async def check_material_guardrail(self, payload: dict) -> dict:
         decision = self.guardrail.evaluate(
             raw_text=payload.get("raw_text", ""),
@@ -96,16 +260,14 @@ class MaterialService:
     async def upload_material(
         self, user_id: str, file: UploadFile, metadata: dict
     ) -> dict:
-        extension = Path(file.filename or "").suffix.lower()
-        if extension not in {".pdf", ".docx", ".txt", ".md"}:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
+        extension = self._resolve_upload_extension(file)
 
         file_name = f"{uuid.uuid4().hex}{extension}"
         destination = Path(settings.upload_dir) / file_name
         await self._persist_upload_file(file, destination)
 
         try:
-            raw_text = await asyncio.to_thread(FileParser.parse, str(destination))
+            raw_text = await self._extract_raw_text_from_file(destination, extension, metadata)
             decision = self.guardrail.assert_allowed(
                 raw_text=raw_text,
                 title=metadata.get("title") or Path(file.filename or "material").stem,
@@ -127,13 +289,20 @@ class MaterialService:
         )
 
         now = utc_now()
+        source_type = (
+            "image"
+            if extension in _SUPPORTED_IMAGE_EXTENSIONS
+            else "audio"
+            if extension in _SUPPORTED_AUDIO_EXTENSIONS
+            else extension.replace(".", "")
+        )
         doc = {
             "user_id": user_id,
             "title": metadata.get("title") or Path(file.filename or "material").stem,
             "description": metadata.get("description"),
             "subject": metadata.get("subject"),
             "education_level": metadata.get("education_level"),
-            "source_type": extension.replace(".", ""),
+            "source_type": source_type,
             "file_name": file.filename,
             "file_url": file_url,
             "storage_type": storage_type,
@@ -151,16 +320,14 @@ class MaterialService:
         return await self.material_repo.create(doc)
 
     async def check_upload_guardrail(self, file: UploadFile, metadata: dict) -> dict:
-        extension = Path(file.filename or "").suffix.lower()
-        if extension not in {".pdf", ".docx", ".txt", ".md"}:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
+        extension = self._resolve_upload_extension(file)
 
         file_name = f"guardrail-{uuid.uuid4().hex}{extension}"
         destination = Path(settings.upload_dir) / file_name
         await self._persist_upload_file(file, destination)
 
         try:
-            raw_text = await asyncio.to_thread(FileParser.parse, str(destination))
+            raw_text = await self._extract_raw_text_from_file(destination, extension, metadata)
             decision = self.guardrail.evaluate(
                 raw_text=raw_text,
                 title=metadata.get("title") or Path(file.filename or "material").stem,
@@ -316,13 +483,22 @@ class MaterialService:
         force_reprocess: bool = False,
         user_id: str | None = None,
     ) -> None:
-        asyncio.create_task(
+        task = asyncio.create_task(
             self.process_material(
                 material_id,
                 force_reprocess=force_reprocess,
                 user_id=user_id,
             )
         )
+        task.add_done_callback(self._consume_background_exception)
+
+    @staticmethod
+    def _consume_background_exception(task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except Exception:
+            # process_material already logs and updates job/material status.
+            return
 
     async def _ensure_guardrail_approved(
         self, material_id: str, material: dict

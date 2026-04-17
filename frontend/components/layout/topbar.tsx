@@ -4,8 +4,11 @@ import Link from "next/link";
 import { Bell, Bot, Sun, Moon, LogOut, User } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { useTheme } from "@/components/theme-provider";
+import { useNotifications } from "@/components/notification-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, memo, useRef, useEffect } from "react";
+import { NotificationDropdown } from "@/components/notification-dropdown";
+import { VietnamClock } from "@/components/schedule/vietnam-clock";
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
@@ -24,13 +27,19 @@ export const Topbar = memo(function Topbar({
 }: TopbarProps) {
   const { user, logout, loading } = useAuth();
   const { theme, toggle } = useTheme();
+  const { unreadCount } = useNotifications();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setUserDropdownOpen(false);
+      }
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(event.target as Node)) {
+        setNotifDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -50,6 +59,10 @@ export const Topbar = memo(function Topbar({
         border-b-2 border-[var(--border-structural)]
       "
     >
+      <div className="flex-1 flex justify-center">
+        <VietnamClock compact />
+      </div>
+
       {/* ── Right Actions ── */}
       <div className="flex items-center gap-2 ml-auto">
         {/* Mascot toggle */}
@@ -86,19 +99,27 @@ export const Topbar = memo(function Topbar({
         </button>
 
         {/* Notifications */}
-        <button
-          className="
-            relative w-10 h-10 rounded-full flex items-center justify-center
-            bg-transparent border-2 border-[var(--border-structural)]
-            text-[var(--text-secondary)] hover:text-[var(--text-primary)]
-            hover:border-[#A1E8AF]
-            transition-all duration-200 cursor-pointer
-          "
-          aria-label="Thông báo"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
-        </button>
+        <div className="relative" ref={notifDropdownRef}>
+          <button
+            onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+            className="
+              relative w-10 h-10 rounded-full flex items-center justify-center
+              bg-transparent border-2 border-[var(--border-structural)] dark:border-slate-600
+              text-[var(--text-secondary)] dark:text-slate-300 hover:text-[var(--text-primary)] dark:hover:text-white
+              hover:border-[#A1E8AF] dark:hover:border-brand-400
+              transition-all duration-200 cursor-pointer
+            "
+            aria-label="Thông báo"
+          >
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 flex items-center justify-center bg-rose-500 dark:bg-rose-600 rounded-full text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-900">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+          <NotificationDropdown isOpen={notifDropdownOpen} onClose={() => setNotifDropdownOpen(false)} />
+        </div>
 
         {/* User / Auth */}
         <div className="relative" ref={dropdownRef}>

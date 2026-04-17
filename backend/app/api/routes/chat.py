@@ -30,6 +30,7 @@ from app.schemas.chat import (
 )
 from app.services.chat_service import ChatService
 from app.services.groq_speech_service import GroqSpeechToTextService
+from app.services.personalization_service import PersonalizationService
 from app.services.speech_service import SpeechToTextService
 from app.services.tts_service import TextToSpeechService
 
@@ -49,6 +50,14 @@ async def create_session(
 ) -> ChatSessionResponse:
     service = ChatService(db)
     session = await service.create_session(material_id, user.id, payload.session_title)
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="chat_session_created",
+        resource_type="chat_session",
+        resource_id=session.get("id"),
+        metadata={"material_id": material_id},
+    )
     return ChatSessionResponse(**session)
 
 
@@ -126,6 +135,20 @@ async def send_message(
         user_id=user.id,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
+    )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="chat_message_sent",
+        resource_type="chat_session",
+        resource_id=session_id,
+        metadata={
+            "message_length": len(payload.message.strip()),
+            "image_count": len(payload.images or []),
+            "model": payload.model,
+            "reasoning_enabled": payload.reasoning_enabled,
+        },
     )
     return ChatMessageResponse(**assistant_message)
 
@@ -138,6 +161,19 @@ async def stream_message(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> StreamingResponse:
     service = ChatService(db)
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="chat_message_stream_requested",
+        resource_type="chat_session",
+        resource_id=session_id,
+        metadata={
+            "message_length": len(payload.message.strip()),
+            "image_count": len(payload.images or []),
+            "model": payload.model,
+            "reasoning_enabled": payload.reasoning_enabled,
+        },
+    )
     generator = service.stream_add_user_message_and_answer(
         session_id,
         payload.message,
@@ -145,6 +181,7 @@ async def stream_message(
         user_id=user.id,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
     )
     return StreamingResponse(
         generator, 
@@ -183,6 +220,21 @@ async def send_mascot_message(
         use_google=payload.use_google,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
+    )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="mascot_message_sent",
+        resource_type="mascot_session",
+        resource_id=response.get("session_id"),
+        metadata={
+            "message_length": len(payload.message.strip()),
+            "image_count": len(payload.images or []),
+            "use_web_search": payload.use_web_search,
+            "use_google": payload.use_google,
+            "model": payload.model,
+        },
     )
     return MascotChatResponse(**response)
 
@@ -203,6 +255,7 @@ async def stream_mascot_message(
         use_google=payload.use_google,
         model=payload.model,
         reasoning_enabled=payload.reasoning_enabled,
+        use_gemini_rotation=payload.use_gemini_rotation,
     )
     return StreamingResponse(
         generator, 
@@ -271,7 +324,7 @@ async def transcribe_audio(
             temp_path = temp_file.name
             temp_file.write(await file.read())
 
-        whisper_language = language or settings.whisper_language
+        whisper_language = language.strip() if language else None
         local_whisper_model = LOCAL_WHISPER_MODELS.get(stt_model)
         if local_whisper_model:
             service = SpeechToTextService(local_whisper_model)
@@ -355,6 +408,21 @@ async def web_search(
         payload.query,
         payload.use_google,
         user_id=user.id,
+        model=payload.model,
+        use_gemini_rotation=payload.use_gemini_rotation,
+        reasoning_enabled=payload.reasoning_enabled,
+    )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="chat_web_search_used",
+        resource_type="chat_session",
+        resource_id=session_id,
+        metadata={
+            "query_length": len(payload.query.strip()),
+            "use_google": payload.use_google,
+            "model": payload.model,
+        },
     )
 
     # Trích xuất kết quả tìm kiếm từ siêu dữ liệu tin nhắn
@@ -386,4 +454,40 @@ async def web_search(
         search_provider=search_results.get("search_provider", "unknown"),
         model=result.get("model_used", "unknown"),
         search_queries=search_results.get("search_queries", []),
+    )
+
+
+@router.post("/chat/sessions/{session_id}/web-search/stream")
+async def stream_web_search(
+    session_id: str,
+    payload: WebSearchRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> StreamingResponse:
+    service = ChatService(db)
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="chat_web_search_stream_requested",
+        resource_type="chat_session",
+        resource_id=session_id,
+        metadata={
+            "query_length": len(payload.query.strip()),
+            "use_google": payload.use_google,
+            "model": payload.model,
+        },
+    )
+    generator = service.stream_web_search_answer(
+        session_id=session_id,
+        query=payload.query,
+        use_google=payload.use_google,
+        user_id=user.id,
+        model=payload.model,
+        use_gemini_rotation=payload.use_gemini_rotation,
+        reasoning_enabled=payload.reasoning_enabled,
+    )
+    return StreamingResponse(
+        generator,
+        media_type="application/x-ndjson",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )

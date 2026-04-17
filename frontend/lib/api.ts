@@ -3,6 +3,8 @@ import {
   ChatSession,
   DeleteSessionsResult,
   MinigamePersonalization,
+  MaterialDetailRealtimeSnapshot,
+  MaterialsRealtimeSnapshot,
   RemediationQuickStart,
   GeneratedContent,
   Material,
@@ -16,6 +18,14 @@ import {
   SttModel,
   DuckDuckGoSearchItem,
   DuckDuckGoSearchType,
+  DashboardPersonalization,
+  CheckInResponse,
+  ReminderDispatchResponse,
+  UserPreferences,
+  UserPreferencesUpdate,
+  Schedule,
+  ScheduleEvent,
+  ScheduleUploadResponse,
 } from "@/types";
 
 export interface AuthUser {
@@ -33,7 +43,16 @@ export interface CooperationContactPayload {
   captchaToken: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
+const normalizeBase = (value: string): string => value.replace(/\/+$/, "");
+const configuredApiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+const serverSideFallbackApiBase = (
+  process.env.BACKEND_API_BASE_URL
+  || configuredApiBase
+  || "http://localhost:8000/api"
+).trim();
+const API_BASE = typeof window !== "undefined"
+  ? "/api"
+  : normalizeBase(serverSideFallbackApiBase);
 
 type ApiFetchOptions = RequestInit & {
   cacheTtlMs?: number;
@@ -110,6 +129,10 @@ export function clearApiCache(): void {
 
 function primeCache(path: string, data: unknown, ttlMs: number = DEFAULT_GET_CACHE_TTL_MS): void {
   writeCache(getCacheKey(path), data, ttlMs);
+}
+
+function openEventStream(path: string): EventSource {
+  return new EventSource(`${API_BASE}${path}`, { withCredentials: true });
 }
 
 async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> {
@@ -217,6 +240,45 @@ export async function getMe(): Promise<AuthUser> {
   return apiFetch<AuthUser>("/auth/me");
 }
 
+export async function getUserPreferences(): Promise<UserPreferences> {
+  return apiFetch<UserPreferences>("/personalization/preferences", { skipCache: true });
+}
+
+export async function updateUserPreferences(
+  payload: UserPreferencesUpdate
+): Promise<UserPreferences> {
+  const result = await apiFetch<UserPreferences>("/personalization/preferences", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  invalidateCache("/personalization/preferences", "/personalization/dashboard");
+  return result;
+}
+
+export async function getDashboardPersonalization(): Promise<DashboardPersonalization> {
+  return apiFetch<DashboardPersonalization>("/personalization/dashboard", {
+    skipCache: true,
+  });
+}
+
+export async function checkInDaily(useStreakFreeze: boolean = false): Promise<CheckInResponse> {
+  const result = await apiFetch<CheckInResponse>("/personalization/check-in", {
+    method: "POST",
+    body: JSON.stringify({ use_streak_freeze: useStreakFreeze }),
+  });
+  invalidateCache("/personalization/dashboard", "/personalization/preferences");
+  return result;
+}
+
+export async function sendLearningReminderEmail(force: boolean = true): Promise<ReminderDispatchResponse> {
+  const result = await apiFetch<ReminderDispatchResponse>("/personalization/reminders/email", {
+    method: "POST",
+    body: JSON.stringify({ force }),
+  });
+  invalidateCache("/personalization/dashboard", "/personalization/preferences");
+  return result;
+}
+
 export async function submitCooperationContact(
   payload: CooperationContactPayload
 ): Promise<{ message: string }> {
@@ -236,6 +298,29 @@ export async function listMaterials(): Promise<{ items: Material[]; total: numbe
   return apiFetch<{ items: Material[]; total: number }>("/materials");
 }
 
+export function subscribeToMaterialsRealtime(handlers: {
+  onSnapshot: (snapshot: MaterialsRealtimeSnapshot) => void;
+  onError?: () => void;
+}): () => void {
+  const eventSource = openEventStream("/realtime/materials/stream");
+  const handleSnapshot = (event: MessageEvent<string>) => {
+    const snapshot = JSON.parse(event.data) as MaterialsRealtimeSnapshot;
+    primeCache("/materials", { items: snapshot.items, total: snapshot.total });
+    for (const item of snapshot.items) {
+      primeCache(`/materials/${item.id}`, item);
+    }
+    handlers.onSnapshot(snapshot);
+  };
+
+  eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+  eventSource.onerror = () => handlers.onError?.();
+
+  return () => {
+    eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
+    eventSource.close();
+  };
+}
+
 export async function deleteMaterial(id: string): Promise<void> {
   const result = await apiFetch<void>(`/materials/${id}`, { method: "DELETE" });
   invalidateCache("/materials", `/materials/${id}`);
@@ -244,6 +329,39 @@ export async function deleteMaterial(id: string): Promise<void> {
 
 export async function getMaterial(id: string): Promise<Material> {
   return apiFetch<Material>(`/materials/${id}`);
+}
+
+export function subscribeToMaterialRealtime(
+  materialId: string,
+  handlers: {
+    onSnapshot: (snapshot: MaterialDetailRealtimeSnapshot) => void;
+    onError?: () => void;
+  }
+): () => void {
+  const eventSource = openEventStream(
+    `/realtime/materials/stream?material_id=${encodeURIComponent(materialId)}`
+  );
+  const handleSnapshot = (event: MessageEvent<string>) => {
+    const snapshot = JSON.parse(event.data) as MaterialDetailRealtimeSnapshot;
+    invalidateCache("/materials");
+    if (snapshot.deleted || !snapshot.material) {
+      invalidateCache(`/materials/${materialId}`, `/materials/${materialId}/generated-contents`);
+      handlers.onSnapshot(snapshot);
+      return;
+    }
+
+    primeCache(`/materials/${materialId}`, snapshot.material);
+    primeCache(`/materials/${materialId}/generated-contents`, snapshot.generated_contents);
+    handlers.onSnapshot(snapshot);
+  };
+
+  eventSource.addEventListener("snapshot", handleSnapshot as EventListener);
+  eventSource.onerror = () => handlers.onError?.();
+
+  return () => {
+    eventSource.removeEventListener("snapshot", handleSnapshot as EventListener);
+    eventSource.close();
+  };
 }
 
 export async function updateMaterial(
@@ -315,6 +433,19 @@ export async function generateMinigame(
     method: "POST",
     body: JSON.stringify({ game_type: gameType, difficulty, force_regenerate }),
     cacheTtlMs: gameType === "shooting_quiz" ? 180000 : 60000,
+  });
+  invalidateCache(`/materials/${id}/generated-contents`);
+  return data;
+}
+
+export async function generateKnowledgeGraph(
+  id: string,
+  force_regenerate: boolean = false
+): Promise<GeneratedContent> {
+  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/knowledge-graph`, {
+    method: "POST",
+    body: JSON.stringify({ force_regenerate }),
+    skipCache: true,
   });
   invalidateCache(`/materials/${id}/generated-contents`);
   return data;
@@ -447,7 +578,7 @@ export async function sendChatMessage(
   sessionId: string,
   message: string,
   images?: string[],
-  options?: { model?: string | null; reasoningEnabled?: boolean }
+  options?: { model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<ChatMessage> {
   const chatMessage = await apiFetch<ChatMessage>(`/chat/sessions/${sessionId}/message`, {
     method: "POST",
@@ -456,6 +587,7 @@ export async function sendChatMessage(
       images: images || [],
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
   invalidateCache(`/chat/sessions/${sessionId}`);
@@ -467,7 +599,7 @@ export async function streamChatMessage(
   message: string,
   onChunk: (chunk: { content: string; reasoning: string; citations?: any[]; model?: string; done?: boolean }) => void,
   images?: string[],
-  options?: { model?: string | null; reasoningEnabled?: boolean }
+  options?: { model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/message/stream`, {
     method: "POST",
@@ -480,6 +612,7 @@ export async function streamChatMessage(
       images: images || [],
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
 
@@ -535,7 +668,7 @@ export async function sendMascotChatMessage(
   message: string,
   sessionId?: string,
   images?: string[],
-  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean }
+  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<MascotChatResponse> {
   const result = await apiFetch<MascotChatResponse>("/chat/mascot/message", {
     method: "POST",
@@ -547,6 +680,7 @@ export async function sendMascotChatMessage(
       use_google: options?.useGoogle ?? true,
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
   invalidateCache("/chat/mascot/sessions");
@@ -559,7 +693,7 @@ export async function streamMascotChatMessage(
   onChunk: (chunk: { content: string; reasoning: string; model?: string; session_id?: string; done?: boolean }) => void,
   sessionId?: string,
   images?: string[],
-  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean }
+  options?: { useWebSearch?: boolean; useGoogle?: boolean; model?: string | null; reasoningEnabled?: boolean; useGeminiRotation?: boolean }
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/chat/mascot/message/stream`, {
     method: "POST",
@@ -575,6 +709,7 @@ export async function streamMascotChatMessage(
       use_google: options?.useGoogle ?? true,
       model: options?.model || null,
       reasoning_enabled: options?.reasoningEnabled || false,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
     }),
   });
 
@@ -631,13 +766,94 @@ export async function streamMascotChatMessage(
   }
 }
 
-export async function webSearch(sessionId: string, query: string, useGoogle: boolean = true): Promise<any> {
+export async function webSearch(
+  sessionId: string,
+  query: string,
+  useGoogle: boolean = true,
+  options?: { model?: string | null; useGeminiRotation?: boolean; reasoningEnabled?: boolean }
+): Promise<any> {
   const result = await apiFetch<any>(`/chat/sessions/${sessionId}/web-search`, {
     method: "POST",
-    body: JSON.stringify({ query, use_google: useGoogle }),
+    body: JSON.stringify({
+      query,
+      use_google: useGoogle,
+      model: options?.model || null,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
+      reasoning_enabled: options?.reasoningEnabled ?? false,
+    }),
   });
   invalidateCache(`/chat/sessions/${sessionId}`);
   return result;
+}
+
+export async function streamWebSearch(
+  sessionId: string,
+  query: string,
+  onChunk: (chunk: { content?: string; reasoning?: string; citations?: any[]; model?: string; done?: boolean; search_provider?: string }) => void,
+  options?: { useGoogle?: boolean; model?: string | null; useGeminiRotation?: boolean; reasoningEnabled?: boolean }
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/web-search/stream`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query,
+      use_google: options?.useGoogle ?? true,
+      model: options?.model || null,
+      use_gemini_rotation: options?.useGeminiRotation ?? true,
+      reasoning_enabled: options?.reasoningEnabled ?? false,
+    }),
+  });
+
+  if (!response.ok) {
+    let errMessage = `Error ${response.status}: ${response.statusText}`;
+    try {
+      const errBody = await response.json();
+      if (errBody.detail) errMessage = errBody.detail;
+    } catch {}
+    throw new Error(errMessage);
+  }
+
+  if (!response.body) {
+    throw new Error("ReadableStream not yet supported in this browser.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          onChunk(parsed);
+        } catch {
+          console.warn("Failed to parse chunk:", line);
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      try {
+        const parsed = JSON.parse(buffer);
+        onChunk(parsed);
+      } catch {}
+    }
+  } finally {
+    invalidateCache(`/chat/sessions/${sessionId}`);
+    invalidateCache("/chat/");
+  }
 }
 
 export async function searchDuckDuckGo(
@@ -740,6 +956,143 @@ export async function generateRemediationQuickStart(
   });
 }
 
+export interface YouTubeVideoItem {
+  video_id: string;
+  title: string;
+  channel?: string | null;
+  duration_seconds?: number | null;
+  thumbnail?: string | null;
+  url: string;
+}
+
+export interface YouTubeTranscriptSegment {
+  text: string;
+  start: number;
+  duration: number;
+  timestamp: string;
+}
+
+export interface InteractiveCheckpoint {
+  start_seconds: number;
+  timestamp: string;
+  title: string;
+  key_point: string;
+  question: string;
+  choices: string[];
+  correct_answer_index: number;
+  explanation: string;
+}
+
+export interface LessonChapterItem {
+  timestamp: string;
+  title: string;
+}
+
+export interface LessonKeyNoteItem {
+  time: string;
+  note: string;
+}
+
+export interface InteractiveLessonPayload {
+  summary: string;
+  key_takeaways: string[];
+  chapters: LessonChapterItem[];
+  key_notes: LessonKeyNoteItem[];
+  checkpoints: InteractiveCheckpoint[];
+}
+
+export interface YouTubeInteractiveLessonResponse {
+  video: YouTubeVideoItem;
+  transcript: YouTubeTranscriptSegment[];
+  lesson: InteractiveLessonPayload;
+  translations?: Record<string, YouTubeTranscriptSegment[]>;
+}
+
+export interface YouTubeLessonHistorySummary {
+  id: string;
+  video: YouTubeVideoItem;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YouTubeLessonHistoryDetail {
+  id: string;
+  video: YouTubeVideoItem;
+  transcript: YouTubeTranscriptSegment[];
+  lesson: InteractiveLessonPayload;
+  translations?: Record<string, YouTubeTranscriptSegment[]>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YouTubeTranslateTranscriptResponse {
+  transcript: YouTubeTranscriptSegment[];
+  target_language: string;
+}
+
+export async function searchYouTubeVideos(query: string, limit: number = 6): Promise<YouTubeVideoItem[]> {
+  const result = await apiFetch<{ items: YouTubeVideoItem[] }>("/youtube-lessons/search", {
+    method: "POST",
+    body: JSON.stringify({ query, limit }),
+    skipCache: true,
+  });
+  return result.items;
+}
+
+export async function generateInteractiveYouTubeLesson(payload: {
+  youtube_url?: string;
+  video_id?: string;
+  query?: string;
+  manual_transcript?: string;
+  max_checkpoints?: number;
+  stt_model?: SttModel;
+}): Promise<YouTubeInteractiveLessonResponse> {
+  return apiFetch<YouTubeInteractiveLessonResponse>("/youtube-lessons/interactive", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    skipCache: true,
+  });
+}
+
+export async function listYouTubeLessonHistory(
+  skip: number = 0,
+  limit: number = 20
+): Promise<{ items: YouTubeLessonHistorySummary[]; total: number }> {
+  return apiFetch<{ items: YouTubeLessonHistorySummary[]; total: number }>(
+    `/youtube-lessons/history?skip=${skip}&limit=${limit}`,
+    { skipCache: true }
+  );
+}
+
+export async function getYouTubeLessonHistoryDetail(id: string): Promise<YouTubeLessonHistoryDetail> {
+  return apiFetch<YouTubeLessonHistoryDetail>(`/youtube-lessons/history/${id}`, {
+    skipCache: true,
+  });
+}
+
+export async function deleteYouTubeLessonHistory(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/youtube-lessons/history/${id}`, {
+    method: "DELETE",
+    skipCache: true,
+  });
+}
+
+export async function translateYouTubeTranscript(
+  transcript: YouTubeTranscriptSegment[],
+  targetLanguage: string,
+  videoId?: string
+): Promise<YouTubeTranslateTranscriptResponse> {
+  return apiFetch<YouTubeTranslateTranscriptResponse>("/youtube-lessons/translate-transcript", {
+    method: "POST",
+    body: JSON.stringify({ 
+      transcript, 
+      target_language: targetLanguage,
+      video_id: videoId 
+    }),
+    skipCache: true,
+  });
+}
+
 type FileUrlMode = "download" | "preview";
 
 function getApiHost(): string {
@@ -775,4 +1128,39 @@ export function apiDownloadUrl(fileUrl: string): string {
 
 export function apiPreviewUrl(fileUrl: string): string {
   return apiFileUrl(fileUrl, "preview");
+}
+
+// ---------------------------------------------------------------------------
+// Schedule
+// ---------------------------------------------------------------------------
+
+export async function uploadScheduleFile(file: File): Promise<ScheduleUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  const response = await fetch(`${API_BASE}/schedule/upload`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Upload failed: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+export async function getSchedule(): Promise<Schedule> {
+  return apiFetch<Schedule>("/schedule", { skipCache: true });
+}
+
+export async function saveSchedule(events: ScheduleEvent[]): Promise<Schedule> {
+  const result = await apiFetch<Schedule>("/schedule", {
+    method: "POST",
+    body: JSON.stringify(events),
+  });
+  invalidateCache("/schedule");
+  return result;
 }

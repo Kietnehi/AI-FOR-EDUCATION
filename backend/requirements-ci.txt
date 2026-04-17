@@ -31,3 +31,5 @@ ddgs
 google-auth
 PyJWT
 requests
+youtube-transcript-api
+yt-dlp

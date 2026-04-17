@@ -17,7 +17,9 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
+const API_BASE = typeof window !== "undefined"
+  ? "/api"
+  : ((process.env.BACKEND_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api").replace(/\/+$/, ""));
 
 async function fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const response = await fetch(input, {

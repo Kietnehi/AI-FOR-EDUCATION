@@ -30,7 +30,8 @@ export type GeneratedContent = {
     | "chatbot_config"
     | "quiz"
     | "video"
-    | "infographic";
+    | "infographic"
+    | "knowledge_graph";
   game_type?: "quiz_mixed" | "flashcard" | "shooting_quiz";
   difficulty?: "easy" | "medium" | "hard" | string;
   version: number;
@@ -43,6 +44,20 @@ export type GeneratedContent = {
   fallback_applied?: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type MaterialsRealtimeSnapshot = {
+  scope: "materials";
+  items: Material[];
+  total: number;
+};
+
+export type MaterialDetailRealtimeSnapshot = {
+  scope: "material_detail";
+  material_id: string;
+  deleted: boolean;
+  material: Material | null;
+  generated_contents: GeneratedContent[];
 };
 
 export type GameTypePersonalizationStat = {
@@ -98,6 +113,154 @@ export type RemediationQuickStart = {
   recommended_difficulty: "easy" | "medium" | "hard" | string;
   generated_items: RemediationQuickStartItem[];
   message: string;
+};
+
+export type PersonalizationCustomModelOption = {
+  id: string;
+  name: string;
+};
+
+export type UserPreferences = {
+  user_id: string;
+  theme: "light" | "dark" | "system";
+  mascot_enabled: boolean;
+  chat_model_id: string;
+  chat_model_name: string;
+  chat_model_supports_reasoning: boolean;
+  chat_use_gemini_rotation: boolean;
+  chat_custom_models: PersonalizationCustomModelOption[];
+  preferred_language: string;
+  learning_pace: "light" | "moderate" | "intensive";
+  study_goal?: string | null;
+  reminder_timezone: string;
+  reminder_hour_local: number;
+  reminder_days_of_week?: number[];
+  reminder_in_app_enabled: boolean;
+  reminder_email_enabled: boolean;
+  weekly_goal_active_days: number;
+  weekly_goal_minutes: number;
+  weekly_goal_items: number;
+  sidebar_order: string[];
+  streak_current_days: number;
+  streak_longest_days: number;
+  streak_last_checkin_date?: string | null;
+  streak_total_checkins: number;
+  streak_freeze_used_week: number;
+  streak_freeze_week_start?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserPreferencesUpdate = {
+  theme?: "light" | "dark" | "system";
+  mascot_enabled?: boolean;
+  chat_model_id?: string;
+  chat_model_name?: string;
+  chat_model_supports_reasoning?: boolean;
+  chat_use_gemini_rotation?: boolean;
+  chat_custom_models?: PersonalizationCustomModelOption[];
+  preferred_language?: string;
+  learning_pace?: "light" | "moderate" | "intensive";
+  study_goal?: string | null;
+  reminder_timezone?: string;
+  reminder_hour_local?: number;
+  reminder_days_of_week?: number[];
+  reminder_in_app_enabled?: boolean;
+  reminder_email_enabled?: boolean;
+  weekly_goal_active_days?: number;
+  weekly_goal_minutes?: number;
+  weekly_goal_items?: number;
+  sidebar_order?: string[];
+};
+
+export type WeeklyGoalProgress = {
+  active_days: number;
+  active_days_goal: number;
+  minutes: number;
+  minutes_goal: number;
+  completed_items: number;
+  completed_items_goal: number;
+  completion_rate: number;
+};
+
+export type HabitOverview = {
+  checkin_today: boolean;
+  current_streak_days: number;
+  longest_streak_days: number;
+  last_checkin_date?: string | null;
+  days_since_last_checkin?: number | null;
+  freeze_used_this_week: number;
+  freeze_remaining_this_week: number;
+  week_start?: string | null;
+  weekly_goal: WeeklyGoalProgress;
+};
+
+export type PersonalizationReminder = {
+  channel: "in_app" | "email";
+  title: string;
+  message: string;
+  due_now: boolean;
+};
+
+export type PersonalizationRiskAlert = {
+  status: "stable" | "warning" | "high_risk";
+  reasons: string[];
+  suggested_actions: string[];
+};
+
+export type DashboardContinueLearningItem = {
+  material_id: string;
+  title: string;
+  subject?: string | null;
+  reason: string;
+  last_activity_at?: string | null;
+  recommendation_score?: number;
+};
+
+export type DashboardFeatureAffinityItem = {
+  feature: string;
+  score: number;
+  reason: string;
+};
+
+export type DashboardPersonalization = {
+  generated_counts: Record<string, number>;
+  continue_learning: DashboardContinueLearningItem[];
+  next_actions: string[];
+  feature_affinity: DashboardFeatureAffinityItem[];
+  study_rhythm: {
+    active_days_7d: number;
+    events_7d: number;
+    last_active_at?: string | null;
+    retention_status: "inactive" | "low" | "medium" | "high";
+    days_since_last_active?: number | null;
+    top_feature?: string | null;
+  };
+  habit_overview: HabitOverview;
+  reminders: PersonalizationReminder[];
+  risk_alert: PersonalizationRiskAlert;
+  summary: {
+    materials_total: number;
+    generated_total: number;
+    chat_sessions_total: number;
+    game_attempts_total: number;
+    average_game_accuracy: number;
+  };
+};
+
+export type CheckInResponse = {
+  checked_in: boolean;
+  already_checked_in_today: boolean;
+  used_streak_freeze: boolean;
+  message: string;
+  habit_overview: HabitOverview;
+};
+
+export type ReminderDispatchResponse = {
+  sent: boolean;
+  channel: "email";
+  message: string;
+  sent_at?: string | null;
 };
 
 export type NotebookLMMediaFile = {
@@ -178,7 +341,7 @@ export type ChatMessage = {
   fallback_applied?: boolean;
   images?: string[];
    search_results?: {
-     sources: Array<{
+     sources?: Array<{
        index: number;
        title: string;
        uri: string;
@@ -230,3 +393,5 @@ export type SttModel =
 export type DuckDuckGoSearchType = "text" | "news" | "images" | "videos" | "books";
 
 export type DuckDuckGoSearchItem = Record<string, any>;
+
+export * from "./schedule";

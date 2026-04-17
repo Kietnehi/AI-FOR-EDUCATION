@@ -84,7 +84,7 @@ backend/storage/outputs/*
 .env.*
 !.env.example
 !.env.docker.example
-!.env.prod.example
+cookie.txt
 backend/.env
 frontend/.env.local
 
@@ -107,4 +107,112 @@ blob-report/
 GEMINI.md
 QWEN.md
 AGENTS.md
-p;p[]
+# --- General / OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.mp4
+!intro_videos/
+!intro_videos/*.mp4
+*.tmp
+*.temp
+*.swp
+*.swo
+*.log
+logs/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- Python ---
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+**/env/
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.docker.example
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+**/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+**/.coverage
+.cache/
+.ipynb_checkpoints/
+Test_markdown.ipynb
+backend/backend_debug.log
+backend/coverage.xml
+backend/htmlcov/
+frontend/coverage/
+
+# --- Node / Frontend ---
+node_modules/
+**/node_modules/
+.next/
+out/
+.eslintcache
+.prettiercache
+*.tsbuildinfo
+frontend/npm_install_log.txt
+frontend/build.log
+
+# --- Storage (Runtime Data) ---
+backend/storage/chroma/
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/generated/*
+!backend/storage/generated/.gitkeep
+backend/storage/extracted/*
+!backend/storage/extracted/.gitkeep
+backend/storage/images/*
+!backend/storage/images/.gitkeep
+backend/storage/notebooklm/*
+!backend/storage/notebooklm/.gitkeep
+backend/storage/outputs/*
+!backend/storage/outputs/.gitkeep
+
+# --- Environment Files ---
+.env
+.env.*
+!.env.example
+!.env.docker.example
+cookie.txt
+backend/.env
+frontend/.env.local
+
+# --- Database ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Testing ---
+coverage/
+htmlcov/
+coverage.xml
+TESTING_CODE/
+test-results/
+playwright-report/
+blob-report/
+
+
+# Dont Add Initial FIle for Coding CLI Agents
+GEMINI.md
+QWEN.md
+AGENTS.md

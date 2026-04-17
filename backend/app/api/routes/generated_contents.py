@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from celery.result import AsyncResult
 
 from app.api.dependencies import get_current_user, get_database
 from app.schemas.auth import AuthUser
@@ -9,6 +8,7 @@ from app.schemas.generated_content import (
     GenerateNotebookLMMediaRequest,
     GeneratePodcastRequest,
     GenerateSlidesRequest,
+    GenerateKnowledgeGraphRequest,
     GenerateNotebookLMMediaResponse,
     NotebookLMArtifactConfirmationResponse,
     GeneratedContentResponse,
@@ -20,6 +20,7 @@ from app.schemas.generated_content import (
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.services.generation_service import GenerationService
 from app.services.material_service import MaterialService
+from app.services.personalization_service import PersonalizationService
 from app.services.notebooklm_service import NotebookLMService
 from app.services.storage import storage_service
 from app.utils.time import utc_now
@@ -49,6 +50,20 @@ async def generate_slides(
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
     )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="generation_requested",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={
+            "content_type": "slides",
+            "tone": payload.tone,
+            "max_slides": payload.max_slides,
+            "force_regenerate": payload.force_regenerate,
+            "generated_content_id": result.get("id"),
+        },
+    )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
@@ -68,6 +83,20 @@ async def generate_podcast(
         target_duration_minutes=payload.target_duration_minutes,
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
+    )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="generation_requested",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={
+            "content_type": "podcast",
+            "style": payload.style,
+            "target_duration_minutes": payload.target_duration_minutes,
+            "force_regenerate": payload.force_regenerate,
+            "generated_content_id": result.get("id"),
+        },
     )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
@@ -89,6 +118,39 @@ async def generate_minigame(
         user_id=user.id,
         force_regenerate=payload.force_regenerate,
     )
+    personalization_service = PersonalizationService(db)
+    await personalization_service.track_event(
+        user_id=user.id,
+        event_type="generation_requested",
+        resource_type="material",
+        resource_id=material_id,
+        metadata={
+            "content_type": "minigame",
+            "game_type": payload.game_type,
+            "difficulty": payload.difficulty,
+            "force_regenerate": payload.force_regenerate,
+            "generated_content_id": result.get("id"),
+        },
+    )
+    if not result.get("storage_type"):
+        result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
+    return GeneratedContentResponse(**result)
+
+
+@router.post("/materials/{material_id}/generate/knowledge-graph", response_model=GeneratedContentResponse)
+async def generate_knowledge_graph(
+    material_id: str,
+    payload: GenerateKnowledgeGraphRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> GeneratedContentResponse:
+    """Generate a knowledge graph (nodes + edges) from a processed material."""
+    service = GenerationService(db)
+    result = await service.generate_knowledge_graph(
+        material_id,
+        user_id=user.id,
+        force_regenerate=payload.force_regenerate,
+    )
     if not result.get("storage_type"):
         result["storage_type"] = storage_service.detect_storage_type(result.get("file_url"))
     return GeneratedContentResponse(**result)
@@ -101,6 +163,7 @@ async def queue_generate_slides(
     user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    service = GenerationService(db)
     material_service = MaterialService(db)
     await material_service.get_material(material_id, user_id=user.id)
     task = generate_slides_task.delay(
@@ -109,6 +172,7 @@ async def queue_generate_slides(
         payload.max_slides,
         payload.skip_refine,
     )
+    await service.register_generation_task(task.id, material_id, user.id, "slides")
     return GenerationTaskQueuedResponse(
         task_id=task.id,
         message="Slide generation task queued",
@@ -122,6 +186,7 @@ async def queue_generate_podcast(
     user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    service = GenerationService(db)
     material_service = MaterialService(db)
     await material_service.get_material(material_id, user_id=user.id)
     task = generate_podcast_task.delay(
@@ -129,6 +194,7 @@ async def queue_generate_podcast(
         payload.style,
         payload.target_duration_minutes,
     )
+    await service.register_generation_task(task.id, material_id, user.id, "podcast")
     return GenerationTaskQueuedResponse(
         task_id=task.id,
         message="Podcast generation task queued",
@@ -142,9 +208,11 @@ async def queue_generate_minigame(
     user: AuthUser = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskQueuedResponse:
+    service = GenerationService(db)
     material_service = MaterialService(db)
     await material_service.get_material(material_id, user_id=user.id)
     task = generate_minigame_task.delay(material_id, payload.game_type, payload.difficulty)
+    await service.register_generation_task(task.id, material_id, user.id, "minigame")
     return GenerationTaskQueuedResponse(
         task_id=task.id,
         message="Minigame generation task queued",
@@ -155,44 +223,11 @@ async def queue_generate_minigame(
 async def get_generation_task_status(
     task_id: str,
     user: AuthUser = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> GenerationTaskStatusResponse:
-    task = AsyncResult(task_id, app=celery_app)
-    info = task.info if isinstance(task.info, dict) else {}
-
-    state = task.state.upper()
-    if state == "PENDING":
-        return GenerationTaskStatusResponse(
-            task_id=task_id,
-            status="pending",
-            celery_state=state,
-            progress=0,
-        )
-
-    if state in {"STARTED", "RETRY"}:
-        return GenerationTaskStatusResponse(
-            task_id=task_id,
-            status="processing",
-            celery_state=state,
-            progress=info.get("progress") if isinstance(info.get("progress"), int) else None,
-        )
-
-    if state == "SUCCESS":
-        result_payload = task.result if isinstance(task.result, dict) else {"value": task.result}
-        return GenerationTaskStatusResponse(
-            task_id=task_id,
-            status="completed",
-            celery_state=state,
-            progress=100,
-            result=result_payload,
-        )
-
-    error_detail = str(task.info) if task.info else "Task failed"
-    return GenerationTaskStatusResponse(
-        task_id=task_id,
-        status="failed",
-        celery_state=state,
-        error=error_detail,
-    )
+    service = GenerationService(db)
+    status_payload = await service.get_generation_task_status(task_id, user.id, celery_app)
+    return GenerationTaskStatusResponse(**status_payload)
 
 
 @router.get("/materials/{material_id}/generated-contents", response_model=list[GeneratedContentResponse])

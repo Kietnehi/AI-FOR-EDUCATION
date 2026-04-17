@@ -236,7 +236,6 @@ def _run(payload: dict) -> dict:
     with sync_playwright() as playwright:
         context = playwright.chromium.launch_persistent_context(
             user_data_dir=user_data_dir,
-            channel="chrome",
             headless=headless,
             args=["--start-maximized", "--disable-blink-features=AutomationControlled"],
         )

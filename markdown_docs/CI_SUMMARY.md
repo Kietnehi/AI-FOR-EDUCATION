@@ -1,16 +1,26 @@
-# Review đầy đủ CI của dự án (2026-03-28)
+# Review đầy đủ CI của dự án (2026-04-08)
 
 > Cập nhật 2026-04-12: luồng CD đã được mở rộng để publish Docker Hub và deploy tự động qua SSH + Named Tunnel. Xem thêm `markdown_docs/CD_DOCKERHUB_WINDOWS_TUNNEL.md`.
 
 Tài liệu này là bản review đầy đủ luồng Continuous Integration (CI) hiện tại của repo `AI-FOR-EDUCATION`. Mục tiêu là để chỉ cần đọc một tài liệu này, người mới vào repo vẫn hiểu được CI đang chạy gì, tại sao chạy như vậy, đầu ra là gì, và giới hạn hiện tại nằm ở đâu.
 
-Nội dung dưới đây phản ánh cấu hình thực tế trong:
+Nội dung dưới đây phản ánh cấu hình thực tế đã kiểm tra lại vào ngày 2026-04-08 trong:
 
 - `/.github/workflows/project-ci.yml`
 - `/docker-compose.ci.yml`
 - `frontend/vitest.config.ts`
 - `backend/pytest.ini`
 - `backend/requirements-test.txt`
+
+## Cập nhật nhanh bản mới nhất (2026-04-08)
+
+So với bản review trước, luồng CI hiện tại vẫn giữ kiến trúc 5 job, nhưng các chi tiết sau đã được xác nhận ở trạng thái mới nhất:
+
+- Workflow đang dùng bộ action đời mới: `actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-python@v6`, `actions/upload-artifact@v7`, `actions/github-script@v8`.
+- Frontend CI chạy Vitest trực tiếp với JSON output (`test-results.json`) để dựng dashboard `ci-summary`.
+- Backend CI tiếp tục parse `coverage.xml` và `junit.xml` để xuất metrics máy đọc được cho job tổng hợp.
+- Docker smoke vẫn dùng `docker-compose.ci.yml` với cơ chế retry chủ động cho backend/frontend, thay vì phụ thuộc cơ chế wait mặc định.
+- Stack CI Compose đã xác nhận các tham số build backend theo hướng CI ổn định: dùng `requirements-ci.txt`, tắt GPU runtime và tắt cài Playwright browser trong image smoke.
 
 ## 1. CI hiện tại dùng để làm gì
 
@@ -306,6 +316,12 @@ Lý do tách file này là để cấu hình CI ổn định hơn môi trường
 - chế độ dev/reload gây sai lệch hành vi
 - healthcheck frontend fail sớm
 
+Ngoài ra, bản compose CI hiện tại còn thể hiện rõ định hướng tối ưu cho pipeline:
+
+- Service `backend` build với `REQUIREMENTS_FILE=requirements-ci.txt` để phục vụ môi trường CI.
+- Build arg `INSTALL_GPU_RUNTIME=0` và `INSTALL_PLAYWRIGHT_BROWSER=0` giúp giảm chi phí build cho smoke test.
+- Service `frontend` build theo mode production và expose các biến `NEXT_PUBLIC_API_*` theo đúng hướng chạy tích hợp với backend trong CI.
+
 ### 8.4 Các bước thực tế đang chạy
 
 1. checkout mã nguồn
@@ -488,3 +504,7 @@ Nếu muốn nâng CI lên thêm một bậc nữa, thứ tự ưu tiên hợp l
 1. thêm backend lint và type-check
 2. thêm e2e ngắn cho vài luồng chính
 3. tối ưu dependency/caching để rút ngắn thời gian chạy
+
+---
+
+Phiên bản tài liệu: cập nhật lần gần nhất ngày 2026-04-08, đối chiếu trực tiếp với cấu hình CI đang có trong repo tại thời điểm cập nhật.

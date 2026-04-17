@@ -2,12 +2,15 @@ import asyncio
 import mimetypes
 from pathlib import Path
 
+from celery import Celery
+from celery.result import AsyncResult
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.ai.generation.image_fetcher import ImageFetcher
 from app.ai.generation.minigame_generator import MinigameGenerator
 from app.ai.generation.podcast_generator import PodcastGenerator
+from app.ai.generation.knowledge_graph_generator import KnowledgeGraphGenerator
 from app.ai.generation.slide_generator import SlideGenerator, extract_image_queries
 from app.ai.generation.audio_generator import AudioGenerator
 from app.ai.parsing.image_extractor import ImageExtractor
@@ -16,6 +19,7 @@ from app.ai.parsing.text_chunker import split_text_into_chunks
 from app.core.config import settings
 from app.core.logging import logger
 from app.repositories.generated_content_repository import GeneratedContentRepository
+from app.repositories.job_repository import JobRepository
 from app.services.material_service import MaterialService
 from app.services.storage import storage_service
 from app.utils.object_id import parse_object_id
@@ -25,13 +29,92 @@ class GenerationService:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.db = db
         self.generated_repo = GeneratedContentRepository(db)
+        self.job_repo = JobRepository(db)
         self.material_service = MaterialService(db)
         self.slide_generator = SlideGenerator()
         self.podcast_generator = PodcastGenerator()
         self.minigame_generator = MinigameGenerator()
+        self.knowledge_graph_generator = KnowledgeGraphGenerator()
         self.audio_generator = AudioGenerator(uploads_dir=str(Path(settings.generated_dir) / "podcasts"))
         self.image_fetcher = ImageFetcher()
         self.image_extractor = ImageExtractor()
+
+    async def register_generation_task(
+        self,
+        task_id: str,
+        material_id: str,
+        user_id: str,
+        task_type: str,
+    ) -> None:
+        await self.job_repo.create(
+            {
+                "job_id": task_id,
+                "job_type": f"generation_{task_type}",
+                "material_id": material_id,
+                "user_id": user_id,
+                "status": "queued",
+                "created_at": utc_now(),
+            }
+        )
+
+    async def get_generation_task_status(
+        self,
+        task_id: str,
+        user_id: str,
+        celery_app: Celery,
+    ) -> dict:
+        job = await self.job_repo.get_by_job_id(task_id)
+        if not job or job.get("user_id") != user_id:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        task = AsyncResult(task_id, app=celery_app)
+        info = task.info if isinstance(task.info, dict) else {}
+        state = task.state.upper()
+
+        if state == "PENDING":
+            await self.job_repo.update_status(task_id, "pending")
+            return {
+                "task_id": task_id,
+                "status": "pending",
+                "celery_state": state,
+                "progress": 0,
+            }
+
+        if state in {"STARTED", "RETRY"}:
+            await self.job_repo.update_status(task_id, "processing")
+            return {
+                "task_id": task_id,
+                "status": "processing",
+                "celery_state": state,
+                "progress": info.get("progress") if isinstance(info.get("progress"), int) else None,
+            }
+
+        if state == "SUCCESS":
+            await self.job_repo.update_status(task_id, "completed", {"finished_at": utc_now()})
+            result_payload = task.result if isinstance(task.result, dict) else {"value": task.result}
+            return {
+                "task_id": task_id,
+                "status": "completed",
+                "celery_state": state,
+                "progress": 100,
+                "result": result_payload,
+            }
+
+        error_detail = str(task.info) if task.info else "Task failed"
+        await self.job_repo.update_status(
+            task_id,
+            "failed",
+            {
+                "error": error_detail,
+                "finished_at": utc_now(),
+            },
+        )
+        return {
+            "task_id": task_id,
+            "status": "failed",
+            "celery_state": state,
+            "error": error_detail,
+        }
 
     async def _next_version(
         self,
@@ -525,6 +608,56 @@ class GenerationService:
             "version": version,
             "outline": outline,
             "json_content": game_payload,
+            "file_url": None,
+            "storage_type": "none",
+            "generation_status": "generated",
+            "model_used": model_used,
+            "fallback_applied": fallback_applied,
+            "created_at": now,
+            "updated_at": now,
+        }
+        return await self.generated_repo.create(doc)
+
+    async def generate_knowledge_graph(
+        self,
+        material_id: str,
+        user_id: str | None = None,
+        force_regenerate: bool = False,
+    ) -> dict:
+        """Extract concepts and relationships from a processed material and store them."""
+        if not force_regenerate:
+            existing = await self.generated_repo.list_by_material_and_type(
+                material_id,
+                "knowledge_graph",
+                user_id=user_id,
+            )
+            if existing:
+                return existing[0]
+
+        material = await self._prepare_material(material_id, user_id=user_id)
+        text = self._get_material_text(material)
+        title = material.get("title", "Knowledge Graph")
+
+        graph_payload = await asyncio.to_thread(
+            self.knowledge_graph_generator.generate,
+            text,
+            title,
+        )
+
+        llm = getattr(self.knowledge_graph_generator, "llm", None)
+        model_used = getattr(llm, "last_model_used", None) if llm else None
+        fallback_applied = getattr(llm, "fallback_used", False) if llm else False
+
+        version = await self._next_version(material_id, "knowledge_graph", user_id=user_id)
+        now = utc_now()
+        node_labels = [n.get("label", "") for n in graph_payload.get("nodes", [])[:8]]
+        doc = {
+            "user_id": material.get("user_id"),
+            "material_id": material_id,
+            "content_type": "knowledge_graph",
+            "version": version,
+            "outline": node_labels,
+            "json_content": graph_payload,
             "file_url": None,
             "storage_type": "none",
             "generation_status": "generated",

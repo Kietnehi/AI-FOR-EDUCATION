@@ -2,6 +2,7 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthProvider } from "@/components/auth-provider";
+import { NotificationProvider } from "@/components/notification-provider";
 import { Inter, Space_Grotesk } from "next/font/google";
 
 const inter = Inter({
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="antialiased font-sans">
         <AuthProvider>
-          <AppShell>{children}</AppShell>
+          <NotificationProvider>
+            <AppShell>{children}</AppShell>
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>

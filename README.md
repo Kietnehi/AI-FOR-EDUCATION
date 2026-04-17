@@ -87,7 +87,8 @@ Dự án được chia thành 2 luồng xử lý chính:
   - Local: `openai-whisper` model `base`
   - Cloud: Groq `whisper-large-v3` hoặc `whisper-large-v3-turbo`
 - 🔊 **Text-to-Speech**: chuyển văn bản thành giọng nói tiếng Việt
-- 🌙 **Dark mode** hoàn chỉnh
+- � **YouTube Interactive Lesson**: Tạo bài học tương tác từ video YouTube với transcript, câu hỏi, giải thích và hỗ trợ dịch đa ngôn ngữ
+- �🌙 **Dark mode** hoàn chỉnh
 - 📱 **Responsive** trên mọi kích thước màn hình
 
 > **Lưu ý:** MongoDB sử dụng MongoDB Atlas qua `MONGO_URI`
@@ -339,6 +340,12 @@ AI-FOR-EDUCATION/
 ### 4.5 Games
 - `POST /api/games/{generated_content_id}/submit` — Nộp bài làm minigame
 - `GET /api/games/attempts/{attempt_id}` — Xem kết quả bài làm
+
+### 4.6 YouTube Interactive Lesson
+- `POST /api/youtube-lessons` — Tạo bài học tương tác từ video YouTube
+- `GET /api/youtube-lessons/{lesson_id}` — Lấy chi tiết bài học YouTube
+- `POST /api/youtube-lessons/{lesson_id}/translate-transcript` — Dịch transcript sang ngôn ngữ khác
+- `GET /api/youtube-lessons/history` — Lịch sử bài học YouTube
 
 ---
 
@@ -970,6 +977,7 @@ Lưu ý vận hành:
 - **NotebookLM Docker Browser:** [Theo dõi Chrome của NotebookLM trong Docker](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
 - **Storage & Media Fixes:** [Ghi chú các bản vá storage và media](markdown_docs/STORAGE_AND_MEDIA_FIXES.md)
 - **Web Search Online Review:** [Đánh giá và tổng hợp Web Search online](markdown_docs/WEB_SEARCH_ONLINE_REVIEW.md)
+- **YouTube Interactive Lesson:** [Hướng dẫn chức năng YouTube tương tác](markdown_docs/YOUTUBE_INTERACTIVE_LESSON_GUIDE_VI.md)
 
 ---
 
@@ -979,13 +987,13 @@ Lưu ý vận hành:
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header" alt="header" />
 </p>
 
-| | | |
-| :---: | :---: | :---: |
-| <a href="https://github.com/Kietnehi"><img src="https://github-readme-stats.vercel.app/api?username=Kietnehi&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/ductoanoxo"><img src="https://github-readme-stats.vercel.app/api?username=ductoanoxo&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/phatle224"><img src="https://github-readme-stats.vercel.app/api?username=phatle224&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> |
-| <img src="https://github.com/Kietnehi.png" width="80"/> | <img src="https://github.com/ductoanoxo.png" width="80"/> | <img src="https://github.com/phatle224.png" width="80"/> |
-| <b><a href="https://github.com/Kietnehi">Trương Phú Kiệt</a></b> | <b><a href="https://github.com/ductoanoxo">Đức Toàn</a></b> | <b><a href="https://github.com/phatle224">Phát Lê</a></b> |
-| Fullstack Dev & AI Researcher | Developer | Data Engineer |
-| <p align="center"><img src="https://img.shields.io/github/followers/Kietnehi?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2FKietnehi&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/Kietnehi"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/ductoanoxo?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fductoanoxo&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/ductoanoxo"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/phatle224?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fphatle224&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/phatle224"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> |
+| | | | |
+| :---: | :---: | :---: | :---: |
+| <a href="https://github.com/Kietnehi"><img src="https://github-readme-stats.vercel.app/api?username=Kietnehi&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/ductoanoxo"><img src="https://github-readme-stats.vercel.app/api?username=ductoanoxo&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/phatle224"><img src="https://github-readme-stats.vercel.app/api?username=phatle224&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/nhdotvn"><img src="https://github-readme-stats.vercel.app/api?username=nhdotvn&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> |
+| <img src="https://github.com/Kietnehi.png" width="80"/> | <img src="https://github.com/ductoanoxo.png" width="80"/> | <img src="https://github.com/phatle224.png" width="80"/> | <img src="https://github.com/nhdotvn.png" width="80"/> |
+| <b><a href="https://github.com/Kietnehi">Trương Phú Kiệt</a></b> | <b><a href="https://github.com/ductoanoxo">Đức Toàn</a></b> | <b><a href="https://github.com/phatle224">Phát Lê</a></b> | <b><a href="https://github.com/nhdotvn">Lê Ngọc Hiệp</a></b> |
+| Fullstack Dev & AI Researcher | Developer | Data Engineer | Supporter |
+| <p align="center"><img src="https://img.shields.io/github/followers/Kietnehi?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2FKietnehi&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/Kietnehi"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/ductoanoxo?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fductoanoxo&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/ductoanoxo"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/phatle224?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fphatle224&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/phatle224"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/nhdotvn?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fnhdotvn&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/nhdotvn"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> |
 
 <p align="center">
   <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">

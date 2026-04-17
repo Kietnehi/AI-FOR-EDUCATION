@@ -72,6 +72,7 @@ services:
       dockerfile: Dockerfile
       args:
         INSTALL_GPU_RUNTIME: ${INSTALL_GPU_RUNTIME:-0}
+        INSTALL_LIBREOFFICE: ${INSTALL_LIBREOFFICE:-1}
         INSTALL_PLAYWRIGHT_BROWSER: ${INSTALL_PLAYWRIGHT_BROWSER:-1}
     container_name: any2-backend
     restart: unless-stopped
@@ -83,6 +84,10 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      CELERY_RESULT_EXPIRES_SECONDS: ${CELERY_RESULT_EXPIRES_SECONDS:-86400}
+      CELERY_TASK_SOFT_TIME_LIMIT_SECONDS: ${CELERY_TASK_SOFT_TIME_LIMIT_SECONDS:-1800}
+      CELERY_TASK_TIME_LIMIT_SECONDS: ${CELERY_TASK_TIME_LIMIT_SECONDS:-2100}
+      CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
@@ -168,6 +173,7 @@ services:
     container_name: any2-frontend
     restart: unless-stopped
     environment:
+      BACKEND_API_BASE_URL: ${BACKEND_API_BASE_URL:-http://backend:8000/api}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api}
       NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST:-http://localhost:8000}
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
@@ -197,7 +203,7 @@ services:
       - 1.1.1.1
     image: any2-backend-dev:latest
     container_name: any2-celery-worker
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 --pool=solo
     environment:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -206,6 +212,10 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      CELERY_RESULT_EXPIRES_SECONDS: ${CELERY_RESULT_EXPIRES_SECONDS:-86400}
+      CELERY_TASK_SOFT_TIME_LIMIT_SECONDS: ${CELERY_TASK_SOFT_TIME_LIMIT_SECONDS:-1800}
+      CELERY_TASK_TIME_LIMIT_SECONDS: ${CELERY_TASK_TIME_LIMIT_SECONDS:-2100}
+      CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
@@ -281,6 +291,25 @@ services:
       timeout: 30s
       retries: 3
       start_period: 30s
+
+  celery-beat:
+    image: any2-backend-dev:latest
+    container_name: any2-celery-beat
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      CELERY_RESULT_EXPIRES_SECONDS: ${CELERY_RESULT_EXPIRES_SECONDS:-86400}
+      CELERY_TASK_SOFT_TIME_LIMIT_SECONDS: ${CELERY_TASK_SOFT_TIME_LIMIT_SECONDS:-1800}
+      CELERY_TASK_TIME_LIMIT_SECONDS: ${CELERY_TASK_TIME_LIMIT_SECONDS:-2100}
+      CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   celery-flower:
     image: mher/flower:latest

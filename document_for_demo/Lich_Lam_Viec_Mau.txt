@@ -1,0 +1,13 @@
+LỊCH LÀM VIỆC TUẦN - CÔNG TY AI EDUCATION
+------------------------------------------
+Thứ Hai (20/04):
+- 09:00: Họp giao ban đầu tuần tại Văn phòng chính
+- 14:00: Review dự án RAG với team Backend
+
+Thứ Ba (21/04):
+- 10:30: Gặp gỡ đối tác Google Cloud (Online)
+- 16:00: Workshop về Next.js 14
+
+Thứ Tư (22/04):
+- 08:00: Phỏng vấn ứng viên AI Engineer
+- 15:00: Cập nhật tài liệu API

@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
+    celery_result_expires_seconds: int = 86400
+    celery_task_soft_time_limit_seconds: int = 1800
+    celery_task_time_limit_seconds: int = 2100
+    celery_worker_prefetch_multiplier: int = 1
 
     chroma_persist_dir: str = "./storage/chroma"
     chroma_collection_name: str = "material_chunks"
@@ -62,6 +66,12 @@ class Settings(BaseSettings):
     
     pexels_api_key: str = ""
 
+    ocr_space_api_key: str = ""
+    ocr_space_url: str = "https://api.ocr.space/parse/image"
+    ocr_space_timeout_seconds: int = 120
+    ocr_space_layout_engine: int = 3
+    ocr_space_boxes_engine: int = 2
+
     upload_dir: str = "./storage/uploads"
     generated_dir: str = "./storage/generated"
     image_cache_dir: str = "./storage/images"
@@ -83,7 +93,13 @@ class Settings(BaseSettings):
     r2_public_base_url: str = ""
     storage_presigned_expiration_seconds: int = 3600
 
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ]
+    cors_origin_regex: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
     # Token-based chunking parameters (for text-embedding-3 models)
     chunk_size: int = 2500  # tokens per chunk
@@ -96,6 +112,34 @@ class Settings(BaseSettings):
 
     # Number of latest mascot chat messages injected as memory.
     mascot_memory_turns: int = 10
+
+    # Personalization telemetry controls
+    personalization_event_retention_days: int = 90
+    personalization_event_max_string_length: int = 240
+    personalization_event_max_metadata_keys: int = 40
+    personalization_event_max_list_items: int = 20
+    personalization_event_max_depth: int = 3
+
+    # Personalization habit/reminder defaults
+    personalization_default_timezone: str = "Asia/Ho_Chi_Minh"
+    personalization_default_reminder_hour_local: int = 20
+    personalization_weekly_goal_default_active_days: int = 5
+    personalization_weekly_goal_default_minutes: int = 180
+    personalization_weekly_goal_default_items: int = 6
+    personalization_reminder_default_days_of_week: list[int] = [0, 1, 2, 3, 4, 5, 6]
+    personalization_reminder_recent_activity_suppression_minutes: int = 120
+    personalization_reminder_weekly_cap_active: int = 3
+    personalization_reminder_weekly_cap_at_risk: int = 5
+    personalization_reminder_weekly_cap_returning: int = 5
+    personalization_reminder_weekly_cap_deep_focus: int = 2
+    personalization_reminder_transient_retry_attempts: int = 2
+    personalization_streak_freeze_per_week: int = 1
+    personalization_reminder_lock_ttl_seconds: int = 900
+
+    # Personalization risk detection thresholds
+    personalization_risk_inactive_days: int = 3
+    personalization_risk_activity_drop_threshold: float = 0.35
+    personalization_risk_min_previous_week_events: int = 6
 
     @field_validator(
         "upload_dir",

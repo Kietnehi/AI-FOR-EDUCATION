@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-SourceType = Literal["pdf", "docx", "txt", "md", "manual_text"]
+SourceType = Literal["pdf", "docx", "txt", "md", "image", "audio", "manual_text"]
 ProcessingStatus = Literal["uploaded", "queued", "processing", "processed", "failed"]
 
 
@@ -45,6 +45,19 @@ class MaterialGuardrailCheckResponse(BaseModel):
     is_academic: bool
     category: str
     message: str
+
+
+class OCRWord(BaseModel):
+    text: str
+    left: float
+    top: float
+    width: float
+    height: float
+
+
+class OCRPreviewResponse(BaseModel):
+    text: str
+    words: list[OCRWord] = Field(default_factory=list)
 
 
 class MaterialResponse(BaseModel):
