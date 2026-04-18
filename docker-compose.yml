@@ -142,7 +142,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
-      - backend_venv:/app/.venv
+      - backend_venv_v2:/app/.venv
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
@@ -268,7 +268,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
-      - backend_venv:/app/.venv
+      - backend_venv_v2:/app/.venv
       - backend_storage:/app/storage
     deploy:
       resources:
@@ -313,7 +313,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend:/app
-      - backend_venv:/app/.venv
+      - backend_venv_v2:/app/.venv
       - backend_storage:/app/storage
 
   celery-flower:
@@ -334,7 +334,7 @@ volumes:
   redis_data:
   minio_data:
   mongo_data:
-  backend_venv:
+  backend_venv_v2: {}
   backend_storage:
   redis_insight_data:
   frontend_node_modules:

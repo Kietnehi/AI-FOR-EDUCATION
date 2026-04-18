@@ -1046,6 +1046,7 @@ export async function generateInteractiveYouTubeLesson(payload: {
   manual_transcript?: string;
   max_checkpoints?: number;
   stt_model?: SttModel;
+  use_serpapi?: boolean;
 }): Promise<YouTubeInteractiveLessonResponse> {
   return apiFetch<YouTubeInteractiveLessonResponse>("/youtube-lessons/interactive", {
     method: "POST",

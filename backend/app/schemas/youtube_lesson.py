@@ -34,6 +34,7 @@ class YouTubeLessonRequest(BaseModel):
         "whisper-large-v3",
         "whisper-large-v3-turbo",
     ] = "local-base"
+    use_serpapi: bool = False
 
 
 class TranscriptSegment(BaseModel):

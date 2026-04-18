@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.ai.chunking.text_chunker import TextChunker
+from app.ai.chunking.semantic_chunker import SemanticChunker
 from app.ai.embeddings.openai_embedder import OpenAIEmbedder
 from app.ai.ingestion.text_cleaner import TextCleaner
 from app.ai.parsing.file_parser import FileParser
@@ -27,10 +27,8 @@ from app.services.storage import storage_service
 from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
-_SHARED_CHUNKER = TextChunker(
-    chunk_size=settings.chunk_size, overlap=settings.chunk_overlap
-)
 _SHARED_EMBEDDER = OpenAIEmbedder()
+_SHARED_CHUNKER = SemanticChunker(embedder=_SHARED_EMBEDDER)
 _SHARED_VECTOR_STORE = ChromaVectorStore()
 _SHARED_GUARDRAIL = MaterialGuardrailService()
 _SUPPORTED_TEXT_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}

@@ -11,8 +11,8 @@ class ChatbotOrchestrator:
         self.llm = LLMClient()
         self.web_search_orchestrator = WebSearchOrchestrator()
 
-    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True) -> dict:
-        contexts = self.retriever.retrieve(material_id=material_id, query=question)
+    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True, corpus_chunks: list[dict] | None = None) -> dict:
+        contexts = self.retriever.retrieve(material_id=material_id, query=question, corpus_chunks=corpus_chunks)
 
         if not contexts:
             return {
@@ -89,8 +89,8 @@ class ChatbotOrchestrator:
         ]
         return {"answer": answer, "citations": citations, "reasoning_details": reasoning_details}
 
-    def stream_answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True):
-        contexts = self.retriever.retrieve(material_id=material_id, query=question)
+    def stream_answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True, corpus_chunks: list[dict] | None = None):
+        contexts = self.retriever.retrieve(material_id=material_id, query=question, corpus_chunks=corpus_chunks)
 
         if not contexts:
             yield {"answer": "Tôi không tìm thấy dữ liệu liên quan trong học liệu đã tải lên, nên chưa thể trả lời chắc chắn.", "citations": []}

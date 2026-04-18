@@ -153,11 +153,13 @@ export default function YoutubeInteractiveLessonPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchLimit, setSearchLimit] = useState(6);
   const [sttModel, setSttModel] = useState<SttModel>("local-base");
+  const [useSerpApi, setUseSerpApi] = useState(true);
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<YouTubeVideoItem[]>([]);
   const [payload, setPayload] = useState<YouTubeInteractiveLessonResponse | null>(null);
   const [historyItems, setHistoryItems] = useState<YouTubeLessonHistorySummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceLang, setVoiceLang] = useState<string>("vi-VN");
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -421,8 +423,8 @@ export default function YoutubeInteractiveLessonPage() {
 
     const directVideoId = source?.video_id || extractVideoId(raw);
     const requestPayload = directVideoId
-      ? { video_id: directVideoId, max_checkpoints: 5, stt_model: sttModel, manual_transcript: showManualEntry ? manualTranscript : undefined }
-      : { query: source?.query || raw, max_checkpoints: 5, stt_model: sttModel, manual_transcript: showManualEntry ? manualTranscript : undefined };
+      ? { video_id: directVideoId, max_checkpoints: 5, stt_model: sttModel, use_serpapi: useSerpApi, manual_transcript: showManualEntry ? manualTranscript : undefined }
+      : { query: source?.query || raw, max_checkpoints: 5, stt_model: sttModel, use_serpapi: useSerpApi, manual_transcript: showManualEntry ? manualTranscript : undefined };
 
     try {
       const result = await generateInteractiveYouTubeLesson(requestPayload);
@@ -557,7 +559,11 @@ export default function YoutubeInteractiveLessonPage() {
   const activeCheckpoint = activeCheckpointIndex !== null ? checkpoints[activeCheckpointIndex] : null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 8 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      className="space-y-6"
+    >
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
           Bài Học YouTube Tương Tác
@@ -783,6 +789,25 @@ export default function YoutubeInteractiveLessonPage() {
               </AnimatePresence>
             </div>
 
+            {/* SerpAPI Toggle */}
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-primary)] px-3 py-2">
+              <span className="whitespace-nowrap text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-tight">Dùng SerpAPI:</span>
+              <button
+                type="button"
+                onClick={() => setUseSerpApi(!useSerpApi)}
+                className={`relative h-5 w-9 rounded-full transition-all ${
+                  useSerpApi ? "bg-brand-500" : "bg-[var(--text-muted)]/30"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-3 w-3 rounded-full bg-white transition-all ${
+                    useSerpApi ? "right-1" : "left-1"
+                  }`}
+                />
+              </button>
+              <span className="text-[10px] font-bold text-brand-600 uppercase">Fast path</span>
+            </div>
+
             {/* Model Whisper */}
             <div className="flex items-center gap-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-primary)] px-3 py-2">
               <span className="whitespace-nowrap text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-tight">STT Model:</span>
@@ -883,8 +908,31 @@ export default function YoutubeInteractiveLessonPage() {
           <div className="flex items-center gap-2">
             <History className="h-5 w-5 text-brand-500" />
             <p className="text-base font-bold text-[var(--text-primary)]">Lịch sử bài học của bạn</p>
-            {historyLoading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent ml-auto" />}
+            <div className="ml-auto flex items-center gap-2">
+              {historyLoading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />}
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold transition-all ${
+                  showHistory
+                    ? "bg-brand-500 text-white border-brand-500 shadow-md"
+                    : "bg-[var(--bg-primary)] text-[var(--text-secondary)] border-[var(--border-light)] hover:border-brand-400"
+                }`}
+              >
+                {showHistory ? "Ẩn lịch sử" : "Hiện lịch sử"}
+                <ChevronDown className={`h-3 w-3 transition-transform duration-300 ${showHistory ? "rotate-180" : ""}`} />
+              </button>
+            </div>
           </div>
+          
+          <AnimatePresence>
+            {showHistory && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
           
           {historyItems.length === 0 && !historyLoading ? (
             <div className="flex flex-col items-center justify-center py-8 rounded-2xl border-2 border-dashed border-[var(--border-light)] bg-[var(--bg-section)]/30">
@@ -971,8 +1019,11 @@ export default function YoutubeInteractiveLessonPage() {
               </AnimatePresence>
             </div>
           )}
-        </div>
-      </Card>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+</Card>
 
       {payload ? (
         <div className="space-y-6">
