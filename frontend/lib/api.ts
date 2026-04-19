@@ -155,13 +155,19 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> 
   }
 
   const requestPromise = (async () => {
+    const isFormData = options?.body instanceof FormData;
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string> || {}),
+    };
+
+    if (!isFormData && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+
     const response = await fetch(`${API_BASE}${path}`, {
       ...options,
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(options?.headers || {}),
-      },
+      headers,
       cache: isGet ? "default" : "no-store",
     });
 
@@ -238,6 +244,11 @@ export async function logout(): Promise<{ message: string }> {
 
 export async function getMe(): Promise<AuthUser> {
   return apiFetch<AuthUser>("/auth/me");
+}
+
+export async function searchUsers(query: string): Promise<AuthUser[]> {
+  if (!query.trim()) return [];
+  return apiFetch<AuthUser[]>(`/auth/users/search?q=${encodeURIComponent(query)}`);
 }
 
 export async function getUserPreferences(): Promise<UserPreferences> {
@@ -382,10 +393,34 @@ export async function updateMaterial(
   return result;
 }
 
-export async function processMaterial(id: string): Promise<{ message: string }> {
+export async function shareMaterial(id: string, email: string): Promise<Material> {
+  const result = await apiFetch<Material>(`/materials/${id}/share`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  invalidateCache("/materials", `/materials/${id}`);
+  return result;
+}
+
+export async function unshareMaterial(id: string, email: string): Promise<Material> {
+  const result = await apiFetch<Material>(`/materials/${id}/unshare`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  invalidateCache("/materials", `/materials/${id}`);
+  return result;
+}
+
+export async function processMaterial(
+  id: string,
+  options?: { force_reprocess?: boolean; chunking_strategy?: "semantic" | "fixed" }
+): Promise<{ message: string }> {
   const result = await apiFetch<{ message: string }>(`/materials/${id}/process`, {
     method: "POST",
-    body: JSON.stringify({ force_reprocess: false }),
+    body: JSON.stringify({
+      force_reprocess: options?.force_reprocess ?? false,
+      chunking_strategy: options?.chunking_strategy ?? "fixed",
+    }),
   });
   invalidateCache("/materials", `/materials/${id}`);
   return result;
@@ -1132,25 +1167,34 @@ export function apiPreviewUrl(fileUrl: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Files & Storage
+// ---------------------------------------------------------------------------
+
+export interface FileUploadResponse {
+  file_url: string;
+  filename: string;
+}
+
+export async function uploadFile(file: File): Promise<FileUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<FileUploadResponse>("/files/upload", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Schedule
 // ---------------------------------------------------------------------------
 
 export async function uploadScheduleFile(file: File): Promise<ScheduleUploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
-  
-  const response = await fetch(`${API_BASE}/schedule/upload`, {
+  return apiFetch<ScheduleUploadResponse>("/schedule/upload", {
     method: "POST",
-    credentials: "include",
     body: formData,
   });
-  
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Upload failed: ${response.status}`);
-  }
-  
-  return response.json();
 }
 
 export async function getSchedule(): Promise<Schedule> {
@@ -1165,3 +1209,104 @@ export async function saveSchedule(events: ScheduleEvent[]): Promise<Schedule> {
   invalidateCache("/schedule");
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Community API
+// ---------------------------------------------------------------------------
+
+export interface CommunityThread {
+  id: string;
+  title: string;
+  description?: string;
+  creator_id: string;
+  creator_name?: string;
+  creator_avatar?: string;
+  thumbnail_url?: string;
+  first_material_type?: string;
+  material_ids: string[];
+  likes_count: number;
+  comment_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ThreadComment {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar?: string;
+  content: string;
+  image_url?: string;
+  is_ai_response: boolean;
+  reply_to_comment_id?: string;
+  likes_count: number;
+  created_at: string;
+}
+
+export async function listCommunityThreads(skip = 0, limit = 20): Promise<CommunityThread[]> {
+  return apiFetch<CommunityThread[]>(`/community/threads?skip=${skip}&limit=${limit}`, { skipCache: true });
+}
+
+export async function createCommunityThread(payload: {
+  title: string;
+  description?: string;
+  material_ids: string[];
+  thumbnail_url?: string;
+}): Promise<CommunityThread> {
+  const result = await apiFetch<CommunityThread>("/community/threads", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  invalidateCache("/community/threads");
+  return result;
+}
+
+export async function updateCommunityThread(threadId: string, payload: {
+    title?: string;
+    description?: string;
+    thumbnail_url?: string;
+}): Promise<CommunityThread> {
+    const result = await apiFetch<CommunityThread>(`/community/threads/${threadId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+    });
+    invalidateCache("/community/threads");
+    return result;
+}
+
+export async function getCommunityThread(threadId: string): Promise<CommunityThread> {
+  return apiFetch<CommunityThread>(`/community/threads/${threadId}`, { skipCache: true });
+}
+
+export async function listThreadComments(threadId: string): Promise<ThreadComment[]> {
+  return apiFetch<ThreadComment[]>(`/community/threads/${threadId}/comments`, { skipCache: true });
+}
+
+export async function addThreadComment(threadId: string, content: string, replyToId?: string, imageUrl?: string): Promise<ThreadComment> {
+  return apiFetch<ThreadComment>(`/community/threads/${threadId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ content, reply_to_comment_id: replyToId, image_url: imageUrl }),
+  });
+}
+
+export async function askAICommunity(threadId: string, question: string, replyToId?: string): Promise<ThreadComment> {
+  return apiFetch<ThreadComment>(`/community/threads/${threadId}/ask-ai`, {
+    method: "POST",
+    body: JSON.stringify({ question, reply_to_comment_id: replyToId }),
+  });
+}
+
+export async function likeCommunityThread(threadId: string): Promise<{ likes_count: number; liked_by_user_ids: string[] }> {
+  return apiFetch<{ likes_count: number; liked_by_user_ids: string[] }>(`/community/threads/${threadId}/like`, { method: "POST" });
+}
+
+export async function likeCommunityComment(commentId: string): Promise<{ likes_count: number; liked_by_user_ids: string[] }> {
+  return apiFetch<{ likes_count: number; liked_by_user_ids: string[] }>(`/community/comments/${commentId}/like`, { method: "POST" });
+}
+
+export async function deleteCommunityComment(commentId: string): Promise<void> {
+  await apiFetch(`/community/comments/${commentId}`, { method: "DELETE" });
+}
+
+

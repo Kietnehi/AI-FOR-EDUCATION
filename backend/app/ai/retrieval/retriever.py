@@ -13,12 +13,12 @@ class Retriever:
         self.vector_store = ChromaVectorStore()
         self.reranker = DocumentReranker()
 
-    def retrieve(self, material_id: str, query: str, corpus_chunks: List[Dict] = None) -> List[Dict]:
+    def retrieve(self, material_id: str | list[str], query: str, corpus_chunks: List[Dict] = None) -> List[Dict]:
         """
         Retrieve chunks using Hybrid Search (Vector + BM25) and Re-rank the results.
         
         Args:
-            material_id: The ID of the material to search in.
+            material_id: The ID(s) of the material(s) to search in.
             query: The user query.
             corpus_chunks: Optional list of all chunks for this material (needed for BM25).
         """
@@ -41,7 +41,7 @@ class Retriever:
                 "chunk_id": ids[idx] if idx < len(ids) else "",
                 "chunk_text": doc,
                 "chunk_index": metadata.get("chunk_index", idx),
-                "material_id": metadata.get("material_id", material_id),
+                "material_id": metadata.get("material_id", str(material_id)),
                 "search_type": "vector"
             })
         logger.info(f"🔍 Vector Search found {len(vector_retrieved)} relevant chunks.")

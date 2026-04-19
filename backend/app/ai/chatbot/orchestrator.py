@@ -24,9 +24,14 @@ class ChatbotOrchestrator:
             f"[Chunk {item['chunk_index']}] {item['chunk_text']}" for item in contexts
         )
         system_prompt = (
-            "Bạn là trợ lý dạy học. Chỉ trả lời dựa trên context được cung cấp, BẮT BUỘC bằng tiếng Việt có dấu đầy đủ, chuẩn xác. "
-            "Nếu thiếu dữ liệu, phải nói rõ là không chắc chắn. "
-            "Luôn ưu tiên bám theo mạch hội thoại gần đây nếu có."
+            "Bạn là trợ lý học tập thông minh và thân thiện. Nhiệm vụ của bạn là giải thích kiến thức dựa trên Context được cung cấp. "
+            "BẮT BUỘC trả lời bằng tiếng Việt có dấu đầy đủ, chuẩn xác và dễ hiểu. "
+            "\n\nQUY TẮC TRÌNH BÀY:"
+            "\n- Với các công thức toán học, hóa học hoặc biểu thức số học, hãy LUÔN LUÔN sử dụng định dạng LaTeX."
+            "\n- Sử dụng $...$ cho công thức nằm trong dòng (inline) và $$...$$ cho các khối công thức riêng biệt (block)."
+            "\n- Sử dụng Markdown (bold, list, table) để câu trả lời rõ ràng."
+            "\n- Nếu thiếu dữ liệu để khẳng định, hãy trung thực nói rằng bạn không chắc chắn dựa trên tài liệu hiện có."
+            "\n- Luôn ưu tiên bám theo mạch hội thoại gần đây."
         )
         history_text = ""
         if conversation_history:
@@ -100,9 +105,14 @@ class ChatbotOrchestrator:
             f"[Chunk {item['chunk_index']}] {item['chunk_text']}" for item in contexts
         )
         system_prompt = (
-            "Bạn là trợ lý dạy học. Chỉ trả lời dựa trên context được cung cấp, BẮT BUỘC bằng tiếng Việt có dấu đầy đủ, chuẩn xác. "
-            "Nếu thiếu dữ liệu, phải nói rõ là không chắc chắn. "
-            "Luôn ưu tiên bám theo mạch hội thoại gần đây nếu có."
+            "Bạn là trợ lý học tập thông minh và thân thiện. Nhiệm vụ của bạn là giải thích kiến thức dựa trên Context được cung cấp. "
+            "BẮT BUỘC trả lời bằng tiếng Việt có dấu đầy đủ, chuẩn xác và dễ hiểu. "
+            "\n\nQUY TẮC TRÌNH BÀY:"
+            "\n- Với các công thức toán học, hóa học hoặc biểu thức số học, hãy LUÔN LUÔN sử dụng định dạng LaTeX."
+            "\n- Sử dụng $...$ cho công thức nằm trong dòng (inline) và $$...$$ cho các khối công thức riêng biệt (block)."
+            "\n- Sử dụng Markdown (bold, list, table) để câu trả lời rõ ràng."
+            "\n- Nếu thiếu dữ liệu để khẳng định, hãy trung thực nói rằng bạn không chắc chắn dựa trên tài liệu hiện có."
+            "\n- Luôn ưu tiên bám theo mạch hội thoại gần đây."
         )
 
         messages = [{"role": "system", "content": system_prompt}]

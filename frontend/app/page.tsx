@@ -27,6 +27,7 @@ import { Card } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TiltCard } from "@/components/ui/tilt-card";
+import { MacTerminal } from "@/components/ui/mac-terminal";
 import { TurnstileCaptcha } from "@/components/auth/turnstile-captcha";
 import {
   checkInDaily,
@@ -415,6 +416,40 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Terminal Simulation Section */}
+      <motion.div variants={item} className="order-1">
+        <div className="grid lg:grid-cols-2 gap-8 items-center py-4">
+          <div className="space-y-6">
+            <h2 className="text-2xl font-black text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+              Hệ thống Luồng AI <span className="text-brand-600">Thời gian thực</span>
+            </h2>
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border-l-4 border-brand-500 shadow-sm transition-all hover:translate-x-1">
+                <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">Xử lý đa luồng</p>
+                <p className="text-xs text-[var(--text-secondary)]">Tự động phân tích và trích xuất kiến thức từ nhiều định dạng file đồng thời.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border-l-4 border-accent-500 shadow-sm transition-all hover:translate-x-1">
+                <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">RAG Pipeline Tối ưu</p>
+                <p className="text-xs text-[var(--text-secondary)]">Sử dụng Hybrid Search kết hợp Semantic Chunking để đạt độ chính xác cao nhất.</p>
+              </div>
+              <div className="hidden sm:block p-4 rounded-2xl bg-[var(--bg-secondary)] border-l-4 border-emerald-500 shadow-sm transition-all hover:translate-x-1">
+                <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">Hạ tầng đám mây</p>
+                <p className="text-xs text-[var(--text-secondary)]">Vận hành trên Docker, Redis và MongoDB cho khả năng mở rộng không giới hạn.</p>
+              </div>
+            </div>
+          </div>
+          <MacTerminal 
+            title="ai-studio-core — bash"
+            commands={[
+              { command: "ai-studio start --service rag-pipeline", output: "Starting Multimodal RAG Pipeline...\n✓ Engines: [PDF, Word, TXT, MD, Images] active.\n✓ Context Window: 128k tokens optimized.", delay: 500 },
+              { command: "status check --db mongodb-atlas --vector chromadb", output: "✓ MongoDB Atlas: Connected\n✓ ChromaDB: Collection 'learning-materials' sync complete.\n✓ Redis: Cache warm.", delay: 1200 },
+              { command: "ai-model load --provider gemini --model gemini-3.0-flash", output: "Loading Google Gemini 3.0 Flash...\n✓ Multimodal retrieval initialized.\n✓ Flash-speed STT/TTS ready.", delay: 1800 },
+              { command: "feature-check --all", output: "✓ Slide Generation (PPTX)\n✓ Podcast Studio (MP3)\n✓ Interactive Minigames\n✓ 3D Virtual Assistant\nSTATUS: SYSTEM OPERATIONAL", delay: 1000 },
+            ]}
+          />
         </div>
       </motion.div>
 

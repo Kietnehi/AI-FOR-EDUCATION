@@ -4,10 +4,14 @@ from typing import List
 import numpy as np
 
 # Download NLTK data if not present
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+for resource in ['punkt', 'punkt_tab']:
+    try:
+        if resource == 'punkt':
+            nltk.data.find('tokenizers/punkt')
+        else:
+            nltk.data.find('tokenizers/punkt_tab')
+    except LookupError:
+        nltk.download(resource)
 
 @dataclass
 class Chunk:
@@ -15,7 +19,7 @@ class Chunk:
     chunk_text: str
 
 class SemanticChunker:
-    def __init__(self, embedder, threshold: float = 0.8, min_chunk_size: int = 100, max_chunk_size: int = 2000):
+    def __init__(self, embedder, threshold: float = 0.7, min_chunk_size: int = 300, max_chunk_size: int = 2000):
         """
         Initialize the semantic chunker.
         """
@@ -40,7 +44,7 @@ class SemanticChunker:
             return []
 
         # Embed all sentences at once for efficiency
-        sentence_embeddings = self.embedder.embed_texts(sentences)
+        sentence_embeddings = np.array(self.embedder.embed_texts(sentences))
         
         chunks: List[Chunk] = []
         current_chunk_sentences = [sentences[0]]

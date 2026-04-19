@@ -52,7 +52,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         pip_install_with_retry --index-url "https://download.pytorch.org/whl/cpu" torch; \
         pip_install_with_retry onnxruntime; \
     fi; \
-    pip_install_with_retry -r /tmp/requirements.base.txt
+    pip_install_with_retry -r /tmp/requirements.base.txt && \
+    "$VIRTUAL_ENV/bin/python" -m nltk.downloader -d "$VIRTUAL_ENV/share/nltk_data" punkt punkt_tab
 
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
 

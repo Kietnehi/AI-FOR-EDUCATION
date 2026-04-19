@@ -28,3 +28,18 @@ class UserRepository:
         await self.collection.update_one({"_id": user_id}, {"$set": update_fields})
         doc = await self.collection.find_one({"_id": user_id})
         return serialize_document(doc)
+
+    async def search(self, query: str, limit: int = 10) -> list[dict]:
+        if not query:
+            return []
+        
+        # Simple case-insensitive search on email or name
+        filter_query = {
+            "$or": [
+                {"email": {"$regex": query, "$options": "i"}},
+                {"name": {"$regex": query, "$options": "i"}}
+            ]
+        }
+        cursor = self.collection.find(filter_query).limit(limit)
+        docs = await cursor.to_list(length=limit)
+        return [serialize_document(doc) for doc in docs if doc]

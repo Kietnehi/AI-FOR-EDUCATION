@@ -8,6 +8,7 @@ from fastapi import HTTPException, UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.ai.chunking.semantic_chunker import SemanticChunker
+from app.ai.chunking.text_chunker import TextChunker
 from app.ai.embeddings.openai_embedder import OpenAIEmbedder
 from app.ai.ingestion.text_cleaner import TextCleaner
 from app.ai.parsing.file_parser import FileParser
@@ -20,6 +21,7 @@ from app.repositories.game_repository import GameRepository
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.material_repository import MaterialRepository
+from app.repositories.user_repository import UserRepository
 from app.services.groq_speech_service import GroqSpeechToTextService
 from app.services.material_guardrail_service import MaterialGuardrailService
 from app.services.speech_service import SpeechToTextService
@@ -28,7 +30,8 @@ from app.utils.object_id import parse_object_id
 from app.utils.time import utc_now
 
 _SHARED_EMBEDDER = OpenAIEmbedder()
-_SHARED_CHUNKER = SemanticChunker(embedder=_SHARED_EMBEDDER)
+_FIXED_CHUNKER = TextChunker(chunk_size=settings.chunk_size, overlap=settings.chunk_overlap)
+_SEMANTIC_CHUNKER = SemanticChunker(embedder=_SHARED_EMBEDDER)
 _SHARED_VECTOR_STORE = ChromaVectorStore()
 _SHARED_GUARDRAIL = MaterialGuardrailService()
 _SUPPORTED_TEXT_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
@@ -90,7 +93,9 @@ class MaterialService:
         self.chat_repo = ChatRepository(db)
         self.game_repo = GameRepository(db)
         self.generated_repo = GeneratedContentRepository(db)
-        self.chunker = _SHARED_CHUNKER
+        self.user_repo = UserRepository(db)
+        self.fixed_chunker = _FIXED_CHUNKER
+        self.semantic_chunker = _SEMANTIC_CHUNKER
         self.embedder = _SHARED_EMBEDDER
         self.vector_store = _SHARED_VECTOR_STORE
         self.guardrail = _SHARED_GUARDRAIL
@@ -351,10 +356,29 @@ class MaterialService:
             material = await self.material_repo.get_by_id(material_object_id)
         if not material:
             raise HTTPException(status_code=404, detail="Material not found")
+        
+        material["shared_details"] = await self._resolve_shared_details(material.get("shared_with", []))
         return material
 
+    async def _resolve_shared_details(self, shared_with_ids: list[str]) -> list[dict]:
+        if not shared_with_ids:
+            return []
+        
+        details = []
+        for user_id in shared_with_ids:
+            try:
+                user = await self.user_repo.find_by_id(user_id)
+                if user:
+                    details.append(user)
+            except Exception:
+                continue
+        return details
+
     async def list_materials(self, user_id: str, skip: int, limit: int) -> tuple[list[dict], int]:
-        return await self.material_repo.list_for_user(user_id=user_id, skip=skip, limit=limit)
+        items, total = await self.material_repo.list_for_user(user_id=user_id, skip=skip, limit=limit)
+        for item in items:
+            item["shared_details"] = await self._resolve_shared_details(item.get("shared_with", []))
+        return items, total
 
     async def update_material(
         self,
@@ -382,6 +406,8 @@ class MaterialService:
         )
         if not updated:
             raise HTTPException(status_code=404, detail="Material not found")
+        
+        updated["shared_details"] = await self._resolve_shared_details(updated.get("shared_with", []))
         return updated
 
     async def process_material(
@@ -389,6 +415,7 @@ class MaterialService:
         material_id: str,
         force_reprocess: bool = False,
         user_id: str | None = None,
+        chunking_strategy: str = "fixed",
     ) -> None:
         material_object_id = parse_object_id(material_id)
         job_id = uuid.uuid4().hex
@@ -417,7 +444,10 @@ class MaterialService:
             )
 
             cleaned = TextCleaner.clean(material.get("raw_text", ""))
-            chunks = self.chunker.split(cleaned)
+            
+            chunker = self.semantic_chunker if chunking_strategy == "semantic" else self.fixed_chunker
+            chunks = chunker.split(cleaned)
+            
             texts = [chunk.chunk_text for chunk in chunks]
             embeddings = await asyncio.to_thread(self.embedder.embed_texts, texts)
 
@@ -480,12 +510,14 @@ class MaterialService:
         material_id: str,
         force_reprocess: bool = False,
         user_id: str | None = None,
+        chunking_strategy: str = "fixed",
     ) -> None:
         task = asyncio.create_task(
             self.process_material(
                 material_id,
                 force_reprocess=force_reprocess,
                 user_id=user_id,
+                chunking_strategy=chunking_strategy,
             )
         )
         task.add_done_callback(self._consume_background_exception)
@@ -585,3 +617,52 @@ class MaterialService:
         await self.job_repo.delete_many({"material_id": material_id})
 
         return True
+
+    async def share_material(self, material_id: str, owner_id: str, target_email: str) -> dict:
+        material = await self.get_material(material_id, user_id=owner_id)
+        if material.get("user_id") != owner_id:
+            raise HTTPException(status_code=403, detail="Only material owner can share it")
+
+        target_user = await self.user_repo.find_by_email(target_email)
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Target user not found")
+
+        target_user_id = str(target_user.get("id"))
+        if target_user_id == owner_id:
+            raise HTTPException(status_code=400, detail="Cannot share with yourself")
+
+        shared_with = material.get("shared_with", [])
+        if target_user_id in shared_with:
+            return material
+
+        shared_with.append(target_user_id)
+        updated = await self.material_repo.update(
+            parse_object_id(material_id),
+            {"shared_with": shared_with, "updated_at": utc_now()},
+        )
+        if updated:
+            updated["shared_details"] = await self._resolve_shared_details(updated.get("shared_with", []))
+        return updated or material
+
+    async def unshare_material(self, material_id: str, owner_id: str, target_email: str) -> dict:
+        material = await self.get_material(material_id, user_id=owner_id)
+        if material.get("user_id") != owner_id:
+            raise HTTPException(status_code=403, detail="Only material owner can unshare it")
+
+        target_user = await self.user_repo.find_by_email(target_email)
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Target user not found")
+
+        target_user_id = str(target_user.get("id"))
+        shared_with = material.get("shared_with", [])
+        if target_user_id not in shared_with:
+            return material
+
+        shared_with.remove(target_user_id)
+        updated = await self.material_repo.update(
+            parse_object_id(material_id),
+            {"shared_with": shared_with, "updated_at": utc_now()},
+        )
+        if updated:
+            updated["shared_details"] = await self._resolve_shared_details(updated.get("shared_with", []))
+        return updated or material
