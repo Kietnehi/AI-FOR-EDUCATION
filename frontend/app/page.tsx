@@ -40,7 +40,6 @@ import { subscribeToMaterialsRealtime } from "@/lib/api";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/auth-provider";
 import { useNotify } from "@/components/use-notify";
-import { WorkflowVisualization } from "@/components/home/workflow-visualization";
 
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
@@ -62,6 +61,15 @@ const AIVisualizer = dynamic(() => import("@/components/3d/ai-visualizer").then(
   ssr: false,
   loading: () => <div className="absolute inset-0 z-0 bg-transparent" />
 });
+
+const WorkflowVisualization = dynamic(
+  () => import("@/components/home/workflow-visualization").then((mod) => mod.WorkflowVisualization),
+  {
+    loading: () => (
+      <div className="rounded-[2rem] border border-[var(--border-structural)] bg-[var(--bg-surface)]/70 px-6 py-16 md:px-10 md:py-24" />
+    ),
+  }
+);
 
 const container = {
   hidden: { opacity: 0 },
@@ -1011,7 +1019,7 @@ export default function DashboardPage() {
         </div>
         <div className="relative overflow-hidden rounded-[28px] border border-[var(--border-default)] bg-[var(--bg-secondary)] p-3 shadow-[var(--shadow-lg)] sm:p-4">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.12),transparent_58%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.1),transparent_42%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_58%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_42%)]" />
-        <Card className="relative mb-4 overflow-hidden border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-[var(--shadow-md)]">
+        <Card className="relative overflow-hidden border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-[var(--shadow-md)]">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 mb-2">
@@ -1147,85 +1155,90 @@ export default function DashboardPage() {
           </form>
           )}
         </Card>
-        {contactExpanded ? (
-        <div className="grid gap-3 lg:grid-cols-3">
-          {[
-            {
-              name: "Kietnehi",
-              username: "Kietnehi",
-              role: "AI Engineer & Researcher",
-              gradient: "from-brand-500 to-brand-600",
-            },
-            {
-              name: "ductoanoxo",
-              username: "ductoanoxo",
-              role: "Developer",
-              gradient: "from-accent-500 to-accent-600",
-            },
-            {
-              name: "phatle224",
-              username: "phatle224",
-              role: "Data Engineer",
-              gradient: "from-emerald-500 to-emerald-600",
-            },
-          ].map((contact) => (
-            <a key={contact.username} href={`https://github.com/${contact.username}`} target="_blank" rel="noopener noreferrer" className="no-underline">
-              <Card hover className="group h-full overflow-hidden border-[var(--border-default)] bg-[var(--bg-elevated)] text-center shadow-[var(--shadow-sm)]">
-                {/* Avatar with gradient border */}
-                <div className={`relative mx-auto mb-4 h-20 w-20 rounded-[22px] bg-gradient-to-br ${contact.gradient} p-[3px] group-hover:scale-105 transition-transform duration-300 shadow-[0_18px_32px_-22px_rgba(15,23,42,0.55)]`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={`https://github.com/${contact.username}.png`} 
-                    alt={contact.username} 
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full rounded-[18px] object-cover"
-                  />
-                  <div className="absolute -bottom-1 -right-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 shadow-sm">
-                    <GithubIcon className="w-4 h-4 text-[var(--text-secondary)]" />
-                  </div>
-                </div>
-                
-                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">
-                  {contact.name}
-                </h3>
-                <p className="text-sm text-[var(--text-secondary)] font-medium mb-4">
-                  {contact.role}
-                </p>
-
-                {/* Shields.io badges like README */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4 w-full">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={`https://img.shields.io/github/followers/${contact.username}?style=social`} 
-                    alt="Followers" 
-                    loading="lazy"
-                    decoding="async"
-                    className="h-6 object-contain"
-                  />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`} 
-                    alt="Stars" 
-                    loading="lazy"
-                    decoding="async"
-                    className="h-6 object-contain"
-                  />
-                </div>
-
-                <div className="mt-auto flex items-center justify-center gap-1 text-sm font-medium text-brand-600 opacity-80 transition-opacity group-hover:opacity-100">
-                  Xem Github <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Card>
-            </a>
-          ))}
-        </div>
-        ) : null}
         </div>
       </motion.div>
 
-      {/* Geography Location */}
       <motion.div variants={item} className="order-10 content-auto">
+          <div className="mb-4 flex items-center gap-2">
+            <GithubIcon className="w-5 h-5 text-[var(--text-primary)]" />
+            <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+              Thành viên GitHub
+            </h2>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-3">
+            {[
+              {
+                name: "Kietnehi",
+                username: "Kietnehi",
+                role: "AI Engineer & Researcher",
+                gradient: "from-brand-500 to-brand-600",
+              },
+              {
+                name: "ductoanoxo",
+                username: "ductoanoxo",
+                role: "Developer",
+                gradient: "from-accent-500 to-accent-600",
+              },
+              {
+                name: "phatle224",
+                username: "phatle224",
+                role: "Data Engineer",
+                gradient: "from-emerald-500 to-emerald-600",
+              },
+            ].map((contact) => (
+              <a key={contact.username} href={`https://github.com/${contact.username}`} target="_blank" rel="noopener noreferrer" className="no-underline">
+                <Card hover className="group h-full overflow-hidden border-[var(--border-default)] bg-[var(--bg-elevated)] text-center shadow-[var(--shadow-sm)]">
+                  <div className={`relative mx-auto mb-4 h-20 w-20 rounded-[22px] bg-gradient-to-br ${contact.gradient} p-[3px] group-hover:scale-105 transition-transform duration-300 shadow-[0_18px_32px_-22px_rgba(15,23,42,0.55)]`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://github.com/${contact.username}.png`}
+                      alt={contact.username}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full rounded-[18px] object-cover"
+                    />
+                    <div className="absolute -bottom-1 -right-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 shadow-sm">
+                      <GithubIcon className="w-4 h-4 text-[var(--text-secondary)]" />
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">
+                    {contact.name}
+                  </h3>
+                  <p className="text-sm text-[var(--text-secondary)] font-medium mb-4">
+                    {contact.role}
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4 w-full">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://img.shields.io/github/followers/${contact.username}?style=social`}
+                      alt="Followers"
+                      loading="lazy"
+                      decoding="async"
+                      className="h-6 object-contain"
+                    />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://img.shields.io/github/stars/${contact.username}?style=social&label=Stars`}
+                      alt="Stars"
+                      loading="lazy"
+                      decoding="async"
+                      className="h-6 object-contain"
+                    />
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-center gap-1 text-sm font-medium text-brand-600 opacity-80 transition-opacity group-hover:opacity-100">
+                    Xem Github <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Card>
+              </a>
+            ))}
+          </div>
+      </motion.div>
+
+      {/* Geography Location */}
+      <motion.div variants={item} className="order-11 content-auto">
         <div className="flex items-center gap-2 mb-4">
           <MapPin className="w-5 h-5 text-brand-600" />
           <h2 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>

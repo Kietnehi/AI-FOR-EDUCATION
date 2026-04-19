@@ -9,6 +9,7 @@ class ScheduleEventBase(BaseModel):
     location: Optional[str] = None
     notes: Optional[str] = None
     notified: bool = False
+    completed: bool = False
 
 class ScheduleEventCreate(ScheduleEventBase):
     pass

@@ -138,7 +138,8 @@ export function ScheduleView() {
         start_time: startTime,
         end_time: addMinutesToInputValue(startTime, 60),
         location: "Văn phòng / Online",
-        notes: ""
+        notes: "",
+        completed: false
     };
     setEvents([...events, newEvent]);
   };
@@ -220,6 +221,13 @@ export function ScheduleView() {
 
   const activeEvents = groupedEvents[activeDay] || [];
   const activeDayInfo = DAYS.find(d => d.value === activeDay) || { label: "Tất cả", value: -1, short: "Tất cả", color: "bg-slate-900" };
+
+  const completionPercentage = useMemo(() => {
+    const list = activeDay === -1 ? events : activeEvents.map(ge => ge.event);
+    if (list.length === 0) return 0;
+    const completed = list.filter(e => e.completed).length;
+    return Math.round((completed / list.length) * 100);
+  }, [events, activeEvents, activeDay]);
 
   if (loading) {
     return (
@@ -325,13 +333,15 @@ export function ScheduleView() {
                     <span className="text-[10px] font-black bg-white/20 px-3 py-1 rounded-full uppercase tracking-widest border border-white/10">Mục tiêu ngày</span>
                 </div>
                 <div>
-                    <h3 className="text-4xl font-black tracking-tighter">75%</h3>
-                    <p className="text-indigo-100 text-sm font-medium mt-1">Hoàn thành kế hoạch</p>
+                    <h3 className="text-4xl font-black tracking-tighter">{completionPercentage}%</h3>
+                    <p className="text-indigo-100 text-sm font-medium mt-1">
+                      {completionPercentage === 100 ? "Đã hoàn thành mục tiêu!" : "Hoàn thành kế hoạch"}
+                    </p>
                 </div>
                 <div className="h-3 bg-white/10 rounded-full border border-white/5 overflow-hidden">
                     <motion.div 
                         initial={{ width: 0 }} 
-                        animate={{ width: "75%" }} 
+                        animate={{ width: `${completionPercentage}%` }} 
                         className="h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.5)]" 
                     />
                 </div>
@@ -497,13 +507,31 @@ export function ScheduleView() {
                             </div>
                             </div>
                             <div className="flex-1 p-6 space-y-6">
-                            <input 
-                                type="text" 
-                                value={event.title} 
-                                onChange={(e) => updateEvent(originalIndex, 'title', e.target.value)} 
-                                className="w-full text-2xl font-black text-[var(--text-primary)] bg-transparent border-none focus:ring-0 p-0 placeholder:text-[var(--text-muted)]/30 tracking-tight" 
-                                placeholder="Tên sự kiện của bạn..." 
-                            />
+                            <div className="flex items-center gap-4">
+                              <button 
+                                onClick={() => updateEvent(originalIndex, 'completed', !event.completed)}
+                                className={cn(
+                                  "w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
+                                  event.completed 
+                                    ? "bg-green-500 border-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.3)]" 
+                                    : "border-[var(--border-structural)] hover:border-indigo-500 text-transparent"
+                                )}
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </button>
+                              <input 
+                                  type="text" 
+                                  value={event.title} 
+                                  onChange={(e) => updateEvent(originalIndex, 'title', e.target.value)} 
+                                  className={cn(
+                                    "w-full text-2xl font-black bg-transparent border-none focus:ring-0 p-0 placeholder:text-[var(--text-muted)]/30 tracking-tight transition-all",
+                                    event.completed ? "text-[var(--text-muted)] line-through opacity-70" : "text-[var(--text-primary)]"
+                                  )} 
+                                  placeholder="Tên sự kiện của bạn..." 
+                              />
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div className="flex items-center gap-3 text-[var(--text-secondary)] bg-[var(--bg-secondary)]/50 px-4 py-3 rounded-2xl border-2 border-[var(--border-structural)] focus-within:border-indigo-500/40 transition-all">
                                     <MapPin className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
@@ -588,9 +616,29 @@ export function ScheduleView() {
                                               <X className="w-4 h-4" />
                                            </Button>
                                         </div>
-                                        <h4 className="text-sm font-black text-[var(--text-primary)] line-clamp-2 mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight">
-                                           {event.title}
-                                        </h4>
+                                        
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); updateEvent(originalIndex, 'completed', !event.completed); }}
+                                              className={cn(
+                                                "w-5 h-5 rounded border-2 flex items-center justify-center transition-all shrink-0 mt-0.5",
+                                                event.completed 
+                                                  ? "bg-green-500 border-green-500 text-white" 
+                                                  : "border-[var(--border-structural)] hover:border-indigo-500 text-transparent"
+                                              )}
+                                            >
+                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                            </button>
+                                            <h4 className={cn(
+                                              "text-sm font-black line-clamp-2 transition-all leading-tight",
+                                              event.completed ? "text-[var(--text-muted)] line-through" : "text-[var(--text-primary)] group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+                                            )}>
+                                              {event.title}
+                                            </h4>
+                                        </div>
+
                                         {event.location && (
                                             <div className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)] font-bold truncate bg-[var(--bg-secondary)]/50 p-2 rounded-lg border border-[var(--border-structural)]">
                                                <MapPin className="w-3.5 h-3.5 text-indigo-400" /> {event.location}
@@ -711,6 +759,26 @@ export function ScheduleView() {
                   />
                 </div>
               </div>
+            </div>
+            <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Trạng thái</label>
+                <div 
+                  onClick={() => setTempEvent({ ...tempEvent, completed: !tempEvent.completed })}
+                  className={cn(
+                    "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                    tempEvent.completed 
+                      ? "bg-green-500/10 border-green-500/50 text-green-600 dark:text-green-400" 
+                      : "bg-[var(--bg-secondary)] border-[var(--border-structural)] text-[var(--text-muted)]"
+                  )}
+                >
+                  <div className={cn(
+                    "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all",
+                    tempEvent.completed ? "bg-green-500 border-green-500 text-white" : "border-slate-300 dark:border-slate-600"
+                  )}>
+                    {tempEvent.completed && <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                  <span className="text-sm font-bold">{tempEvent.completed ? "Đã hoàn thành" : "Chưa hoàn thành"}</span>
+                </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-structural)]">
