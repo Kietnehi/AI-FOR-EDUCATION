@@ -451,7 +451,7 @@ export default function ThreadDetailPage() {
 
                         {/* Input Area */}
                         <div 
-                            className={`p-6 border-t-2 border-[var(--border-structural)] bg-[var(--bg-elevated)] shrink-0 shadow-2xl relative transition-all ${isDragging ? "bg-brand-500/5 ring-4 ring-brand-500/20 inset-shadow-sm" : ""}`}
+                            className={`p-4 border-t-2 border-[var(--border-structural)] bg-[var(--bg-elevated)] shrink-0 shadow-2xl relative transition-all ${isDragging ? "bg-brand-500/5 ring-4 ring-brand-500/20 inset-shadow-sm" : ""}`}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
                             onDrop={handleDrop}
@@ -487,17 +487,17 @@ export default function ThreadDetailPage() {
                                 )}
                             </AnimatePresence>
 
-                            <form onSubmit={handleSend} className="space-y-4">
-                                <div className="space-y-4">
+                            <form onSubmit={handleSend} className="space-y-3">
+                                <div className="space-y-3">
                                     <div className="flex items-center gap-3">
-                                        <button type="button" onClick={() => setAskAI(!askAI)} className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all cursor-pointer ${askAI ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30 scale-105" : "bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-2 border-[var(--border-structural)] hover:border-brand-500 hover:text-brand-500"}`}>
+                                        <button type="button" onClick={() => setAskAI(!askAI)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all cursor-pointer ${askAI ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30 scale-105" : "bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-2 border-[var(--border-structural)] hover:border-brand-500 hover:text-brand-500"}`}>
                                             <Bot className="h-4 w-4" /> {askAI ? "AI Đã kích hoạt" : "Hỏi AI"}
                                         </button>
                                         <button 
                                             type="button" 
                                             onClick={() => commentFileInputRef.current?.click()}
                                             disabled={uploadingCommentImage}
-                                            className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-2 border-[var(--border-structural)] hover:border-brand-500 hover:text-brand-500 transition-all cursor-pointer disabled:opacity-50"
+                                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-2 border-[var(--border-structural)] hover:border-brand-500 hover:text-brand-500 transition-all cursor-pointer disabled:opacity-50"
                                         >
                                             {uploadingCommentImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
                                             {commentImage ? "Đổi ảnh" : "Đính kèm ảnh"}
@@ -532,10 +532,14 @@ export default function ThreadDetailPage() {
                                             onPaste={handlePaste}
                                             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); } }} 
                                             placeholder={askAI ? "Bạn muốn AI phân tích tài liệu như thế nào?" : "Viết bình luận của bạn..."} 
-                                            className="w-full p-6 pr-20 rounded-[2rem] border-2 border-[var(--border-structural)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-brand-500 focus:bg-[var(--bg-elevated)] transition-all min-h-[80px] max-h-[250px] text-sm shadow-inner" 
+                                            className="w-full p-4 pr-16 rounded-3xl border-2 border-[var(--border-structural)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-brand-500 focus:bg-[var(--bg-elevated)] transition-all min-h-[44px] max-h-[200px] text-sm shadow-inner" 
                                         />
-                                        <button type="submit" disabled={(!input.trim() && !commentImage) || submitting} className="absolute right-4 bottom-4 h-12 w-12 rounded-[1.25rem] bg-brand-500 text-white disabled:opacity-20 disabled:grayscale flex items-center justify-center shadow-xl shadow-brand-500/30 active:scale-90 transition-all hover:bg-brand-600 cursor-pointer">
-                                            {submitting ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
+                                        <button 
+                                            type="submit" 
+                                            disabled={(!input.trim() && !commentImage) || submitting} 
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-brand-500 text-white disabled:opacity-30 disabled:grayscale flex items-center justify-center shadow-lg shadow-brand-500/40 active:scale-90 transition-all hover:bg-brand-600 cursor-pointer border-2 border-white/20"
+                                        >
+                                            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                                         </button>
                                     </div>
                                 </div>
