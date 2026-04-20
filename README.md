@@ -63,10 +63,10 @@
 
 Dự án được chia thành 2 luồng xử lý chính:
 
-  * **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống tự động trích xuất tri thức từ tài liệu (PDF, Word, Excel) và sử dụng các LLM (OpenAI, Gemini) để giải đáp thắc mắc của học sinh một cách chính xác.
-  * **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (nhận diện giọng nói bằng Whisper, đọc ảnh bằng OCR), kết hợp tìm kiếm web (Tavily) để tự động hóa việc tạo ra các học liệu trực quan như: Slide bài giảng, Video, Infographic, âm thanh (TTS) và tự động chấm điểm (SCORE).
+  * **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống sử dụng **Advanced RAG Pipeline** (Semantic Chunking, Hybrid Search, Re-ranking) để trích xuất tri thức từ tài liệu (PDF, Word, Excel) và giải đáp thắc mắc của học sinh với độ chính xác cao nhất (citations đi kèm).
+  * **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (Whisper STT, OCR), kết hợp tìm kiếm web (Tavily, SerpAPI) để tự động hóa việc tạo ra các học liệu trực quan: Slide bài giảng, Podcast, Minigame, và Video/Infographic.
 
-**🛠 Công nghệ cốt lõi:** FastAPI, Node.js, MongoDB, Hệ sinh thái Vector DB (Chroma, Pinecone, Milvus), và đa dạng mô hình AI (LLM, Hugging Face).
+**🛠 Công nghệ cốt lõi:** FastAPI, Next.js 14, MongoDB, ChromaDB (Vector Store), và hệ sinh thái mô hình AI tiên tiến (Gemini, OpenAI, Groq).
 
 
 <p align="center">
@@ -77,19 +77,18 @@ Dự án được chia thành 2 luồng xử lý chính:
 
 ## Tính năng chính
 
-- 📊 **Tạo slide bài giảng** `.pptx` tự động bằng `python-pptx`
-- 🎙️ **Tạo podcast script** với cấu trúc speaker/timeline (có placeholder cho TTS)
-- 🎮 **Tạo minigame/quiz** tương tác (trắc nghiệm, điền từ, flashcard, ghép cặp)
-- 🤖 **Chatbot RAG** hỏi đáp theo học liệu với citations từ nguồn gốc
-- 🌐 **Web Search cho Chatbot RAG**: hỗ trợ hỏi đáp bằng dữ liệu web mới nhất, có thể ưu tiên Google Search grounding hoặc Tavily Search và hiển thị danh sách nguồn tham khảo
-- 🧭 **Web Search cho Mascot**: mascot có thể bật chế độ tìm kiếm web để trả lời các câu hỏi thời sự/ngoài tài liệu, với cơ chế fallback về chat thường khi search gặp lỗi
-- 🎤 **Speech-to-Text cho Chatbot**: ghi âm bằng mic và chuyển giọng nói thành chữ
-  - Local: `openai-whisper` model `base`
-  - Cloud: Groq `whisper-large-v3` hoặc `whisper-large-v3-turbo`
-- 🔊 **Text-to-Speech**: chuyển văn bản thành giọng nói tiếng Việt
-- � **YouTube Interactive Lesson**: Tạo bài học tương tác từ video YouTube với transcript, câu hỏi, giải thích và hỗ trợ dịch đa ngôn ngữ
-- �🌙 **Dark mode** hoàn chỉnh
-- 📱 **Responsive** trên mọi kích thước màn hình
+- 📊 **Tạo slide bài giảng** `.pptx` tự động từ tài liệu học tập.
+- 🎙️ **Tạo podcast script** với cấu trúc speaker/timeline và hỗ trợ TTS.
+- 🎮 **Tạo minigame/quiz** tương tác (MCQ, điền từ, flashcard, ghép cặp).
+- 🤖 **Chatbot RAG Nâng Cao**: Hỏi đáp theo học liệu với cơ chế **Hybrid Search** (Vector + BM25) và **FlashRank Re-ranking** giúp kết quả chính xác vượt trội.
+- 🧩 **Semantic Chunking**: Chia nhỏ tài liệu thông minh theo ngữ nghĩa thay vì giới hạn từ (token), giữ trọn vẹn ngữ cảnh.
+- 🏁 **Mục tiêu ngày (Daily Goals)**: Tự động theo dõi tiến trình học tập dựa trên lịch trình, hiển thị phần trăm hoàn thành theo thời gian thực.
+- 🧭 **Web Search thông minh**: Mascot và Chatbot có thể tra cứu Web (Tavily/Google Search/SerpAPI) để bổ trợ kiến thức mới nhất.
+- 🎥 **YouTube Interactive Lesson**: Tạo bài học từ video YouTube, dùng **SerpAPI** lấy transcript siêu tốc và tạo câu hỏi tương tác.
+- 🎤 **Speech-to-Text đa dạng**: Hỗ trợ Whisper (Local) hoặc Groq Cloud (Tốc độ cao).
+- 🔊 **Text-to-Speech**: Chuyển văn bản thành giọng nói tiếng Việt tự nhiên.
+- 💻 **Premium AI Terminal**: Giao diện console mô phỏng macOS cực đẹp giúp người dùng theo dõi tiến trình xử lý AI.
+- 📐 **3D Mascot Assistant**: Trợ lý ảo 3D tích hợp Three.js tương tác sinh động.
 
 > **Lưu ý:** MongoDB sử dụng MongoDB Atlas qua `MONGO_URI`
 
@@ -121,15 +120,16 @@ Dự án được chia thành 2 luồng xử lý chính:
 | Pydantic / pydantic-settings | Validation schema và cấu hình ứng dụng |
 | Motor / PyMongo | Kết nối và thao tác MongoDB |
 | ChromaDB | Vector database lưu embeddings cục bộ |
+| FlashRank | Re-ranker model giúp tối ưu độ chính xác của RAG |
+| BM25 (Rank-BM25) | Thuật toán tìm kiếm từ khóa kết hợp với Vector Search |
 | OpenAI API | Sinh nội dung, embeddings và fallback model |
-| Google Gemini (`google-genai`) | LLM chính cho nhiều luồng AI |
-| Groq API | Speech-to-Text cloud |
-| OpenAI Whisper | Speech-to-Text local |
-| gTTS | Text-to-Speech |
+| Google Gemini (`google-genai`) | LLM chính (hỗ trợ xoay vòng nhiều API Key) |
+| Groq API | Speech-to-Text cloud tốc độ cao |
+| SerpAPI | Lấy dữ liệu transcript và metadata YouTube siêu tốc |
 | Docling / PyPDF / python-docx / pandas / openpyxl / Pillow | Trích xuất và xử lý tài liệu đa định dạng |
 | python-pptx | Tạo slide PowerPoint tự động |
-| Tavily Search / DuckDuckGo Search / DDGS / Google Books API | Tìm kiếm web và sách |
-| Playwright | Tự động hóa trình duyệt cho một số luồng tích hợp |
+| Tavily Search / DuckDuckGo Search / Google Books API | Tìm kiếm web và sách |
+| Playwright | Tự động hóa trình duyệt (luồng NotebookLM) |
 
 ### Dữ liệu, hàng đợi và lưu trữ
 
@@ -176,14 +176,16 @@ Dự án được chia thành 2 luồng xử lý chính:
 ```mermaid
 flowchart LR
     A[Upload tài liệu] --> B[Trích xuất text]
-    B --> C[Làm sạch & Chunking]
+    B --> C[Làm sạch & Semantic Chunking]
     C --> D[Tạo Embeddings]
     D --> E[Lưu ChromaDB + MongoDB]
-    E --> F{Tạo nội dung}
-    F --> G[📊 Slides]
-    F --> H[🎙️ Podcast]
-    F --> I[🎮 Minigame]
-    F --> J[🤖 Chatbot RAG]
+    E --> F[Hybrid Search: Vector + BM25]
+    F --> G[FlashRank Re-ranking]
+    G --> H{Tạo nội dung}
+    H --> I[📊 Slides]
+    H --> J[🎙️ Podcast]
+    H --> K[🎮 Minigame]
+    H --> L[🤖 Chatbot RAG]
 ```
 
 1. Người dùng nhập hoặc tải file học liệu (PDF/DOCX/TXT/MD).
@@ -206,12 +208,12 @@ AI-FOR-EDUCATION/
 │  ├─ app/                      ← Logic ứng dụng chính
 │  │  ├─ ai/                    ← Các module xử lý AI (RAG, Chatbot, Embeddings,...)
 │  │  │  ├─ chatbot/            ← Điều phối chatbot và logic hội thoại
-│  │  │  ├─ chunking/           ← Chia nhỏ tài liệu để xử lý RAG
+│  │  │  ├─ chunking/           ← Chia nhỏ tài liệu (Semantic vs Text Chunker)
 │  │  │  ├─ embeddings/         ← Chuyển đổi văn bản thành vector
 │  │  │  ├─ generation/         ← Tạo nội dung (Slides, Podcast, Minigame,...)
 │  │  │  ├─ ingestion/          ← Làm sạch và nạp dữ liệu đầu vào
 │  │  │  ├─ parsing/            ← Trích xuất text từ các định dạng file (PDF, Word,...)
-│  │  │  ├─ retrieval/          ← Truy xuất thông tin từ Vector DB
+│  │  │  ├─ retrieval/          ← Truy xuất (Hybrid Search + FlashRank Reranker)
 │  │  │  └─ vector_store/       ← Quản lý lưu trữ vector (ChromaDB)
 │  │  ├─ api/                   ← Định nghĩa các Endpoints REST API
 │  │  ├─ core/                  ← Cấu hình hệ thống, biến môi trường, logging
@@ -221,49 +223,26 @@ AI-FOR-EDUCATION/
 │  │  ├─ schemas/               ← Data Transfer Objects (DTO) cho API request/response
 │  │  ├─ services/              ← Business logic xử lý yêu cầu nghiệp vụ
 │  │  │  ├─ storage.py          ← MinIO/Cloudflare R2 storage service
-│  │  │  ├─ material_service.py ← Material management
-│  │  │  ├─ generation_service.py← Content generation
-│  │  │  ├─ chat_service.py     ← Chatbot RAG service
-│  │  │  ├─ file_service.py     ← File handling service
-│  │  │  ├─ game_service.py     ← Minigame service
-│  │  │  ├─ notebooklm_service.py← NotebookLM integration
-│  │  │  ├─ web_search_service.py← Web search (Tavily/Google)
-│  │  │  ├─ speech_service.py   ← Speech-to-Text service
-│  │  │  ├─ tts_service.py      ← Text-to-Speech service
+│  │  │  ├─ material_service.py ← Quản lý học liệu
+│  │  │  ├─ generation_service.py← Tạo nội dung tự động
+│  │  │  ├─ chat_service.py     ← Trợ lý chatbot RAG
+│  │  │  ├─ youtube_lesson_service.py ← Xử lý bài học YouTube (SerpAPI)
 │  │  │  └─ ...
-│  │  ├─ tasks.py               ← Celery background tasks
-│  │  ├─ utils/                 ← Các hàm tiện ích dùng chung
+│  │  ├─ tasks.py               ← Celery background tasks (Slides, Email, Reminders)
 │  │  └─ main.py                ← File chạy chính của FastAPI
-│  ├─ storage/                  ← Thư mục lưu trữ dữ liệu cục bộ
-│  │  ├─ chroma/                ← Cơ sở dữ liệu Vector (Persistent)
-│  │  ├─ extracted/             ← Dữ liệu text trích xuất từ file
-│  │  ├─ generated/             ← Sản phẩm AI tạo ra (Slides, Audio,...)
-│  │  ├─ images/                ← Hình ảnh trích xuất từ tài liệu
-│  │  ├─ notebooklm/            ← File tạm xử lý cho NotebookLM
-│  │  ├─ outputs/               ← Kết quả xử lý tổng hợp
-│  │  └─ uploads/               ← Tài liệu người dùng tải lên
-│  ├─ tests/                    ← Unit tests và Integration tests backend
-│  ├─ Dockerfile                ← Docker cấu hình cho backend
-│  ├─ requirements.txt          ← Danh sách thư viện Python
-│  └─ .env.example              ← Mẫu file biến môi trường backend
 ├─ frontend/                    ← Mã nguồn Giao diện (Next.js + TailwindCSS)
 │  ├─ app/                      ← Các trang và Layout (Next.js App Router)
-│  │  ├─ chatbot/               ← Giao diện chat hỏi đáp
-│  │  ├─ converter/             ← Công cụ chuyển đổi định dạng
-│  │  ├─ generated/             ← Quản lý các nội dung đã tạo
-│  │  ├─ materials/             ← Quản lý và xem chi tiết học liệu
-│  │  ├─ globals.css            ← Cấu hình Tailwind v4 và styles toàn cục
-│  │  ├─ layout.tsx             ← Cấu trúc khung trang chính
-│  │  └─ page.tsx               ← Trang chủ Dashboard
-│  ├─ components/               ← Các thành phần UI dùng chung
-│  │  ├─ 3d/                    ← Các hiệu ứng 3D (nếu có)
-│  │  ├─ converter/             ← UI cho phần converter
-│  │  ├─ layout/                ← Sidebar, Topbar, AppShell
-│  │  ├─ minigame/              ← Các component trò chơi tương tác
-│  │  ├─ ui/                    ← Các UI nguyên tử (Button, Card, Toast,...)
-│  ├─ lib/                      ← Thư viện hỗ trợ, API Client, utils frontend
-│  ├─ public/                   ← Tài nguyên tĩnh (Logo, Icons, Fonts)
-│  ├─ test/                     ← Kiểm thử frontend (Unit/Integration)
+│  │  ├─ chatbot/               ← Trợ lý học tập trực tiếp
+│  │  ├─ schedule/              ← Quản lý lịch trình & Daily Goals
+│  │  ├─ materials/             ← Quản lý học liệu số
+│  │  └─ ...
+│  ├─ components/               ← Thành phần UI dùng chung
+│  │  ├─ 3d/                    ← Mascot 3D (Three.js)
+│  │  ├─ layout/                ← Sidebar, AppShell, Navigation
+│  │  ├─ ui/                    ← MacTerminal, Glassy Buttons, Cards
+│  │  └─ ...
+│  ├─ lib/                      ← API Client (apiFetch), State, Utilities
+│  ├─ public/                   ← Tài nguyên tĩnh (3D Models, Icons, Logos)
 │  ├─ types/                    ← Định nghĩa kiểu dữ liệu TypeScript
 │  ├─ Dockerfile                ← Docker cấu hình cho frontend
 │  ├─ package.json              ← Quản lý thư viện Node.js

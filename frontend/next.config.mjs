@@ -8,6 +8,22 @@ const backendApiBase = configuredBackendApiBase.replace(/\/+$/, "");
 
 const nextConfig = {
     output: "standalone",
+    images: {
+        remotePatterns: [
+            {
+                protocol: "https",
+                hostname: "lh3.googleusercontent.com",
+                port: "",
+                pathname: "/a/**",
+            },
+            {
+                protocol: "https",
+                hostname: "api.dicebear.com",
+                port: "",
+                pathname: "/**",
+            },
+        ],
+    },
     experimental: {
         optimizePackageImports: ["lucide-react", "framer-motion", "@react-three/fiber", "@react-three/drei", "three"],
     },

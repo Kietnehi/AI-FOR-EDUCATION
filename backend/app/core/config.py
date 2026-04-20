@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com"
     
+    serpapi_api_key: str = ""
+    
     pexels_api_key: str = ""
 
     ocr_space_api_key: str = ""

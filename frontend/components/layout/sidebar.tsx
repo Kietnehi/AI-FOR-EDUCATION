@@ -15,6 +15,7 @@ import {
   FileText,
   Globe,
   PlayCircle,
+  Users,
   ChevronLeft,
   Settings,
   GripVertical,
@@ -34,17 +35,18 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: "/",                  label: "Dashboard",              icon: LayoutDashboard },
-  { href: "/learning-progress", label: "Tiến độ học tập",        icon: TrendingUp },
-  { href: "/materials",         label: "Học liệu",               icon: BookOpen },
-  { href: "/materials/upload",  label: "Tải lên",                icon: Upload },
-  { href: "/materials/video",   label: "Tạo Video AI",           icon: Clapperboard },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/learning-progress", label: "Tiến độ học tập", icon: TrendingUp },
+  { href: "/materials", label: "Học liệu", icon: BookOpen },
+  { href: "/materials/upload", label: "Tải lên", icon: Upload },
+  { href: "/materials/video", label: "Tạo Video AI", icon: Clapperboard },
   { href: "/materials/youtube-lesson", label: "YouTube Tương tác", icon: PlayCircle },
-  { href: "/chatbot",           label: "Chatbot RAG",            icon: MessageSquareText },
-  { href: "/web-search",        label: "Search Website Online",  icon: Globe },
-  { href: "/generated",         label: "Nội dung AI",            icon: Sparkles },
-  { href: "/schedule",          label: "Lịch học & làm việc",    icon: Calendar },
-  { href: "/converter",         label: "Chuyển đổi & trích xuất", icon: FileText },
+  { href: "/community", label: "Cộng đồng", icon: Users },
+  { href: "/chatbot", label: "Chatbot RAG", icon: MessageSquareText },
+  { href: "/web-search", label: "Search Website Online", icon: Globe },
+  { href: "/generated", label: "Nội dung AI", icon: Sparkles },
+  { href: "/schedule", label: "Lịch học & làm việc", icon: Calendar },
+  { href: "/converter", label: "Chuyển đổi & trích xuất", icon: FileText },
 ];
 
 const navHrefSet = new Set(navItems.map((item) => item.href));
@@ -196,7 +198,7 @@ export const Sidebar = memo(function Sidebar({
     if (!user || !loadedFromPreferencesRef.current) return;
 
     const saveTimer = window.setTimeout(() => {
-      updateUserPreferences({ sidebar_order: orderedHrefs }).catch(() => {});
+      updateUserPreferences({ sidebar_order: orderedHrefs }).catch(() => { });
     }, 250);
 
     return () => window.clearTimeout(saveTimer);

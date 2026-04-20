@@ -155,6 +155,8 @@ class ChatService:
             session_id, limit=settings.chat_memory_turns
         )
 
+        corpus_chunks = await self.material_service.material_repo.list_chunks(session["material_id"])
+        
         sync_gen = self.orchestrator.stream_answer(
             session["material_id"],
             message,
@@ -163,6 +165,7 @@ class ChatService:
             model=model,
             reasoning_enabled=reasoning_enabled,
             use_gemini_rotation=use_gemini_rotation,
+            corpus_chunks=corpus_chunks,
         )
 
         full_content = ""
@@ -267,6 +270,8 @@ class ChatService:
             session_id, limit=settings.chat_memory_turns
         )
 
+        corpus_chunks = await self.material_service.material_repo.list_chunks(session["material_id"])
+
         result = await asyncio.to_thread(
             self.orchestrator.answer,
             session["material_id"],
@@ -276,6 +281,7 @@ class ChatService:
             model=model,
             reasoning_enabled=reasoning_enabled,
             use_gemini_rotation=use_gemini_rotation,
+            corpus_chunks=corpus_chunks,
         )
 
         llm_metadata = {

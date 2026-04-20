@@ -40,3 +40,7 @@ requests
 prometheus-fastapi-instrumentator
 youtube-transcript-api
 yt-dlp
+rank-bm25
+flashrank
+nltk
+serpapi

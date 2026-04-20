@@ -83,3 +83,14 @@ async def logout(response: Response) -> LogoutResponse:
 @router.get("/auth/me", response_model=AuthUser)
 async def get_me(user: AuthUser = Depends(get_current_user)) -> AuthUser:
     return user
+
+
+@router.get("/auth/users/search", response_model=list[AuthUser])
+async def search_users(
+    q: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: AuthUser = Depends(get_current_user),
+) -> list[AuthUser]:
+    user_repo = UserRepository(db)
+    results = await user_repo.search(q)
+    return [AuthUser(**u) for u in results]

@@ -128,6 +128,16 @@ export default function MaterialDetailPage() {
     message: "",
     type: "success",
   });
+  const [showProcessDialog, setShowProcessDialog] = useState(false);
+  const [chunkingStrategy, setChunkingStrategy] = useState<"semantic" | "fixed">("fixed");
+
+  // Wrapper để vừa hiện toast cũ, vừa thêm vào notification system mới
+  const showToastAndNotify = (message: string, type: "success" | "error" | "info") => {
+    setToast({ message, type });
+    if (type === "success") success(message);
+    else if (type === "error") error(message);
+    else info(message);
+  };
 
   // Wrapper để vừa hiện toast cũ, vừa thêm vào notification system mới
   const showToastAndNotify = (message: string, type: "success" | "error" | "info") => {
@@ -223,10 +233,14 @@ export default function MaterialDetailPage() {
   }, [selectedInfographic]);
 
   async function handleProcess() {
+    setShowProcessDialog(false);
     setBusyAction("process");
     try {
-      await processMaterial(materialId);
-      showToastAndNotify("Đã xếp hàng xử lý tài liệu thành công!", "success");
+      await processMaterial(materialId, { 
+        force_reprocess: true, 
+        chunking_strategy: chunkingStrategy 
+      });
+      showToastAndNotify("Đã xếp hàng xử lý tài liệu với cấu hình mới thành công!", "success");
       const updated = await getMaterial(materialId);
       setMaterial(updated);
     } catch (error) {
@@ -748,7 +762,7 @@ export default function MaterialDetailPage() {
             <Button
               variant="secondary"
               icon={<Settings className="w-4 h-4 animate-spin" style={{ animationDuration: busyAction === "process" ? "1s" : "0s", animationPlayState: busyAction === "process" ? "running" : "paused" }} />}
-              onClick={handleProcess}
+              onClick={() => setShowProcessDialog(true)}
               loading={busyAction === "process"}
             >
               {busyAction === "process" ? "Đang xử lý..." : "Xử lý tài liệu"}
@@ -1815,6 +1829,105 @@ export default function MaterialDetailPage() {
             </div>
         </div>
       </Dialog>
+      {/* Processing Strategy Dialog */}
+      {showProcessDialog &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm"
+            onClick={() => setShowProcessDialog(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="relative w-full max-w-2xl rounded-[28px] border border-white/10 bg-[var(--bg-elevated)] p-7 shadow-[0_30px_80px_rgba(2,6,23,0.45)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setShowProcessDialog(false)}
+                className="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-brand-100 flex items-center justify-center mb-4">
+                  <Settings className="w-6 h-6 text-brand-600" />
+                </div>
+                <h3 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
+                  Cấu hình xử lý học liệu
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
+                  Chọn phương pháp chia nhỏ tài liệu (chunking) để AI đạt hiệu quả tốt nhất.
+                </p>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                {/* Fixed Strategy Option */}
+                <div 
+                  className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+                    chunkingStrategy === "fixed" 
+                      ? "border-brand-500 bg-brand-50/10" 
+                      : "border-[var(--border-light)] hover:border-brand-300"
+                  }`}
+                  onClick={() => setChunkingStrategy("fixed")}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${chunkingStrategy === "fixed" ? "border-brand-500" : "border-[var(--border-light)]"}`}>
+                      {chunkingStrategy === "fixed" && <div className="w-2 h-2 rounded-full bg-brand-500" />}
+                    </div>
+                    <span className="font-bold text-[var(--text-primary)]">Mặc định (Fixed Size + Overlap)</span>
+                  </div>
+                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed ml-7">
+                    Chia tài liệu thành các đoạn có độ dài cố định (2500 tokens) và gối đầu (500 tokens). 
+                    <strong className="block mt-1 text-brand-600">Ưu điểm: Ổn định nhất, không mất thông tin ở các điểm cắt, tốc độ xử lý nhanh.</strong>
+                  </p>
+                </div>
+
+                {/* Semantic Strategy Option */}
+                <div 
+                  className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+                    chunkingStrategy === "semantic" 
+                      ? "border-accent-500 bg-accent-50/10" 
+                      : "border-[var(--border-light)] hover:border-accent-300"
+                  }`}
+                  onClick={() => setChunkingStrategy("semantic")}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${chunkingStrategy === "semantic" ? "border-accent-500" : "border-[var(--border-light)]"}`}>
+                      {chunkingStrategy === "semantic" && <div className="w-2 h-2 rounded-full bg-accent-500" />}
+                    </div>
+                    <span className="font-bold text-[var(--text-primary)]">Tự động theo ngữ nghĩa (Semantic Chunking)</span>
+                  </div>
+                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed ml-7">
+                    Dùng AI để nhận diện các điểm chuyển giao chủ đề và tự động tách đoạn khi nội dung thay đổi.
+                    <strong className="block mt-1 text-accent-600">Ưu điểm: Các đoạn trích có nội dung hoàn chỉnh và tập trung vào một chủ đề duy nhất.</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => setShowProcessDialog(false)}
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  fullWidth
+                  onClick={handleProcess}
+                  loading={busyAction === "process"}
+                  icon={<Sparkles className="w-4 h-4" />}
+                >
+                  Bắt đầu xử lý
+                </Button>
+              </div>
+            </motion.div>
+          </div>,
+          document.body
+        )}
     </motion.div>
   );
 }

@@ -21,9 +21,8 @@ class MaterialRepository:
         return serialize_document(await self.collection.find_one({"_id": material_id}))
 
     async def get_by_id_for_user(self, material_id: ObjectId, user_id: str) -> dict | None:
-        return serialize_document(
-            await self.collection.find_one({"_id": material_id, "user_id": user_id})
-        )
+        query = {"_id": material_id, "$or": [{"user_id": user_id}, {"shared_with": user_id}]}
+        return serialize_document(await self.collection.find_one(query))
 
     async def list(self, skip: int, limit: int) -> tuple[list[dict], int]:
         cursor = self.collection.find().sort("created_at", -1).skip(skip).limit(limit)
@@ -34,7 +33,7 @@ class MaterialRepository:
         return [item for item in items if item], total
 
     async def list_for_user(self, user_id: str, skip: int, limit: int) -> tuple[list[dict], int]:
-        query = {"user_id": user_id}
+        query = {"$or": [{"user_id": user_id}, {"shared_with": user_id}]}
         cursor = self.collection.find(query).sort("created_at", -1).skip(skip).limit(limit)
         items_task = cursor.to_list(length=limit)
         total_task = self.collection.count_documents(query)

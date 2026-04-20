@@ -10,8 +10,10 @@ import {
   Filter,
   Pencil,
   Search,
+  Share2,
   Trash2,
   Upload,
+  UserMinus,
   X,
 } from "lucide-react";
 
@@ -21,9 +23,18 @@ import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardSkeleton } from "@/components/ui/skeleton";
-import { deleteMaterial, listMaterials, subscribeToMaterialsRealtime, updateMaterial } from "@/lib/api";
-import { Material } from "@/types";
+import {
+  deleteMaterial,
+  listMaterials,
+  searchUsers,
+  shareMaterial,
+  subscribeToMaterialsRealtime,
+  unshareMaterial,
+  updateMaterial,
+} from "@/lib/api";
+import { AuthUser, Material } from "@/types";
 import { useNotify } from "@/components/use-notify";
+import { useAuth } from "@/components/auth-provider";
 
 const container = {
   hidden: { opacity: 0 },
@@ -55,6 +66,13 @@ export default function MaterialsPage() {
     education_level: "",
     tags: "",
   });
+  const [sharingMaterial, setSharingMaterial] = useState<Material | null>(null);
+  const [shareEmail, setShareEmail] = useState("");
+  const [sharingLoading, setSharingLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<AuthUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const { user: currentUser } = useAuth();
 
   const deferredSearch = useDeferredValue(search);
   const editTitleInputRef = useRef<HTMLInputElement | null>(null);
@@ -107,6 +125,28 @@ export default function MaterialsPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [editingMaterial]);
+
+  useEffect(() => {
+    if (!shareEmail.trim() || shareEmail.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const users = await searchUsers(shareEmail);
+        // Lọc bỏ chính mình khỏi danh sách gợi ý
+        setSuggestions(users.filter((u) => u.id !== currentUser?.id));
+      } catch (err) {
+        console.error("Lỗi khi tìm kiếm người dùng:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [shareEmail, currentUser?.id]);
 
   const filtered = useMemo(() => {
     const s = deferredSearch.toLowerCase();
@@ -185,6 +225,51 @@ export default function MaterialsPage() {
       notifyError(`Lỗi khi xóa: ${err}`);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!sharingMaterial) return;
+    if (!shareEmail.trim()) {
+      notifyError("Vui lòng nhập email người nhận.");
+      return;
+    }
+
+    setSharingLoading(true);
+    try {
+      const updated = await shareMaterial(sharingMaterial.id, shareEmail.trim());
+      setSharingMaterial(updated);
+      setMaterials((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      success(`Đã chia sẻ học liệu với ${shareEmail}.`);
+      setShareEmail("");
+    } catch (err: any) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (errorMsg.includes("Target user not found")) {
+        notifyError("Không tìm thấy tài khoản với email này.");
+      } else if (errorMsg.includes("Cannot share with yourself")) {
+        notifyError("Bạn không thể chia sẻ học liệu với chính mình.");
+      } else {
+        notifyError(`Lỗi khi chia sẻ: ${errorMsg}`);
+      }
+    } finally {
+      setSharingLoading(false);
+    }
+  };
+
+  const handleUnshare = async (email: string) => {
+    if (!sharingMaterial) return;
+    if (!confirm(`Bạn có chắc muốn dừng chia sẻ với ${email}?`)) return;
+
+    setSharingLoading(true);
+    try {
+      const updated = await unshareMaterial(sharingMaterial.id, email);
+      setSharingMaterial(updated);
+      setMaterials((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      success(`Đã dừng chia sẻ với ${email}.`);
+    } catch (err: any) {
+      notifyError(`Lỗi khi dừng chia sẻ: ${err.message || err}`);
+    } finally {
+      setSharingLoading(false);
     }
   };
 
@@ -304,6 +389,20 @@ export default function MaterialsPage() {
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
+                    {currentUser?.id === material.user_id && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSharingMaterial(material);
+                        }}
+                        className="rounded-lg bg-emerald-50 p-2 text-emerald-500 transition-colors hover:bg-emerald-100 hover:text-emerald-600"
+                        title="Chia sẻ học liệu"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -343,6 +442,11 @@ export default function MaterialsPage() {
                           {material.education_level}
                         </span>
                       ) : null}
+                      {currentUser?.id !== material.user_id && (
+                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-amber-600 font-medium">
+                          Được chia sẻ
+                        </span>
+                      )}
                     </div>
                     <ArrowRight className="h-4 w-4 text-brand-400" />
                   </div>
@@ -455,6 +559,106 @@ export default function MaterialsPage() {
             Lưu thay đổi
           </Button>
         </div>
+      </Dialog>
+
+      <Dialog open={Boolean(sharingMaterial)} onClose={() => !sharingLoading && setSharingMaterial(null)} title="Chia sẻ học liệu" maxWidth="md">
+        {sharingMaterial && (
+          <div className="space-y-4">
+            <p className="text-sm text-[var(--text-secondary)]">Nhập email của người mà bạn muốn chia sẻ học liệu này.</p>
+            <div className="relative">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">Email người nhận</span>
+                <input
+                  type="email"
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  placeholder="example@gmail.com"
+                  className="h-10 w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-primary)]"
+                  onKeyDown={(e) => e.key === "Enter" && handleShare()}
+                />
+              </label>
+
+              {/* Gợi ý người dùng */}
+              {(isSearching || suggestions.length > 0) && (
+                <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-[var(--border-light)] bg-[var(--bg-elevated)] shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                  {isSearching ? (
+                    <div className="flex items-center gap-2 p-3 text-sm text-[var(--text-tertiary)]">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                      Đang tìm kiếm...
+                    </div>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto p-1">
+                      {suggestions.map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => {
+                            setShareEmail(u.email);
+                            setSuggestions([]);
+                          }}
+                          className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-[var(--bg-secondary)] transition-colors"
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-600 font-bold text-xs">
+                            {u.name ? u.name[0].toUpperCase() : u.email[0].toUpperCase()}
+                          </div>
+                          <div className="overflow-hidden">
+                            <div className="truncate text-sm font-medium text-[var(--text-primary)]">
+                              {u.name || "Người dùng ẩn danh"}
+                            </div>
+                            <div className="truncate text-xs text-[var(--text-tertiary)]">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Danh sách người đã chia sẻ */}
+            {sharingMaterial.shared_details && sharingMaterial.shared_details.length > 0 && (
+              <div className="mt-4">
+                <span className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Đã chia sẻ với:</span>
+                <div className="space-y-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] p-2">
+                  {sharingMaterial.shared_details.map((u) => (
+                    <div key={u.id} className="flex items-center justify-between gap-3 rounded-lg p-2 transition-colors hover:bg-[var(--bg-elevated)]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600 font-bold text-xs">
+                          {u.name ? u.name[0].toUpperCase() : u.email[0].toUpperCase()}
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="truncate text-sm font-medium text-[var(--text-primary)]">
+                            {u.name || "Người dùng ẩn danh"}
+                          </div>
+                          <div className="truncate text-xs text-[var(--text-tertiary)]">{u.email}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleUnshare(u.email)}
+                        disabled={sharingLoading}
+                        className="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        title="Gỡ chia sẻ"
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setSharingMaterial(null)}
+                disabled={sharingLoading}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleShare} loading={sharingLoading} icon={<Share2 className="h-4 w-4" />}>
+                Chia sẻ
+              </Button>
+            </div>
+          </div>
+        )}
       </Dialog>
     </motion.div>
   );
