@@ -72,6 +72,13 @@ const WorkflowVisualization = dynamic(
   }
 );
 
+const Testimonials = dynamic(
+  () => import("@/components/home/testimonials").then((mod) => mod.Testimonials),
+  {
+    loading: () => <div className="py-24 animate-pulse bg-[var(--bg-surface)]/20 rounded-[2rem]" />,
+  }
+);
+
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -675,6 +682,11 @@ export default function DashboardPage() {
       {/* Workflow Visualization Section */}
       <motion.div variants={item} className="order-3">
         <WorkflowVisualization />
+      </motion.div>
+
+      {/* Testimonials Section */}
+      <motion.div variants={item} className="order-4">
+        <Testimonials />
       </motion.div>
 
       <motion.div variants={item} className="order-8">

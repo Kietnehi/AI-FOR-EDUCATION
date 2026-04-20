@@ -63,7 +63,7 @@
 
 Dự án được chia thành 2 luồng xử lý chính:
 
-    * **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống sử dụng **Advanced RAG Pipeline** (Semantic Chunking, Hybrid Search, Re-ranking) để trích xuất tri thức từ tài liệu (PDF, Word, Excel) và giải đáp thắc mắc của học sinh với độ chính xác cao nhất (citations đi kèm).
+  * **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống sử dụng **Advanced RAG Pipeline** (Semantic Chunking, Hybrid Search, Re-ranking) để trích xuất tri thức từ tài liệu (PDF, Word, Excel) và giải đáp thắc mắc của học sinh với độ chính xác cao nhất (citations đi kèm).
   * **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (Whisper STT, OCR), kết hợp tìm kiếm web (Tavily, SerpAPI) để tự động hóa việc tạo ra các học liệu trực quan: Slide bài giảng, Podcast, Minigame, và Video/Infographic.
 
 **🛠 Công nghệ cốt lõi:** FastAPI, Next.js 14, MongoDB, ChromaDB (Vector Store), và hệ sinh thái mô hình AI tiên tiến (Gemini, OpenAI, Groq).
