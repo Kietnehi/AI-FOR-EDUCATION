@@ -178,6 +178,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        BACKEND_API_BASE_URL: ${BACKEND_API_BASE_URL}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
         NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST}
         NEXT_DISABLE_TYPECHECK: ${NEXT_DISABLE_TYPECHECK:-1}
