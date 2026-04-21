@@ -431,7 +431,7 @@ Tạo và cấu hình trên Atlas:
 1. Tạo cluster (M0/M2/M5 đều được cho MVP).
 2. Tạo Database User (username/password).
 3. Vào Network Access và thêm IP hiện tại (hoặc `0.0.0.0/0` cho môi trường dev, không khuyến nghị cho production).
-4. Lấy connection string dạng SRV.vvvv
+4. Lấy connection string dạng SRV.vvvvv
 
 Ví dụ:
 
