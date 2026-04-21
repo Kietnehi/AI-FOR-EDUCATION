@@ -211,6 +211,13 @@ flowchart LR
 8. Dùng retrieval theo query.
 9. Dùng context truy xuất để tạo slide, podcast script, minigame, trả lời chatbot có citations.
 
+### 2.3 Sơ đồ thực thể quan hệ (ERD)
+
+<div align="center">
+  <img src="image/ERD.png" width="100%" alt="Entity Relationship Diagram" />
+  <p align="center"><em>Hình 3: Sơ đồ cấu trúc dữ liệu hệ thống (ERD)</em></p>
+</div>
+
 ---
 
 ## 3. Cấu trúc thư mục
@@ -848,37 +855,41 @@ flowchart LR
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/github_actions.png" width="100%" alt="GitHub Actions Workflow" />
-        <p align="center"><em>Hình 3: GitHub Actions Workflow</em></p>
+        <p align="center"><em>Hình 4: GitHub Actions Workflow</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/runners.png" width="100%" alt="GitHub Actions Runners" />
-        <p align="center"><em>Hình 4: Trạng thái Runners</em></p>
+        <p align="center"><em>Hình 5: Trạng thái Runners</em></p>
       </td>
     </tr>
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/done.png" width="100%" alt="Pipeline Success" />
-        <p align="center"><em>Hình 5: Pipeline chạy thành công</em></p>
+        <p align="center"><em>Hình 6: Pipeline chạy thành công</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/issues.png" width="100%" alt="GitHub Issues auto-create" />
-        <p align="center"><em>Hình 6: Tự động tạo Issue khi CI fail</em></p>
+        <p align="center"><em>Hình 7: Tự động tạo Issue khi CI fail</em></p>
       </td>
     </tr>
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/scripts.png" width="100%" alt="CI Scripts" />
-        <p align="center"><em>Hình 7: Các scripts kiểm tra dữ liệu</em></p>
+        <p align="center"><em>Hình 8: Các scripts kiểm tra dữ liệu</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/secret.png" width="100%" alt="GHCR Token Secret" />
-        <p align="center"><em>Hình 8: Cấu hình Secret cho GHCR</em></p>
+        <p align="center"><em>Hình 9: Cấu hình Secret cho GHCR</em></p>
       </td>
     </tr>
     <tr>
-      <td colspan="2" style="padding: 5px;">
+      <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/domain.png" width="100%" alt="Cloudflare Domain" />
-        <p align="center"><em>Hình 9: Tên miền truy cập hệ thống trên Cloudflare</em></p>
+        <p align="center"><em>Hình 10: Tên miền truy cập hệ thống trên Cloudflare</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/CICD/TOKEN.png" width="100%" alt="GitHub Token" />
+        <p align="center"><em>Hình 11: Cấu hình GitHub Token cho Workflow</em></p>
       </td>
     </tr>
   </table>
@@ -957,15 +968,15 @@ Coverage report sau khi chạy:
     <tr>
       <td style="width: 33%; padding: 5px;">
         <img src="image/object_storage/minio.png" width="100%" alt="MinIO Console" />
-        <p align="center"><em>Hình 10: MinIO Console (Local)</em></p>
+        <p align="center"><em>Hình 12: MinIO Console (Local)</em></p>
       </td>
       <td style="width: 33%; padding: 5px;">
         <img src="image/object_storage/r2_object.png" width="100%" alt="Cloudflare R2" />
-        <p align="center"><em>Hình 11: Cloudflare R2 (Production)</em></p>
+        <p align="center"><em>Hình 13: Cloudflare R2 (Production)</em></p>
       </td>
       <td style="width: 33%; padding: 5px;">
         <img src="image/object_storage/generated.png" width="100%" alt="Generated Files in Storage" />
-        <p align="center"><em>Hình 12: File học liệu được sinh ra trong Storage</em></p>
+        <p align="center"><em>Hình 14: File học liệu được sinh ra trong Storage</em></p>
       </td>
     </tr>
   </table>
