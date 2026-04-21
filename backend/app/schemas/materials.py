@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from app.schemas.auth import AuthUser
 
 
 SourceType = Literal["pdf", "docx", "txt", "md", "image", "audio", "manual_text"]
@@ -31,6 +32,15 @@ class MaterialGuardrailCheckRequest(BaseModel):
 
 class MaterialProcessRequest(BaseModel):
     force_reprocess: bool = False
+    chunking_strategy: Literal["semantic", "fixed"] = "fixed"
+
+
+class MaterialUpdateRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    subject: str | None = None
+    education_level: str | None = None
+    tags: list[str] | None = None
 
 
 class MaterialUpdateRequest(BaseModel):
@@ -78,8 +88,14 @@ class MaterialResponse(BaseModel):
     guardrail_reason: str | None = None
     raw_text: str | None = None
     cleaned_text: str | None = None
+    shared_with: list[str] = Field(default_factory=list)
+    shared_details: list[AuthUser] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+class MaterialShareRequest(BaseModel):
+    email: str
 
 
 class MaterialListResponse(BaseModel):

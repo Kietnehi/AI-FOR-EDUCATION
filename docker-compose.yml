@@ -60,6 +60,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+<<<<<<< HEAD
+=======
+    profiles:
+      - local-db
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
   backend:
     gpus: all
@@ -140,7 +145,11 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
+<<<<<<< HEAD
       - backend_venv:/app/.venv
+=======
+      - backend_venv_v2:/app/.venv
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
@@ -177,7 +186,10 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api}
       NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST:-http://localhost:8000}
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+<<<<<<< HEAD
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+=======
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       NEXT_TELEMETRY_DISABLED: "1"
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "500"
@@ -267,7 +279,11 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
+<<<<<<< HEAD
       - backend_venv:/app/.venv
+=======
+      - backend_venv_v2:/app/.venv
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       - backend_storage:/app/storage
     deploy:
       resources:
@@ -277,6 +293,11 @@ services:
               count: 1
               capabilities: [gpu]
     depends_on:
+<<<<<<< HEAD
+=======
+      backend:
+        condition: service_healthy
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       redis:
         condition: service_healthy
       mongo:
@@ -307,12 +328,21 @@ services:
       CELERY_TASK_TIME_LIMIT_SECONDS: ${CELERY_TASK_TIME_LIMIT_SECONDS:-2100}
       CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
     depends_on:
+<<<<<<< HEAD
+=======
+      backend:
+        condition: service_healthy
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       redis:
         condition: service_healthy
     restart: unless-stopped
     volumes:
       - ./backend:/app
+<<<<<<< HEAD
       - backend_venv:/app/.venv
+=======
+      - backend_venv_v2:/app/.venv
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       - backend_storage:/app/storage
 
   celery-flower:
@@ -329,6 +359,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+<<<<<<< HEAD
   prometheus:
     build:
       context: ./Monitoring/railway-grafana-stack/prometheus
@@ -467,16 +498,25 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+=======
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 volumes:
   redis_data:
   minio_data:
   mongo_data:
+<<<<<<< HEAD
   backend_venv:
+=======
+  backend_venv_v2: {}
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   backend_storage:
   redis_insight_data:
   frontend_node_modules:
   frontend_next_cache:
+<<<<<<< HEAD
   prometheus_data:
   loki_data:
   grafana_data:
   tempo_data:
+=======
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66

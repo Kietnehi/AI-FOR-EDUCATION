@@ -8,6 +8,13 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree as ET
 
 import requests
+<<<<<<< HEAD
+=======
+try:
+    import serpapi
+except ImportError:
+    serpapi = None
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
 from app.ai.generation.llm_client import LLMClient
 from app.core.config import settings
@@ -310,9 +317,28 @@ class YouTubeLessonService:
             "url": f"https://www.youtube.com/watch?v={video_id}",
         }
 
+<<<<<<< HEAD
     def get_transcript(self, video_id: str, *, stt_model: str = "local-base") -> list[dict[str, Any]]:
         diagnostics: list[str] = []
 
+=======
+    def get_transcript(self, video_id: str, *, stt_model: str = "local-base", use_serpapi: bool = False) -> list[dict[str, Any]]:
+        diagnostics: list[str] = []
+
+        # 0. Nếu người dùng chọn SerpAPI HOẶC có KEY và không chọn model local (Tự động ưu tiên nếu có KEY)
+        if use_serpapi or (settings.serpapi_api_key and stt_model not in self._LOCAL_WHISPER_MODELS):
+            try:
+                serp_segments = self._fetch_with_serpapi(video_id)
+                if serp_segments:
+                    return serp_segments
+                diagnostics.append("serpapi: empty")
+            except Exception as exc:
+                diagnostics.append(f"serpapi: {type(exc).__name__}: {exc}")
+                # Nếu người dùng yêu cầu CHÍNH XÁC serpapi thì fail luôn, nếu không thì fallback tiếp
+                if use_serpapi:
+                   raise RuntimeError(f"Không lấy được transcript từ SerpAPI: {exc}")
+
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         # 1. Thử youtube_transcript_api (Cách nhanh nhất và chuẩn nhất)
         try:
             transcript_list = self._fetch_with_youtube_transcript_api(video_id)
@@ -799,6 +825,46 @@ class YouTubeLessonService:
         except Exception:
             pass
 
+<<<<<<< HEAD
+=======
+    def _fetch_with_serpapi(self, video_id: str) -> list[dict[str, Any]]:
+        if not settings.serpapi_api_key:
+            return []
+            
+        if serpapi is None:
+            raise RuntimeError("Thư viện 'serpapi' chưa được cài đặt trong môi trường này. Vui lòng chạy 'pip install serpapi' hoặc build lại docker.")
+
+        try:
+            client = serpapi.Client(api_key=settings.serpapi_api_key)
+            results = client.search({
+                "engine": "youtube_video_transcript",
+                "v": video_id,
+                "type": "asr"
+            })
+            
+            # SerpAPI trả về video_transcript là list các segment
+            transcript_data = results.get("video_transcript", [])
+            if not transcript_data:
+                return []
+                
+            normalized: list[dict[str, Any]] = []
+            for segment in transcript_data:
+                text = str(segment.get("text") or "").strip()
+                if not text:
+                    continue
+                start = float(segment.get("start", 0.0))
+                duration = float(segment.get("duration", 0.0))
+                normalized.append({
+                    "text": text,
+                    "start": start,
+                    "duration": duration,
+                    "timestamp": _format_timestamp(start)
+                })
+            return normalized
+        except Exception as e:
+            raise e
+
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         # Fallback cũ nếu logic trên thất bại
         try:
             if hasattr(yta, "get_transcript"):

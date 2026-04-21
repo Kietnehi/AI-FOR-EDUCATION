@@ -12,14 +12,21 @@ from app.api.routes import (
     personalization,
     web_search,
     schedule,
+<<<<<<< HEAD
 )
 from app.api.routes import auth, chat, contact, converter, files, games, generated_contents, materials, realtime, web_search, youtube_lessons, schedule
+=======
+    community,
+)
+from app.api.routes import auth, chat, community, contact, converter, files, games, generated_contents, materials, realtime, web_search, youtube_lessons, schedule
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
 api_router = APIRouter()
 api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(contact.router, tags=["contact"])
 
 api_router.include_router(materials.router, tags=["materials"])
+api_router.include_router(community.router, tags=["community"])
 api_router.include_router(generated_contents.router, tags=["generated-contents"])
 api_router.include_router(realtime.router)
 api_router.include_router(chat.router, tags=["chat"])

@@ -15,6 +15,11 @@ async def get_database() -> AsyncIOMotorDatabase:
 async def get_current_user(request: Request, db: AsyncIOMotorDatabase = Depends(get_database)) -> AuthUser:
     token = request.cookies.get(settings.auth_cookie_name)
     if not token:
+<<<<<<< HEAD
+=======
+        from app.core.logging import logger
+        logger.warning(f"No auth cookie found. Available cookies: {request.cookies.keys()}")
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         raise HTTPException(status_code=401, detail="Authentication required")
 
     try:

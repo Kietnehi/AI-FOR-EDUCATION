@@ -10,12 +10,15 @@ from app.services.turnstile_service import TurnstileVerificationError, verify_tu
 
 router = APIRouter()
 
+<<<<<<< HEAD
 
 def _cookie_samesite_value() -> str:
     # Cross-origin requests (frontend tunnel -> backend tunnel) need SameSite=None.
     # Browsers require Secure=true when SameSite=None.
     return "none" if settings.auth_cookie_secure else "lax"
 
+=======
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 @router.post("/auth/google/login", response_model=AuthResponse)
 async def google_login(
     payload: GoogleAuthRequest,
@@ -38,7 +41,11 @@ async def google_login(
         value=jwt_token,
         httponly=True,
         secure=settings.auth_cookie_secure,
+<<<<<<< HEAD
         samesite=_cookie_samesite_value(),
+=======
+        samesite="lax",  # Prevent CSRF
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         max_age=settings.jwt_expiration_minutes * 60,
         path="/"
     )
@@ -68,7 +75,11 @@ async def google_register(
         value=jwt_token,
         httponly=True,
         secure=settings.auth_cookie_secure,
+<<<<<<< HEAD
         samesite=_cookie_samesite_value(),
+=======
+        samesite="lax",
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         max_age=settings.jwt_expiration_minutes * 60,
         path="/",
     )
@@ -82,10 +93,28 @@ async def logout(response: Response) -> LogoutResponse:
         path="/",
         secure=settings.auth_cookie_secure,
         httponly=True,
+<<<<<<< HEAD
         samesite=_cookie_samesite_value()
+=======
+        samesite="lax"
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     )
     return LogoutResponse(message="Successfully logged out")
 
 @router.get("/auth/me", response_model=AuthUser)
 async def get_me(user: AuthUser = Depends(get_current_user)) -> AuthUser:
     return user
+<<<<<<< HEAD
+=======
+
+
+@router.get("/auth/users/search", response_model=list[AuthUser])
+async def search_users(
+    q: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: AuthUser = Depends(get_current_user),
+) -> list[AuthUser]:
+    user_repo = UserRepository(db)
+    results = await user_repo.search(q)
+    return [AuthUser(**u) for u in results]
+>>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66

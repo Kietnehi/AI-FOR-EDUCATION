@@ -16,6 +16,8 @@ export type Material = {
   guardrail_reason?: string;
   raw_text?: string;
   cleaned_text?: string;
+  shared_with: string[];
+  shared_details: AuthUser[];
   created_at: string;
   updated_at: string;
 };
