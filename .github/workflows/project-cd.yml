@@ -121,6 +121,23 @@ jobs:
         with:
           ref: ${{ env.SOURCE_SHA }}
 
+      - name: Tạo file .env.prod cho deploy từ GitHub Secrets
+        shell: powershell
+        env:
+          ENV_PROD_CONTENT: ${{ secrets.ENV_PROD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace("${env:ENV_PROD_CONTENT}")) {
+            throw "Missing GitHub Secret ENV_PROD. Hãy tạo secret ENV_PROD chứa toàn bộ nội dung file .env.prod."
+          }
+
+          [System.IO.File]::WriteAllText(
+            (Join-Path $PWD ".env.prod"),
+            "${env:ENV_PROD_CONTENT}".Replace("`r`n", "`n"),
+            [System.Text.UTF8Encoding]::new($false)
+          )
+
+          Write-Host "Da tao .env.prod tai: $(Join-Path $PWD '.env.prod')"
+
       - name: Triển khai trực tiếp bằng Docker Compose trên self-hosted runner
         shell: powershell
         run: |
