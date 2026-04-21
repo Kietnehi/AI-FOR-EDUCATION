@@ -436,7 +436,7 @@ Tạo và cấu hình trên Atlas:
 Ví dụ:
 
 ```text
-mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>
+mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>......
 ```
 
 ### 5.3 Bước 2: Cấu hình biến môi trường
