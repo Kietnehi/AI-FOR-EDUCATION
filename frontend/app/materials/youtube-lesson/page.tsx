@@ -153,19 +153,13 @@ export default function YoutubeInteractiveLessonPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchLimit, setSearchLimit] = useState(6);
   const [sttModel, setSttModel] = useState<SttModel>("local-base");
-<<<<<<< HEAD
-=======
   const [useSerpApi, setUseSerpApi] = useState(true);
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<YouTubeVideoItem[]>([]);
   const [payload, setPayload] = useState<YouTubeInteractiveLessonResponse | null>(null);
   const [historyItems, setHistoryItems] = useState<YouTubeLessonHistorySummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-<<<<<<< HEAD
-=======
   const [showHistory, setShowHistory] = useState(false);
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   const [isListening, setIsListening] = useState(false);
   const [voiceLang, setVoiceLang] = useState<string>("vi-VN");
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -429,13 +423,8 @@ export default function YoutubeInteractiveLessonPage() {
 
     const directVideoId = source?.video_id || extractVideoId(raw);
     const requestPayload = directVideoId
-<<<<<<< HEAD
-      ? { video_id: directVideoId, max_checkpoints: 5, stt_model: sttModel, manual_transcript: showManualEntry ? manualTranscript : undefined }
-      : { query: source?.query || raw, max_checkpoints: 5, stt_model: sttModel, manual_transcript: showManualEntry ? manualTranscript : undefined };
-=======
       ? { video_id: directVideoId, max_checkpoints: 5, stt_model: sttModel, use_serpapi: useSerpApi, manual_transcript: showManualEntry ? manualTranscript : undefined }
       : { query: source?.query || raw, max_checkpoints: 5, stt_model: sttModel, use_serpapi: useSerpApi, manual_transcript: showManualEntry ? manualTranscript : undefined };
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
     try {
       const result = await generateInteractiveYouTubeLesson(requestPayload);
@@ -570,15 +559,11 @@ export default function YoutubeInteractiveLessonPage() {
   const activeCheckpoint = activeCheckpointIndex !== null ? checkpoints[activeCheckpointIndex] : null;
 
   return (
-<<<<<<< HEAD
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-=======
     <motion.div 
       initial={{ opacity: 0, y: 8 }} 
       animate={{ opacity: 1, y: 0 }} 
       className="space-y-6"
     >
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "var(--font-display)" }}>
           Bài Học YouTube Tương Tác
@@ -804,8 +789,6 @@ export default function YoutubeInteractiveLessonPage() {
               </AnimatePresence>
             </div>
 
-<<<<<<< HEAD
-=======
             {/* SerpAPI Toggle */}
             <div className="flex items-center gap-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-primary)] px-3 py-2">
               <span className="whitespace-nowrap text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-tight">Dùng SerpAPI:</span>
@@ -825,7 +808,6 @@ export default function YoutubeInteractiveLessonPage() {
               <span className="text-[10px] font-bold text-brand-600 uppercase">Fast path</span>
             </div>
 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
             {/* Model Whisper */}
             <div className="flex items-center gap-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-primary)] px-3 py-2">
               <span className="whitespace-nowrap text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-tight">STT Model:</span>
@@ -926,11 +908,6 @@ export default function YoutubeInteractiveLessonPage() {
           <div className="flex items-center gap-2">
             <History className="h-5 w-5 text-brand-500" />
             <p className="text-base font-bold text-[var(--text-primary)]">Lịch sử bài học của bạn</p>
-<<<<<<< HEAD
-            {historyLoading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent ml-auto" />}
-          </div>
-          
-=======
             <div className="ml-auto flex items-center gap-2">
               {historyLoading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />}
               <button
@@ -957,7 +934,6 @@ export default function YoutubeInteractiveLessonPage() {
                 className="overflow-hidden"
               >
           
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
           {historyItems.length === 0 && !historyLoading ? (
             <div className="flex flex-col items-center justify-center py-8 rounded-2xl border-2 border-dashed border-[var(--border-light)] bg-[var(--bg-section)]/30">
               <History className="h-10 w-10 text-[var(--text-muted)] opacity-20 mb-2" />
@@ -1043,16 +1019,11 @@ export default function YoutubeInteractiveLessonPage() {
               </AnimatePresence>
             </div>
           )}
-<<<<<<< HEAD
-        </div>
-      </Card>
-=======
         </motion.div>
       )}
     </AnimatePresence>
   </div>
 </Card>
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
       {payload ? (
         <div className="space-y-6">

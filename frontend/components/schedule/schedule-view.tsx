@@ -138,12 +138,8 @@ export function ScheduleView() {
         start_time: startTime,
         end_time: addMinutesToInputValue(startTime, 60),
         location: "Văn phòng / Online",
-<<<<<<< HEAD
-        notes: ""
-=======
         notes: "",
         completed: false
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     };
     setEvents([...events, newEvent]);
   };
@@ -223,11 +219,9 @@ export function ScheduleView() {
     return groups;
   }, [events]);
 
-  const activeEvents = groupedEvents[activeDay] || [];
+  const activeEvents = useMemo(() => groupedEvents[activeDay] || [], [groupedEvents, activeDay]);
   const activeDayInfo = DAYS.find(d => d.value === activeDay) || { label: "Tất cả", value: -1, short: "Tất cả", color: "bg-slate-900" };
 
-<<<<<<< HEAD
-=======
   const completionPercentage = useMemo(() => {
     const list = activeDay === -1 ? events : activeEvents.map(ge => ge.event);
     if (list.length === 0) return 0;
@@ -235,7 +229,6 @@ export function ScheduleView() {
     return Math.round((completed / list.length) * 100);
   }, [events, activeEvents, activeDay]);
 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -340,24 +333,15 @@ export function ScheduleView() {
                     <span className="text-[10px] font-black bg-white/20 px-3 py-1 rounded-full uppercase tracking-widest border border-white/10">Mục tiêu ngày</span>
                 </div>
                 <div>
-<<<<<<< HEAD
-                    <h3 className="text-4xl font-black tracking-tighter">75%</h3>
-                    <p className="text-indigo-100 text-sm font-medium mt-1">Hoàn thành kế hoạch</p>
-=======
                     <h3 className="text-4xl font-black tracking-tighter">{completionPercentage}%</h3>
                     <p className="text-indigo-100 text-sm font-medium mt-1">
                       {completionPercentage === 100 ? "Đã hoàn thành mục tiêu!" : "Hoàn thành kế hoạch"}
                     </p>
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
                 </div>
                 <div className="h-3 bg-white/10 rounded-full border border-white/5 overflow-hidden">
                     <motion.div 
                         initial={{ width: 0 }} 
-<<<<<<< HEAD
-                        animate={{ width: "75%" }} 
-=======
                         animate={{ width: `${completionPercentage}%` }} 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
                         className="h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.5)]" 
                     />
                 </div>
@@ -523,15 +507,6 @@ export function ScheduleView() {
                             </div>
                             </div>
                             <div className="flex-1 p-6 space-y-6">
-<<<<<<< HEAD
-                            <input 
-                                type="text" 
-                                value={event.title} 
-                                onChange={(e) => updateEvent(originalIndex, 'title', e.target.value)} 
-                                className="w-full text-2xl font-black text-[var(--text-primary)] bg-transparent border-none focus:ring-0 p-0 placeholder:text-[var(--text-muted)]/30 tracking-tight" 
-                                placeholder="Tên sự kiện của bạn..." 
-                            />
-=======
                             <div className="flex items-center gap-4">
                               <button 
                                 onClick={() => updateEvent(originalIndex, 'completed', !event.completed)}
@@ -557,7 +532,6 @@ export function ScheduleView() {
                                   placeholder="Tên sự kiện của bạn..." 
                               />
                             </div>
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div className="flex items-center gap-3 text-[var(--text-secondary)] bg-[var(--bg-secondary)]/50 px-4 py-3 rounded-2xl border-2 border-[var(--border-structural)] focus-within:border-indigo-500/40 transition-all">
                                     <MapPin className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
@@ -642,11 +616,6 @@ export function ScheduleView() {
                                               <X className="w-4 h-4" />
                                            </Button>
                                         </div>
-<<<<<<< HEAD
-                                        <h4 className="text-sm font-black text-[var(--text-primary)] line-clamp-2 mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight">
-                                           {event.title}
-                                        </h4>
-=======
                                         
                                         <div className="flex items-start gap-3 mb-3">
                                             <button 
@@ -670,7 +639,6 @@ export function ScheduleView() {
                                             </h4>
                                         </div>
 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
                                         {event.location && (
                                             <div className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)] font-bold truncate bg-[var(--bg-secondary)]/50 p-2 rounded-lg border border-[var(--border-structural)]">
                                                <MapPin className="w-3.5 h-3.5 text-indigo-400" /> {event.location}
@@ -792,8 +760,6 @@ export function ScheduleView() {
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
-=======
             <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Trạng thái</label>
                 <div 
@@ -814,7 +780,6 @@ export function ScheduleView() {
                   <span className="text-sm font-bold">{tempEvent.completed ? "Đã hoàn thành" : "Chưa hoàn thành"}</span>
                 </div>
             </div>
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-structural)]">
               <Button 

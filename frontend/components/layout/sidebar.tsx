@@ -15,10 +15,7 @@ import {
   FileText,
   Globe,
   PlayCircle,
-<<<<<<< HEAD
-=======
   Users,
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   ChevronLeft,
   Settings,
   GripVertical,
@@ -38,19 +35,6 @@ interface SidebarProps {
 }
 
 const navItems = [
-<<<<<<< HEAD
-  { href: "/",                  label: "Dashboard",              icon: LayoutDashboard },
-  { href: "/learning-progress", label: "Tiến độ học tập",        icon: TrendingUp },
-  { href: "/materials",         label: "Học liệu",               icon: BookOpen },
-  { href: "/materials/upload",  label: "Tải lên",                icon: Upload },
-  { href: "/materials/video",   label: "Tạo Video AI",           icon: Clapperboard },
-  { href: "/materials/youtube-lesson", label: "YouTube Tương tác", icon: PlayCircle },
-  { href: "/chatbot",           label: "Chatbot RAG",            icon: MessageSquareText },
-  { href: "/web-search",        label: "Search Website Online",  icon: Globe },
-  { href: "/generated",         label: "Nội dung AI",            icon: Sparkles },
-  { href: "/schedule",          label: "Lịch học & làm việc",    icon: Calendar },
-  { href: "/converter",         label: "Chuyển đổi & trích xuất", icon: FileText },
-=======
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/learning-progress", label: "Tiến độ học tập", icon: TrendingUp },
   { href: "/materials", label: "Học liệu", icon: BookOpen },
@@ -63,7 +47,6 @@ const navItems = [
   { href: "/generated", label: "Nội dung AI", icon: Sparkles },
   { href: "/schedule", label: "Lịch học & làm việc", icon: Calendar },
   { href: "/converter", label: "Chuyển đổi & trích xuất", icon: FileText },
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 ];
 
 const navHrefSet = new Set(navItems.map((item) => item.href));
@@ -215,11 +198,7 @@ export const Sidebar = memo(function Sidebar({
     if (!user || !loadedFromPreferencesRef.current) return;
 
     const saveTimer = window.setTimeout(() => {
-<<<<<<< HEAD
-      updateUserPreferences({ sidebar_order: orderedHrefs }).catch(() => {});
-=======
       updateUserPreferences({ sidebar_order: orderedHrefs }).catch(() => { });
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     }, 250);
 
     return () => window.clearTimeout(saveTimer);

@@ -101,7 +101,7 @@ export function MaterialPreviewDialog({ materialId, onClose }: MaterialPreviewDi
       return (
         <div className="space-y-8 py-4">
           <div className="bg-gradient-to-br from-brand-50 to-brand-100 dark:from-brand-900/20 dark:to-brand-800/20 p-8 rounded-3xl border-2 border-brand-200/30 shadow-lg">
-            <AudioPlayer url={previewUrl} title={title} />
+            <AudioPlayer audioUrl={previewUrl} title={title} />
           </div>
           {cleaned_text && (
             <div className="space-y-4">
@@ -109,7 +109,7 @@ export function MaterialPreviewDialog({ materialId, onClose }: MaterialPreviewDi
                 <div className="flex items-center gap-2 text-brand-600 font-bold text-sm uppercase tracking-wider">
                   <FileAudio className="h-4 w-4" /> Bản gỡ băng (Transcript)
                 </div>
-                <Badge variant="secondary" className="text-[10px]">AI Generated</Badge>
+                <Badge variant="generated" className="text-[10px]">AI Generated</Badge>
               </div>
               <div className="p-6 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-light)] text-[var(--text-primary)] shadow-sm max-h-[400px] overflow-y-auto">
                 <Markdown content={cleaned_text} />
@@ -135,7 +135,7 @@ export function MaterialPreviewDialog({ materialId, onClose }: MaterialPreviewDi
     <Dialog 
       open={!!materialId} 
       onClose={onClose}
-      className="max-w-5xl overflow-hidden p-0 gap-0 border-none bg-transparent shadow-none"
+      maxWidth="xl"
     >
       <div className="bg-[var(--bg-elevated)] rounded-[2.5rem] border-4 border-[var(--border-structural)] overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
         {/* Header */}

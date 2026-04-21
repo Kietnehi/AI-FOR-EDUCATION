@@ -79,7 +79,7 @@ export default function ThreadDetailPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const [threadData, commentsData] = await Promise.all([
                 getCommunityThread(threadId),
@@ -97,11 +97,11 @@ export default function ThreadDetailPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [threadId, notifyError]);
 
     useEffect(() => {
         fetchData();
-    }, [threadId]);
+    }, [fetchData]);
 
     useEffect(() => {
         if (scrollRef.current && (comments.length > 0 || aiGeneratingFor)) {
@@ -364,7 +364,7 @@ export default function ThreadDetailPage() {
                                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-600 flex items-center gap-2">
                                     <Paperclip className="h-4 w-4" /> Học liệu đính kèm
                                 </h3>
-                                <Badge variant="outline" className="text-[9px] font-black">{thread.material_ids.length}</Badge>
+                                <Badge variant="default" className="text-[9px] font-black">{thread.material_ids.length}</Badge>
                             </div>
                             <div className="space-y-3">
                                 {thread.material_ids.map(m_id => (
@@ -421,7 +421,7 @@ export default function ThreadDetailPage() {
                                 </div>
                                 <span className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">Khu vực thảo luận</span>
                             </div>
-                            <Badge variant="secondary" className="text-[10px] font-black">{comments.length} phản hồi</Badge>
+                            <Badge variant="default" className="text-[10px] font-black">{comments.length} phản hồi</Badge>
                         </div>
 
                         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-[var(--bg-secondary)]/5 custom-scrollbar">
@@ -554,7 +554,7 @@ export default function ThreadDetailPage() {
             <Dialog
                 open={showEditDialog}
                 onClose={() => setShowEditDialog(false)}
-                className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none"
+                maxWidth="xl"
             >
                 <div className="bg-[var(--bg-elevated)] rounded-[2.5rem] border-2 border-[var(--border-structural)] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
 
@@ -670,7 +670,7 @@ export default function ThreadDetailPage() {
                 <input type="file" ref={fileInputRef} onChange={handleThumbnailUpload} className="hidden" accept="image/*" />
             </Dialog>
 
-            <ConfirmDialog open={!!deletingId} onClose={() => setDeletingId(null)} onConfirm={handleDeleteComment} title="Xóa bình luận?" description="Hành động này không thể hoàn tác. Các phản hồi liên quan cũng sẽ bị xóa." confirmText="Xóa ngay" variant="danger" />
+            <ConfirmDialog open={!!deletingId} onClose={() => setDeletingId(null)} onConfirm={handleDeleteComment} title="Xóa bình luận?" description="Hành động này không thể hoàn tác. Các phản hồi liên quan cũng sẽ bị xóa." confirmLabel="Xóa ngay" tone="danger" />
         </div>
     );
 }

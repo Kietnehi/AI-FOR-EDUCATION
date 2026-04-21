@@ -139,14 +139,6 @@ export default function MaterialDetailPage() {
     else info(message);
   };
 
-  // Wrapper để vừa hiện toast cũ, vừa thêm vào notification system mới
-  const showToastAndNotify = (message: string, type: "success" | "error" | "info") => {
-    setToast({ message, type });
-    if (type === "success") success(message);
-    else if (type === "error") error(message);
-    else info(message);
-  };
-
   const fullText = material?.cleaned_text || material?.raw_text || "";
   const previewLimit = 1000;
   const hasMore = fullText.length > previewLimit;
@@ -236,16 +228,11 @@ export default function MaterialDetailPage() {
     setShowProcessDialog(false);
     setBusyAction("process");
     try {
-<<<<<<< HEAD
-      await processMaterial(materialId);
-      showToastAndNotify("Đã xếp hàng xử lý tài liệu thành công!", "success");
-=======
       await processMaterial(materialId, { 
         force_reprocess: true, 
         chunking_strategy: chunkingStrategy 
       });
       showToastAndNotify("Đã xếp hàng xử lý tài liệu với cấu hình mới thành công!", "success");
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       const updated = await getMaterial(materialId);
       setMaterial(updated);
     } catch (error) {
@@ -767,11 +754,7 @@ export default function MaterialDetailPage() {
             <Button
               variant="secondary"
               icon={<Settings className="w-4 h-4 animate-spin" style={{ animationDuration: busyAction === "process" ? "1s" : "0s", animationPlayState: busyAction === "process" ? "running" : "paused" }} />}
-<<<<<<< HEAD
-              onClick={handleProcess}
-=======
               onClick={() => setShowProcessDialog(true)}
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
               loading={busyAction === "process"}
             >
               {busyAction === "process" ? "Đang xử lý..." : "Xử lý tài liệu"}
@@ -1838,8 +1821,6 @@ export default function MaterialDetailPage() {
             </div>
         </div>
       </Dialog>
-<<<<<<< HEAD
-=======
       {/* Processing Strategy Dialog */}
       {showProcessDialog &&
         typeof document !== "undefined" &&
@@ -1939,7 +1920,6 @@ export default function MaterialDetailPage() {
           </div>,
           document.body
         )}
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     </motion.div>
   );
 }

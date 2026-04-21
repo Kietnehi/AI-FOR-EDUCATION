@@ -10,15 +10,10 @@ import {
   Filter,
   Pencil,
   Search,
-<<<<<<< HEAD
-  Trash2,
-  Upload,
-=======
   Share2,
   Trash2,
   Upload,
   UserMinus,
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   X,
 } from "lucide-react";
 
@@ -28,12 +23,8 @@ import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardSkeleton } from "@/components/ui/skeleton";
-<<<<<<< HEAD
-import { deleteMaterial, listMaterials, subscribeToMaterialsRealtime, updateMaterial } from "@/lib/api";
-import { Material } from "@/types";
-import { useNotify } from "@/components/use-notify";
-=======
 import {
+  AuthUser,
   deleteMaterial,
   listMaterials,
   searchUsers,
@@ -42,10 +33,9 @@ import {
   unshareMaterial,
   updateMaterial,
 } from "@/lib/api";
-import { AuthUser, Material } from "@/types";
+import { Material } from "@/types";
 import { useNotify } from "@/components/use-notify";
 import { useAuth } from "@/components/auth-provider";
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
 const container = {
   hidden: { opacity: 0 },
@@ -77,8 +67,6 @@ export default function MaterialsPage() {
     education_level: "",
     tags: "",
   });
-<<<<<<< HEAD
-=======
   const [sharingMaterial, setSharingMaterial] = useState<Material | null>(null);
   const [shareEmail, setShareEmail] = useState("");
   const [sharingLoading, setSharingLoading] = useState(false);
@@ -86,7 +74,6 @@ export default function MaterialsPage() {
   const [isSearching, setIsSearching] = useState(false);
 
   const { user: currentUser } = useAuth();
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
   const deferredSearch = useDeferredValue(search);
   const editTitleInputRef = useRef<HTMLInputElement | null>(null);
@@ -140,8 +127,6 @@ export default function MaterialsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [editingMaterial]);
 
-<<<<<<< HEAD
-=======
   useEffect(() => {
     if (!shareEmail.trim() || shareEmail.length < 2) {
       setSuggestions([]);
@@ -164,7 +149,6 @@ export default function MaterialsPage() {
     return () => clearTimeout(handler);
   }, [shareEmail, currentUser?.id]);
 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   const filtered = useMemo(() => {
     const s = deferredSearch.toLowerCase();
     return materials.filter(
@@ -245,8 +229,6 @@ export default function MaterialsPage() {
     }
   };
 
-<<<<<<< HEAD
-=======
   const handleShare = async () => {
     if (!sharingMaterial) return;
     if (!shareEmail.trim()) {
@@ -292,7 +274,6 @@ export default function MaterialsPage() {
     }
   };
 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   return (
     <motion.div
       variants={container}
@@ -409,8 +390,6 @@ export default function MaterialsPage() {
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
-<<<<<<< HEAD
-=======
                     {currentUser?.id === material.user_id && (
                       <button
                         type="button"
@@ -425,7 +404,6 @@ export default function MaterialsPage() {
                         <Share2 className="h-4 w-4" />
                       </button>
                     )}
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
                     <button
                       type="button"
                       onClick={(e) => {
@@ -465,14 +443,11 @@ export default function MaterialsPage() {
                           {material.education_level}
                         </span>
                       ) : null}
-<<<<<<< HEAD
-=======
                       {currentUser?.id !== material.user_id && (
                         <span className="rounded-md bg-amber-50 px-2 py-0.5 text-amber-600 font-medium">
                           Được chia sẻ
                         </span>
                       )}
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
                     </div>
                     <ArrowRight className="h-4 w-4 text-brand-400" />
                   </div>
@@ -586,8 +561,6 @@ export default function MaterialsPage() {
           </Button>
         </div>
       </Dialog>
-<<<<<<< HEAD
-=======
 
       <Dialog open={Boolean(sharingMaterial)} onClose={() => !sharingLoading && setSharingMaterial(null)} title="Chia sẻ học liệu" maxWidth="md">
         {sharingMaterial && (
@@ -688,7 +661,6 @@ export default function MaterialsPage() {
           </div>
         )}
       </Dialog>
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     </motion.div>
   );
 }

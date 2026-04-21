@@ -6,10 +6,7 @@ export type ScheduleEvent = {
   location?: string;
   notes?: string;
   notified?: boolean;
-<<<<<<< HEAD
-=======
   completed?: boolean;
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 };
 
 export type Schedule = {

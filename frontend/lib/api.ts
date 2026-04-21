@@ -1225,6 +1225,7 @@ export interface CommunityThread {
   first_material_type?: string;
   material_ids: string[];
   likes_count: number;
+  liked_by_user_ids?: string[];
   comment_count: number;
   created_at: string;
   updated_at: string;
@@ -1241,6 +1242,7 @@ export interface ThreadComment {
   is_ai_response: boolean;
   reply_to_comment_id?: string;
   likes_count: number;
+  liked_by_user_ids?: string[];
   created_at: string;
 }
 

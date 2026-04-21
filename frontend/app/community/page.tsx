@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { 
   MessageSquare, Plus, Users, Search, 
   ArrowRight, Heart, User, Sparkles, 
@@ -18,12 +18,12 @@ import { CommunityThread } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 
-const container = {
+const container: Variants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.05 } },
 };
 
-const itemAnim = {
+const itemAnim: Variants = {
   hidden: { opacity: 0, y: 15 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } },
 };
