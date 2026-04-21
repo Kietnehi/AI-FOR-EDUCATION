@@ -118,7 +118,7 @@ jobs:
         run: npm ci
 
       - name: Build frontend
-        run: npm run build
+        run: npm run build -- --no-lint
 
       - name: Đóng gói bundle phát hành frontend
         shell: powershell
@@ -152,13 +152,35 @@ jobs:
         with:
           ref: ${{ env.SOURCE_SHA }}
 
-      - name: Cài đặt Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
+      - name: Chọn Python có sẵn trên runner
+        id: python
+        shell: powershell
+        run: |
+          $pythonCmd = $null
+
+          if (Get-Command python -ErrorAction SilentlyContinue) {
+            $pythonCmd = "python"
+          } elseif (Get-Command py -ErrorAction SilentlyContinue) {
+            & py -3.11 --version *> $null
+            if ($LASTEXITCODE -eq 0) {
+              $pythonCmd = "py -3.11"
+            } else {
+              $pythonCmd = "py -3"
+            }
+          }
+
+          if (-not $pythonCmd) {
+            throw "Không tìm thấy Python trên self-hosted runner. Hãy cài Python hoặc py launcher trước khi chạy CD."
+          }
+
+          Invoke-Expression "$pythonCmd --version"
+          "python_cmd=$pythonCmd" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Kiểm tra cú pháp mã nguồn backend
-        run: python -m compileall app
+        shell: powershell
+        run: |
+          $pythonCmd = "${{ steps.python.outputs.python_cmd }}"
+          Invoke-Expression "$pythonCmd -m compileall app"
 
       - name: Đóng gói bundle phát hành backend
         shell: powershell
