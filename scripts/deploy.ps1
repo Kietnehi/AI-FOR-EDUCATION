@@ -1,5 +1,5 @@
 param(
-    [string]$ProjectRoot = "D:\DACN",
+    [string]$ProjectRoot = "",
     [string]$ComposeFile = "docker-compose.prod.yml",
     [string]$EnvFile = ".env.prod",
     [ValidateSet("local-build", "dockerhub")]
@@ -8,6 +8,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    # Default to repository root resolved from this script location.
+    $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+}
 
 Write-Host "[deploy] Project root: $ProjectRoot"
 Set-Location $ProjectRoot
