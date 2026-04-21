@@ -18,6 +18,7 @@ on:
       - completed
     branches:
       - main
+      - ductoan
 
 permissions:
   contents: read

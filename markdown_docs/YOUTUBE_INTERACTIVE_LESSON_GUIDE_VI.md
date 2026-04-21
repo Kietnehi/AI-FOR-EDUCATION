@@ -13,10 +13,7 @@ Tính năng YouTube Interactive Lesson cho phép người dùng:
 1. Người dùng nhập URL hoặc từ khóa.
 2. Backend tìm metadata video (title, channel, thumbnail, duration).
 3. Backend lấy transcript theo nhiều tầng fallback:
-<<<<<<< HEAD
-=======
    - **SerpAPI (Fast Path - Ưu tiên):** Lấy trực tiếp từ YouTube Search Transcript Engine (hỗ trợ cả ASR cực nhanh).
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
    - `youtube_transcript_api`
    - timedtext endpoint
    - watch page caption tracks
@@ -42,10 +39,7 @@ Tính năng YouTube Interactive Lesson cho phép người dùng:
   - `youtube_url` hoặc `video_id` hoặc `query`
   - `max_checkpoints`
   - `stt_model`: `local-base`, `local-small`, `whisper-large-v3`, `whisper-large-v3-turbo`
-<<<<<<< HEAD
-=======
   - `use_serpapi`: `true` hoặc `false` (Mặc định `true` nếu có API Key)
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 - Output:
   - `video`
   - `transcript`
@@ -69,10 +63,7 @@ Trang: `/materials/youtube-lesson`
 - Nút tìm kiếm, tạo bài học.
 - Tùy chỉnh số lượng kết quả search.
 - Chọn model STT.
-<<<<<<< HEAD
-=======
 - **Toggle dùng SerpAPI (Fast path):** Tùy chọn ưu tiên lấy transcript nhanh và chính xác nhất.
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 - Voice input.
 
 ### 4.2 Video + transcript
@@ -114,10 +105,7 @@ Backend đã ép prompt và chuẩn hóa hậu xử lý để đảm bảo:
 - Chọn model STT phù hợp:
   - Local (`local-base`, `local-small`) cho chạy offline/local.
   - Groq (`whisper-large-v3`, `whisper-large-v3-turbo`) khi có API key.
-<<<<<<< HEAD
-=======
 - **Sử dụng SerpAPI:** Yêu cầu `SERPAPI_API_KEY` trong file `.env`. Đây là cách ổn định nhất để lấy phụ đề tự động (ASR) từ YouTube mà không cần tải audio.
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
 ## 7. Dữ liệu MongoDB liên quan
 Collection: `youtube_lesson_history`

@@ -11,10 +11,7 @@ from app.schemas.materials import (
     MaterialProcessRequest,
     MaterialProcessResponse,
     MaterialResponse,
-<<<<<<< HEAD
-=======
     MaterialShareRequest,
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     MaterialUpdateRequest,
 )
 from app.services.material_service import MaterialService
@@ -196,10 +193,7 @@ async def process_material(
         material_id,
         force_reprocess=payload.force_reprocess,
         user_id=user.id,
-<<<<<<< HEAD
-=======
         chunking_strategy=payload.chunking_strategy,
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     )
     personalization_service = PersonalizationService(db)
     await personalization_service.track_event(
@@ -245,8 +239,6 @@ async def update_material(
     if not material.get("storage_type"):
         material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
-<<<<<<< HEAD
-=======
 
 
 @router.post("/materials/{material_id}/share", response_model=MaterialResponse)
@@ -279,4 +271,3 @@ async def unshare_material(
     if not material.get("storage_type"):
         material["storage_type"] = storage_service.detect_storage_type(material.get("file_url"))
     return MaterialResponse(**material)
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66

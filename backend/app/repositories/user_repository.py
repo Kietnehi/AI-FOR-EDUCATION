@@ -28,8 +28,6 @@ class UserRepository:
         await self.collection.update_one({"_id": user_id}, {"$set": update_fields})
         doc = await self.collection.find_one({"_id": user_id})
         return serialize_document(doc)
-<<<<<<< HEAD
-=======
 
     async def search(self, query: str, limit: int = 10) -> list[dict]:
         if not query:
@@ -45,4 +43,3 @@ class UserRepository:
         cursor = self.collection.find(filter_query).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [serialize_document(doc) for doc in docs if doc]
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66

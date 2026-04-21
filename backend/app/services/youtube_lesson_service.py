@@ -8,13 +8,10 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree as ET
 
 import requests
-<<<<<<< HEAD
-=======
 try:
     import serpapi
 except ImportError:
     serpapi = None
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
 from app.ai.generation.llm_client import LLMClient
 from app.core.config import settings
@@ -317,11 +314,6 @@ class YouTubeLessonService:
             "url": f"https://www.youtube.com/watch?v={video_id}",
         }
 
-<<<<<<< HEAD
-    def get_transcript(self, video_id: str, *, stt_model: str = "local-base") -> list[dict[str, Any]]:
-        diagnostics: list[str] = []
-
-=======
     def get_transcript(self, video_id: str, *, stt_model: str = "local-base", use_serpapi: bool = False) -> list[dict[str, Any]]:
         diagnostics: list[str] = []
 
@@ -338,7 +330,6 @@ class YouTubeLessonService:
                 if use_serpapi:
                    raise RuntimeError(f"Không lấy được transcript từ SerpAPI: {exc}")
 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         # 1. Thử youtube_transcript_api (Cách nhanh nhất và chuẩn nhất)
         try:
             transcript_list = self._fetch_with_youtube_transcript_api(video_id)
@@ -825,8 +816,6 @@ class YouTubeLessonService:
         except Exception:
             pass
 
-<<<<<<< HEAD
-=======
     def _fetch_with_serpapi(self, video_id: str) -> list[dict[str, Any]]:
         if not settings.serpapi_api_key:
             return []
@@ -864,7 +853,6 @@ class YouTubeLessonService:
         except Exception as e:
             raise e
 
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         # Fallback cũ nếu logic trên thất bại
         try:
             if hasattr(yta, "get_transcript"):

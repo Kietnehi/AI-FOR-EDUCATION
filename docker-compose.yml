@@ -60,12 +60,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-<<<<<<< HEAD
-=======
     profiles:
       - local-db
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
-
   backend:
     gpus: all
     dns:
@@ -145,11 +141,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
-<<<<<<< HEAD
-      - backend_venv:/app/.venv
-=======
       - backend_venv_v2:/app/.venv
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       - backend_storage:/app/storage
     ports:
       - "8000:8000"
@@ -186,10 +178,6 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api}
       NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST:-http://localhost:8000}
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
-<<<<<<< HEAD
-      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
-=======
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       NEXT_TELEMETRY_DISABLED: "1"
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "500"
@@ -279,11 +267,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ./backend:/app
-<<<<<<< HEAD
-      - backend_venv:/app/.venv
-=======
       - backend_venv_v2:/app/.venv
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       - backend_storage:/app/storage
     deploy:
       resources:
@@ -293,11 +277,8 @@ services:
               count: 1
               capabilities: [gpu]
     depends_on:
-<<<<<<< HEAD
-=======
       backend:
         condition: service_healthy
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       redis:
         condition: service_healthy
       mongo:
@@ -328,21 +309,14 @@ services:
       CELERY_TASK_TIME_LIMIT_SECONDS: ${CELERY_TASK_TIME_LIMIT_SECONDS:-2100}
       CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
     depends_on:
-<<<<<<< HEAD
-=======
       backend:
         condition: service_healthy
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       redis:
         condition: service_healthy
     restart: unless-stopped
     volumes:
       - ./backend:/app
-<<<<<<< HEAD
-      - backend_venv:/app/.venv
-=======
       - backend_venv_v2:/app/.venv
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
       - backend_storage:/app/storage
 
   celery-flower:
@@ -359,164 +333,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-<<<<<<< HEAD
-  prometheus:
-    build:
-      context: ./Monitoring/railway-grafana-stack/prometheus
-      dockerfile: dockerfile
-    container_name: any2-prometheus
-    user: root
-    ports:
-      - "9090:9090"
-    volumes:
-      - prometheus_data:/prometheus
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: any2-cadvisor
-    ports:
-      - "8085:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    privileged: true
-    devices:
-      - /dev/kmsg
-    restart: unless-stopped
-
-  loki:
-    build:
-      context: ./Monitoring/railway-grafana-stack/loki
-      dockerfile: dockerfile
-    container_name: any2-loki
-    user: root
-    ports:
-      - "3100:3100"
-    volumes:
-      - loki_data:/loki
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
-
-  tempo:
-    build:
-      context: ./Monitoring/railway-grafana-stack/tempo
-      dockerfile: dockerfile
-    container_name: any2-tempo
-    user: root
-    ports:
-      - "3200:3200"
-      - "4317:4317"
-      - "4318:4318"
-    volumes:
-      - tempo_data:/var/tempo
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3200/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
-
-  promtail:
-    image: grafana/promtail:3.4.0
-    container_name: any2-promtail
-    command: -config.file=/etc/promtail/config.yml
-    volumes:
-      - ./Monitoring/railway-grafana-stack/promtail/promtail.yml:/etc/promtail/config.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      loki:
-        condition: service_healthy
-    restart: unless-stopped
-
-  example-api:
-    build:
-      context: ./Monitoring/railway-grafana-stack/examples/api
-      dockerfile: dockerfile
-    container_name: any2-example-api
-    ports:
-      - "9091:9091"
-    environment:
-      TEMPO_URL: http://tempo:4318
-      TEMPO_SERVICE_NAME: example_api
-      LOKI_URL: http://loki:3100
-    depends_on:
-      tempo:
-        condition: service_healthy
-      loki:
-        condition: service_healthy
-    restart: unless-stopped
-
-  grafana:
-    build:
-      context: ./Monitoring/railway-grafana-stack/grafana
-      dockerfile: dockerfile
-    container_name: any2-grafana
-    ports:
-      - "3300:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-yourpassword123}
-      GF_DEFAULT_INSTANCE_NAME: ${GF_DEFAULT_INSTANCE_NAME:-Grafana}
-      LOKI_INTERNAL_URL: http://loki:3100
-      PROMETHEUS_INTERNAL_URL: http://prometheus:9090
-      TEMPO_INTERNAL_URL: http://tempo:3200
-    depends_on:
-      prometheus:
-        condition: service_healthy
-      loki:
-        condition: service_healthy
-      tempo:
-        condition: service_healthy
-      cadvisor:
-        condition: service_started
-      promtail:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-
-=======
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 volumes:
   redis_data:
   minio_data:
   mongo_data:
-<<<<<<< HEAD
-  backend_venv:
-=======
   backend_venv_v2: {}
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
   backend_storage:
   redis_insight_data:
   frontend_node_modules:
   frontend_next_cache:
-<<<<<<< HEAD
-  prometheus_data:
-  loki_data:
-  grafana_data:
-  tempo_data:
-=======
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66

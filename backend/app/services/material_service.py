@@ -21,10 +21,7 @@ from app.repositories.game_repository import GameRepository
 from app.repositories.generated_content_repository import GeneratedContentRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.material_repository import MaterialRepository
-<<<<<<< HEAD
-=======
 from app.repositories.user_repository import UserRepository
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 from app.services.groq_speech_service import GroqSpeechToTextService
 from app.services.material_guardrail_service import MaterialGuardrailService
 from app.services.speech_service import SpeechToTextService
@@ -363,10 +360,6 @@ class MaterialService:
         material["shared_details"] = await self._resolve_shared_details(material.get("shared_with", []))
         return material
 
-<<<<<<< HEAD
-    async def list_materials(self, user_id: str, skip: int, limit: int) -> tuple[list[dict], int]:
-        return await self.material_repo.list_for_user(user_id=user_id, skip=skip, limit=limit)
-=======
     async def _resolve_shared_details(self, shared_with_ids: list[str]) -> list[dict]:
         if not shared_with_ids:
             return []
@@ -386,7 +379,6 @@ class MaterialService:
         for item in items:
             item["shared_details"] = await self._resolve_shared_details(item.get("shared_with", []))
         return items, total
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
     async def update_material(
         self,
@@ -414,11 +406,8 @@ class MaterialService:
         )
         if not updated:
             raise HTTPException(status_code=404, detail="Material not found")
-<<<<<<< HEAD
-=======
         
         updated["shared_details"] = await self._resolve_shared_details(updated.get("shared_with", []))
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         return updated
 
     async def process_material(
@@ -426,10 +415,7 @@ class MaterialService:
         material_id: str,
         force_reprocess: bool = False,
         user_id: str | None = None,
-<<<<<<< HEAD
-=======
         chunking_strategy: str = "fixed",
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     ) -> None:
         material_object_id = parse_object_id(material_id)
         job_id = uuid.uuid4().hex
@@ -524,20 +510,14 @@ class MaterialService:
         material_id: str,
         force_reprocess: bool = False,
         user_id: str | None = None,
-<<<<<<< HEAD
-=======
         chunking_strategy: str = "fixed",
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
     ) -> None:
         task = asyncio.create_task(
             self.process_material(
                 material_id,
                 force_reprocess=force_reprocess,
                 user_id=user_id,
-<<<<<<< HEAD
-=======
                 chunking_strategy=chunking_strategy,
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
             )
         )
         task.add_done_callback(self._consume_background_exception)

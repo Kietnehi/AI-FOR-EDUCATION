@@ -11,13 +11,8 @@ class ChatbotOrchestrator:
         self.llm = LLMClient()
         self.web_search_orchestrator = WebSearchOrchestrator()
 
-<<<<<<< HEAD
-    def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True) -> dict:
-        contexts = self.retriever.retrieve(material_id=material_id, query=question)
-=======
     def answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True, corpus_chunks: list[dict] | None = None) -> dict:
         contexts = self.retriever.retrieve(material_id=material_id, query=question, corpus_chunks=corpus_chunks)
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
         if not contexts:
             return {
@@ -99,13 +94,8 @@ class ChatbotOrchestrator:
         ]
         return {"answer": answer, "citations": citations, "reasoning_details": reasoning_details}
 
-<<<<<<< HEAD
-    def stream_answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True):
-        contexts = self.retriever.retrieve(material_id=material_id, query=question)
-=======
     def stream_answer(self, material_id: str, question: str, conversation_history: list[dict] | None = None, images: list[str] | None = None, model: str | None = None, reasoning_enabled: bool = False, use_gemini_rotation: bool = True, corpus_chunks: list[dict] | None = None):
         contexts = self.retriever.retrieve(material_id=material_id, query=question, corpus_chunks=corpus_chunks)
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 
         if not contexts:
             yield {"answer": "Tôi không tìm thấy dữ liệu liên quan trong học liệu đã tải lên, nên chưa thể trả lời chắc chắn.", "citations": []}
@@ -115,11 +105,6 @@ class ChatbotOrchestrator:
             f"[Chunk {item['chunk_index']}] {item['chunk_text']}" for item in contexts
         )
         system_prompt = (
-<<<<<<< HEAD
-            "Bạn là trợ lý dạy học. Chỉ trả lời dựa trên context được cung cấp, BẮT BUỘC bằng tiếng Việt có dấu đầy đủ, chuẩn xác. "
-            "Nếu thiếu dữ liệu, phải nói rõ là không chắc chắn. "
-            "Luôn ưu tiên bám theo mạch hội thoại gần đây nếu có."
-=======
             "Bạn là trợ lý học tập thông minh và thân thiện. Nhiệm vụ của bạn là giải thích kiến thức dựa trên Context được cung cấp. "
             "BẮT BUỘC trả lời bằng tiếng Việt có dấu đầy đủ, chuẩn xác và dễ hiểu. "
             "\n\nQUY TẮC TRÌNH BÀY:"
@@ -128,7 +113,6 @@ class ChatbotOrchestrator:
             "\n- Sử dụng Markdown (bold, list, table) để câu trả lời rõ ràng."
             "\n- Nếu thiếu dữ liệu để khẳng định, hãy trung thực nói rằng bạn không chắc chắn dựa trên tài liệu hiện có."
             "\n- Luôn ưu tiên bám theo mạch hội thoại gần đây."
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
         )
 
         messages = [{"role": "system", "content": system_prompt}]

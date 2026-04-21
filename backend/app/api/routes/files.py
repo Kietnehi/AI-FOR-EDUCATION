@@ -7,12 +7,8 @@ import mimetypes
 from urllib.parse import unquote
 import re
 
-<<<<<<< HEAD
-from fastapi import APIRouter, Depends, HTTPException
-=======
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Request
 import uuid
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
 from fastapi.responses import FileResponse, StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
@@ -208,8 +204,6 @@ async def _ensure_file_access(db: AsyncIOMotorDatabase, user_id: str, file_path:
                 return
 
     raise HTTPException(status_code=404, detail="File not found")
-<<<<<<< HEAD
-=======
 @router.post("/files/upload")
 async def upload_general_file(
     request: Request,
@@ -239,4 +233,3 @@ async def upload_general_file(
         # Fallback to local storage if remote fails and local is configured as fallback
         # For simplicity in this env, we assume remote should work if configured.
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66

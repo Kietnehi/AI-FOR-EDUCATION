@@ -76,11 +76,7 @@ async def generate_interactive_youtube_lesson(
             if not transcript:
                 raise RuntimeError("Không thể parse nội dung transcript thủ công. Vui lòng kiểm tra định dạng.")
         else:
-<<<<<<< HEAD
-            transcript = await asyncio.to_thread(service.get_transcript, video_id, stt_model=payload.stt_model)
-=======
             transcript = await asyncio.to_thread(service.get_transcript, video_id, stt_model=payload.stt_model, use_serpapi=payload.use_serpapi)
->>>>>>> a78aa0fd5a16184ec5ef421650b3c03395164c66
             
         lesson = await asyncio.to_thread(
             service.build_interactive_lesson,
