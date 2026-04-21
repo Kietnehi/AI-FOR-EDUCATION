@@ -951,7 +951,7 @@ Lưu ý vận hành:
 
 ### 📚 Tài liệu tham khảo
 - **Redis, Celery & Object Storage:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md).
-- **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md)
+- **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md).
 - **Docker:** [Trang chủ Docker](https://www.docker.com/)
 - **Redis:** [Redis Documentation](https://redis.io/)
 - **RedisInsight:** [RedisInsight GUI](https://github.com/redis/RedisInsight)
