@@ -1,3 +1,5 @@
+import asyncio
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo import ASCENDING, IndexModel
 
@@ -6,12 +8,42 @@ from app.core.logging import logger
 
 _mongo_client: AsyncIOMotorClient | None = None
 _database: AsyncIOMotorDatabase | None = None
+_mongo_event_loop: asyncio.AbstractEventLoop | None = None
 
 
 async def connect_mongo() -> None:
-    global _mongo_client, _database
+    """Connect to MongoDB.
+
+    Motor (AsyncIOMotorClient) is bound to the event loop that created it.
+    In Celery workers each task runs inside ``asyncio.run()``, which creates a
+    *new* event loop.  Reusing a client that was bound to a previous (now
+    closed) loop raises ``RuntimeError: Task attached to a different loop``.
+
+    We therefore track which loop owns the current client and force
+    re-initialisation whenever the running loop changes.
+    """
+    global _mongo_client, _database, _mongo_event_loop
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+
+    # Re-create the client if it belongs to a different (closed) event loop.
+    if _mongo_client is not None and _mongo_event_loop is not current_loop:
+        logger.info(
+            "Event loop changed – closing stale MongoDB client and reconnecting"
+        )
+        try:
+            _mongo_client.close()
+        except Exception:  # pragma: no cover
+            pass
+        _mongo_client = None
+        _database = None
+        _mongo_event_loop = None
+
     if _mongo_client:
         return
+
     _mongo_client = AsyncIOMotorClient(
         settings.mongo_uri,
         maxPoolSize=100,
@@ -19,19 +51,21 @@ async def connect_mongo() -> None:
         maxIdleTimeMS=60000,
         connectTimeoutMS=5000,
         serverSelectionTimeoutMS=5000,
-        compressors="zlib", # Enable wire compression
-        zlibCompressionLevel=1
+        compressors="zlib",  # Enable wire compression
+        zlibCompressionLevel=1,
     )
     _database = _mongo_client[settings.mongo_db_name]
+    _mongo_event_loop = current_loop
     logger.info("Connected MongoDB: %s", settings.mongo_db_name)
 
 
 async def close_mongo() -> None:
-    global _mongo_client, _database
+    global _mongo_client, _database, _mongo_event_loop
     if _mongo_client:
         _mongo_client.close()
     _mongo_client = None
     _database = None
+    _mongo_event_loop = None
 
 
 def get_db() -> AsyncIOMotorDatabase:
