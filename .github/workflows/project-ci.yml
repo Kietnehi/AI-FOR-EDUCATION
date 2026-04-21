@@ -32,7 +32,7 @@ jobs:
       - x64
     steps:
       - name: Kiểm tra self-hosted runner sẵn sàng
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "Self-hosted runner is online."
           Write-Host "Runner: $env:RUNNER_NAME"

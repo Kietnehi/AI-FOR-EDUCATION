@@ -49,7 +49,7 @@ jobs:
 
       - name: Tạo metadata phát hành
         id: meta
-        shell: pwsh
+        shell: powershell
         run: |
           $shaShort = "${env:SOURCE_SHA}".Substring(0, 7)
           $releaseVersion = "placeholder-$shaShort"
@@ -121,7 +121,7 @@ jobs:
         run: npm run build
 
       - name: Đóng gói bundle phát hành frontend
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path ../release/frontend | Out-Null
           Copy-Item -Path .next -Destination ../release/frontend/.next -Recurse -Force
@@ -161,7 +161,7 @@ jobs:
         run: python -m compileall app
 
       - name: Đóng gói bundle phát hành backend
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path ../release/backend | Out-Null
           Copy-Item -Path app -Destination ../release/backend/app -Recurse -Force
@@ -193,14 +193,14 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Chuẩn bị file môi trường Docker
-        shell: pwsh
+        shell: powershell
         run: Copy-Item -Path .env.docker.example -Destination .env -Force
 
       - name: Kiểm tra cấu hình docker compose
         run: docker compose config > release-docker-compose.resolved.yml
 
       - name: Đóng gói bundle phát hành Docker
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path release/docker | Out-Null
           Copy-Item -Path docker-compose.yml -Destination release/docker/docker-compose.yml -Force
@@ -236,7 +236,7 @@ jobs:
           ref: ${{ env.SOURCE_SHA }}
 
       - name: Triển khai trực tiếp trên self-hosted runner
-        shell: pwsh
+        shell: powershell
         run: |
           if (-not (Test-Path "scripts/deploy.ps1")) {
             throw "Missing deploy script: scripts/deploy.ps1"
@@ -244,7 +244,7 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
 
       - name: Tạo báo cáo triển khai
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path release/deploy | Out-Null
           $summary = @"
