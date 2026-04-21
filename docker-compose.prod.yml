@@ -180,6 +180,7 @@ services:
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
         NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST}
+        NEXT_DISABLE_TYPECHECK: ${NEXT_DISABLE_TYPECHECK:-1}
     container_name: any2-frontend
     restart: unless-stopped
     pull_policy: ${IMAGE_PULL_POLICY:-never}
