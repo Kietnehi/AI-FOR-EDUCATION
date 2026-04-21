@@ -19,11 +19,15 @@ async def verify_turnstile_token(token: str) -> None:
     Raises:
         TurnstileVerificationError: if verification fails or the token is invalid.
     """
-    secret_key = settings.turnstile_secret_key
+    secret_key = settings.turnstile_secret_key.strip()
+    token = token.strip()
 
     # Skip verification in test/development mode when no secret key is configured
     if not secret_key:
         return
+
+    if not token:
+        raise TurnstileVerificationError("Thiếu CAPTCHA token. Vui lòng thử lại.")
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -34,7 +38,11 @@ async def verify_turnstile_token(token: str) -> None:
                     "response": token,
                 },
             )
-            response.raise_for_status()
+            if response.status_code >= 400:
+                raise TurnstileVerificationError(
+                    "Xác minh CAPTCHA thất bại (HTTP "
+                    f"{response.status_code}). Kiểm tra TURNSTILE_SECRET_KEY và domain cấu hình trên Cloudflare."
+                )
             result = response.json()
     except httpx.HTTPError as exc:
         raise TurnstileVerificationError(
