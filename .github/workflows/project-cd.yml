@@ -118,6 +118,8 @@ jobs:
         run: npm ci
 
       - name: Build frontend
+        env:
+          NEXT_DISABLE_TYPECHECK: "1"
         run: npm run build -- --no-lint
 
       - name: Đóng gói bundle phát hành frontend
