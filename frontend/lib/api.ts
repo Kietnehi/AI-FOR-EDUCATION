@@ -1108,11 +1108,11 @@ export async function generateInteractiveYouTubeLesson(payload: {
   stt_model?: SttModel;
   use_serpapi?: boolean;
 }): Promise<YouTubeInteractiveLessonResponse> {
-  return apiFetch<YouTubeInteractiveLessonResponse>("/youtube-lessons/interactive", {
+  const queued = await apiFetch<{ task_id: string }>("/youtube-lessons/interactive/async", {
     method: "POST",
     body: JSON.stringify(payload),
-    skipCache: true,
   });
+  return pollGenerationTask(queued.task_id);
 }
 
 export async function listYouTubeLessonHistory(

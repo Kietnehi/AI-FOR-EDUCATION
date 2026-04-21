@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Toast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
+import { pollGenerationTask } from "@/lib/api";
 import {
   Upload, Link as LinkIcon, FileText, Loader2, Link2,
   FileImage, Download, TableProperties, ChevronDown, ChevronUp, Eye, Code, X
@@ -348,16 +349,18 @@ export function PdfConverter() {
     setLoading(true); setError(null);
     try {
       const fd = new FormData(); fd.append("file", file);
-      const res = await fetchWithAuth(`${API_BASE}/converter/convert-file`, { method: "POST", body: fd });
+      const res = await fetchWithAuth(`${API_BASE}/converter/convert-file/async`, { method: "POST", body: fd });
       if (res.status === 401) {
         notifyAuthRequired();
         return;
       }
       if (!res.ok) throw new Error(await res.text() || "Lỗi chuyển đổi");
-      const cd = res.headers.get("Content-Disposition");
-      let name = "converted.pdf";
-      if (cd) { const m = cd.match(/filename="(.+)"/); if (m) name = m[1]; }
-      handleDownload(await res.blob(), name);
+      const queued = await res.json();
+      const result = await pollGenerationTask(queued.task_id);
+      
+      const downloadRes = await fetchWithAuth(`${API_BASE}/converter/download/${result.file_id}?filename=${encodeURIComponent(result.safe_filename)}`);
+      if (!downloadRes.ok) throw new Error("Lỗi tải tệp");
+      handleDownload(await downloadRes.blob(), result.safe_filename);
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -368,16 +371,18 @@ export function PdfConverter() {
     setLoading(true); setError(null);
     try {
       const fd = new FormData(); fd.append("url", url);
-      const res = await fetchWithAuth(`${API_BASE}/converter/convert-url`, { method: "POST", body: fd });
+      const res = await fetchWithAuth(`${API_BASE}/converter/convert-url/async`, { method: "POST", body: fd });
       if (res.status === 401) {
         notifyAuthRequired();
         return;
       }
       if (!res.ok) throw new Error(await res.text() || "Lỗi chuyển đổi");
-      const cd = res.headers.get("Content-Disposition");
-      let name = "webpage.pdf";
-      if (cd) { const m = cd.match(/filename="(.+)"/); if (m) name = m[1]; }
-      handleDownload(await res.blob(), name);
+      const queued = await res.json();
+      const result = await pollGenerationTask(queued.task_id);
+      
+      const downloadRes = await fetchWithAuth(`${API_BASE}/converter/download/${result.file_id}?filename=${encodeURIComponent(result.safe_filename)}`);
+      if (!downloadRes.ok) throw new Error("Lỗi tải tệp");
+      handleDownload(await downloadRes.blob(), result.safe_filename);
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -390,13 +395,15 @@ export function PdfConverter() {
 
     try {
       const fd = new FormData(); fd.append("file", pdfFile);
-      const res = await fetchWithAuth(`${API_BASE}/converter/extract-pdf`, { method: "POST", body: fd });
+      const res = await fetchWithAuth(`${API_BASE}/converter/extract-pdf/async`, { method: "POST", body: fd });
       if (res.status === 401) {
         notifyAuthRequired();
         return;
       }
       if (!res.ok) throw new Error(await res.text() || "Lỗi trích xuất");
-      const data = await res.json();
+      const queued = await res.json();
+      const data = await pollGenerationTask(queued.task_id);
+      
       setExtractId(data.extract_id);
       setSummary(data.summary);
 

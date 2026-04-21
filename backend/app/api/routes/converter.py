@@ -163,6 +163,78 @@ async def extract_pdf(
         "summary": result["summary"]
     })
 
+@router.post("/convert-url/async")
+async def queue_convert_url(
+    url: str = Form(...),
+    user: AuthUser = Depends(get_current_user),
+):
+    from app.tasks import convert_url_task
+    task = convert_url_task.delay(url, user.id)
+    return JSONResponse({
+        "task_id": task.id,
+        "status": "queued",
+        "message": "Đã đưa vào hàng đợi xử lý",
+    })
+
+@router.post("/convert-file/async")
+async def queue_convert_file(
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(get_current_user),
+):
+    import uuid
+    import shutil
+    from app.tasks import convert_file_task
+    
+    file_id = str(uuid.uuid4())
+    input_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
+    
+    with open(input_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    task = convert_file_task.delay(str(input_path), file.filename, user.id)
+    return JSONResponse({
+        "task_id": task.id,
+        "status": "queued",
+        "message": "Đã đưa vào hàng đợi xử lý",
+    })
+
+@router.post("/extract-pdf/async")
+async def queue_extract_pdf(
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(get_current_user),
+):
+    import uuid
+    import shutil
+    from app.tasks import extract_pdf_task
+    
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        
+    extract_id = str(uuid.uuid4())
+    input_path = UPLOAD_DIR / f"{extract_id}_{file.filename}"
+    
+    with open(input_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    task = extract_pdf_task.delay(str(input_path), file.filename, user.id)
+    return JSONResponse({
+        "task_id": task.id,
+        "status": "queued",
+        "message": "Đã đưa vào hàng đợi xử lý",
+    })
+
+@router.get("/download/{file_id}")
+async def download_converted_file(
+    file_id: str,
+    filename: str,
+    user: AuthUser = Depends(get_current_user),
+):
+    output_path = OUTPUT_DIR / f"{file_id}.pdf"
+    if not output_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(output_path, filename=filename, media_type='application/pdf')
+
+
 @router.get("/extracted/{extract_id}/text")
 async def get_extracted_text(
     extract_id: str,

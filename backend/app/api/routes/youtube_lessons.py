@@ -109,6 +109,23 @@ async def generate_interactive_youtube_lesson(
         translations=history_doc.get("translations", {}),
     )
 
+@router.post("/interactive/async", response_model=dict)
+async def queue_generate_interactive_youtube_lesson(
+    payload: YouTubeLessonRequest,
+    user: AuthUser = Depends(get_current_user),
+) -> dict:
+    from app.tasks import generate_youtube_lesson_task
+    task = generate_youtube_lesson_task.delay(
+        payload.model_dump(),
+        user.id,
+    )
+    return {
+        "task_id": task.id,
+        "status": "queued",
+        "message": "Đã đưa vào hàng đợi xử lý",
+    }
+
+
 
 @router.get("/history", response_model=YouTubeLessonHistoryListResponse)
 async def list_youtube_lesson_history(

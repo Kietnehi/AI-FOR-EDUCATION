@@ -185,6 +185,206 @@ def generate_minigame_task(self, material_id: str, game_type: str, difficulty: s
         logger.exception("Generate minigame task failed for material_id=%s", material_id)
         raise self.retry(exc=exc)
 
+async def _run_generate_youtube_lesson(payload: dict, user_id: str) -> dict:
+    from app.services.youtube_lesson_service import YouTubeLessonService
+    from app.repositories.youtube_lesson_history_repository import YouTubeLessonHistoryRepository
+    
+    await connect_mongo()
+    try:
+        db = get_db()
+        service = YouTubeLessonService()
+        history_repo = YouTubeLessonHistoryRepository(db)
+
+        video_id = payload.get("video_id") or (service.extract_video_id(payload.get("youtube_url") or "") if payload.get("youtube_url") else None)
+        video_meta = None
+
+        if not video_id:
+            query_text = (payload.get("query") or "").strip()
+            if not query_text:
+                raise HTTPException(status_code=400, detail="Cần cung cấp youtube_url, video_id hoặc query để phân tích")
+            
+            candidates = await asyncio.to_thread(service.search_videos, query_text, limit=1)
+            if not candidates:
+                raise HTTPException(status_code=404, detail="Không tìm thấy video phù hợp từ từ khóa")
+
+            video_meta = candidates[0]
+            video_id = video_meta["video_id"]
+
+        if video_meta is None:
+            video_meta = await asyncio.to_thread(service.get_video_meta, video_id)
+        
+        manual_transcript = payload.get("manual_transcript")
+        if manual_transcript:
+            transcript = await asyncio.to_thread(service.parse_manual_transcript, manual_transcript)
+            if not transcript:
+                raise RuntimeError("Không thể parse nội dung transcript thủ công. Vui lòng kiểm tra định dạng.")
+        else:
+            transcript = await asyncio.to_thread(service.get_transcript, video_id, stt_model=payload.get("stt_model", "whisper-large-v3"), use_serpapi=payload.get("use_serpapi", False))
+            
+        lesson = await asyncio.to_thread(
+            service.build_interactive_lesson,
+            transcript,
+            title=video_meta.get("title") or "YouTube Lesson",
+            max_checkpoints=payload.get("max_checkpoints", 5),
+        )
+
+        now = utc_now()
+        history_doc = await history_repo.upsert_by_user_and_video(
+            user_id=user_id,
+            video_id=video_meta.get("video_id", ""),
+            payload={
+                "video": video_meta,
+                "transcript": transcript,
+                "lesson": lesson,
+            },
+            created_at=now,
+            updated_at=now,
+        )
+
+        return {
+            "video": history_doc["video"],
+            "transcript": history_doc["transcript"],
+            "lesson": history_doc["lesson"],
+            "translations": history_doc.get("translations", {}),
+        }
+    except Exception as exc:
+        raise exc
+    finally:
+        await close_mongo()
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30, retry_backoff=True)
+def generate_youtube_lesson_task(self, payload: dict, user_id: str) -> dict:
+    configure_logging()
+    logger.info("Queue generate youtube lesson task user_id=%s", user_id)
+    try:
+        return asyncio.run(_run_generate_youtube_lesson(payload, user_id))
+    except Exception as exc:
+        logger.exception("Generate youtube lesson task failed")
+        raise self.retry(exc=exc)
+
+async def _run_convert_url(url: str, user_id: str) -> dict:
+    from app.services.converter import convert_web_to_pdf, OUTPUT_DIR
+    import uuid
+    import re
+    
+    await connect_mongo()
+    try:
+        db = get_db()
+        file_id = str(uuid.uuid4())
+        output_path = OUTPUT_DIR / f"{file_id}.pdf"
+        success = await convert_web_to_pdf(url, output_path)
+        
+        personalization_service = PersonalizationService(db)
+        await personalization_service.track_event(
+            user_id=user_id,
+            event_type="converter_used",
+            resource_type="converter",
+            metadata={"input_type": "url", "success": success},
+            success=success
+        )
+        
+        if success:
+            safe_filename = re.sub(r'[\\/*?:"<>|]', '_', url.split('//')[-1])[:50]
+            if not safe_filename.endswith('.pdf'):
+                safe_filename += '.pdf'
+            return {"success": True, "file_id": file_id, "safe_filename": safe_filename}
+        else:
+            raise RuntimeError("Conversion failed")
+    finally:
+        await close_mongo()
+
+@celery_app.task(bind=True, max_retries=1, default_retry_delay=30)
+def convert_url_task(self, url: str, user_id: str) -> dict:
+    configure_logging()
+    logger.info("Queue convert url task")
+    try:
+        return asyncio.run(_run_convert_url(url, user_id))
+    except Exception as exc:
+        logger.exception("Convert url task failed")
+        raise self.retry(exc=exc)
+
+async def _run_convert_file(input_path: str, filename: str, user_id: str) -> dict:
+    from app.services.converter import convert_file_to_pdf, OUTPUT_DIR
+    import uuid
+    import re
+    from pathlib import Path
+    
+    await connect_mongo()
+    try:
+        db = get_db()
+        file_id = str(uuid.uuid4())
+        output_path = OUTPUT_DIR / f"{file_id}.pdf"
+        success = await convert_file_to_pdf(input_path, str(output_path))
+        
+        personalization_service = PersonalizationService(db)
+        await personalization_service.track_event(
+            user_id=user_id,
+            event_type="converter_used",
+            resource_type="converter",
+            metadata={"input_type": "file", "success": success, "file_name": filename},
+            success=success
+        )
+        
+        if success:
+            original_name = Path(filename).stem
+            safe_name = re.sub(r'[\\/*?:"<>|]', '_', original_name)
+            return {"success": True, "file_id": file_id, "safe_filename": f"{safe_name}.pdf", "input_path": input_path}
+        else:
+            raise RuntimeError("Conversion failed")
+    finally:
+        await close_mongo()
+
+@celery_app.task(bind=True, max_retries=1, default_retry_delay=30)
+def convert_file_task(self, input_path: str, filename: str, user_id: str) -> dict:
+    configure_logging()
+    logger.info("Queue convert file task")
+    try:
+        return asyncio.run(_run_convert_file(input_path, filename, user_id))
+    except Exception as exc:
+        logger.exception("Convert file task failed")
+        raise self.retry(exc=exc)
+
+async def _run_extract_pdf(input_path: str, filename: str, user_id: str) -> dict:
+    from app.services.converter import extract_from_pdf
+    import uuid
+    
+    await connect_mongo()
+    try:
+        db = get_db()
+        extract_id = str(uuid.uuid4())
+        
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, extract_from_pdf, input_path, extract_id)
+        
+        success = result.get("success", False)
+        personalization_service = PersonalizationService(db)
+        await personalization_service.track_event(
+            user_id=user_id,
+            event_type="converter_extract_used",
+            resource_type="converter",
+            metadata={"success": success, "file_name": filename},
+            success=success
+        )
+        
+        if success:
+            return {"success": True, "extract_id": extract_id, "summary": result["summary"], "input_path": input_path}
+        else:
+            raise RuntimeError(f"Extraction failed: {result.get('error', 'Unknown')}")
+    finally:
+        await close_mongo()
+
+@celery_app.task(bind=True, max_retries=1, default_retry_delay=30)
+def extract_pdf_task(self, input_path: str, filename: str, user_id: str) -> dict:
+    configure_logging()
+    logger.info("Queue extract pdf task")
+    try:
+        return asyncio.run(_run_extract_pdf(input_path, filename, user_id))
+    except Exception as exc:
+        logger.exception("Extract pdf task failed")
+        raise self.retry(exc=exc)
+
+
 
 async def _run_scheduled_learning_reminders() -> dict:
     await connect_mongo()
