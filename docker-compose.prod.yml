@@ -125,7 +125,7 @@ services:
     container_name: any2-celery-worker
     restart: unless-stopped
     pull_policy: ${IMAGE_PULL_POLICY:-never}
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 --pool=solo
     environment:
       APP_ENV: ${APP_ENV}
       LOG_LEVEL: ${LOG_LEVEL}
