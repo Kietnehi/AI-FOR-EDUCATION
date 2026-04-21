@@ -51,7 +51,24 @@
 
 </div>
 
-![Tổng Quan Project](image/Tong_Quan_Project.png)
+<div align="center">
+  <img src="image/pipeline/pipeline.png" width="100%" alt="Full Pipeline Project" />
+  <br/><br/>
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/pipeline/RAG.png" width="100%" alt="Advanced RAG Pipeline" />
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/pipeline/flower_celery_red.png" width="100%" alt="Monitoring & Worker Architecture" />
+      </td>
+    </tr>
+    <tr>
+      <td align="center"><em>Hình 1: Chi tiết luồng RAG</em></td>
+      <td align="center"><em>Hình 2: Kiến trúc Worker & Monitoring</em></td>
+    </tr>
+  </table>
+</div>
 
 
 
@@ -69,11 +86,7 @@ Dự án được chia thành 2 luồng xử lý chính:
 **🛠 Công nghệ cốt lõi:** FastAPI, Next.js 14, MongoDB, ChromaDB (Vector Store), và hệ sinh thái mô hình AI tiên tiến (Gemini, OpenAI, Groq).
 
 
-<p align="center">
-  <img src="image/pipeline.png" alt="AI Learning Studio Pipeline" width="100%" />
-  <br>
-  <em>Hình 1: Full Pipeline Project (vẽ bằng Excalidraw)</em>
-</p>
+
 
 ## Tính năng chính
 
@@ -328,6 +341,103 @@ AI-FOR-EDUCATION/
 
 ---
 
+## 📸 Giao diện ứng dụng
+
+### 1. Tổng quan & Đăng nhập
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/intro.png" width="100%" alt="Introduction Page" />
+        <p align="center"><em>Trang giới thiệu dự án</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/login.png" width="100%" alt="Login Page" />
+        <p align="center"><em>Giao diện Đăng nhập / Đăng ký</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+### 2. Dashboard & Quản lý tiến độ
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/dashboard.png" width="100%" alt="Main Dashboard" />
+        <p align="center"><em>Dashboard chính với thống kê học tập</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/streak_learning.png" width="100%" alt="Learning Streak" />
+        <p align="center"><em>Theo dõi Streak và mục tiêu hàng ngày</em></p>
+      </td>
+    </tr>
+    <tr>
+       <td colspan="2" style="padding: 5px;">
+        <img src="image/frontend/schedule_learning.png" width="100%" alt="Learning Schedule" />
+        <p align="center"><em>Lịch trình học tập thông minh</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+### 3. Quản lý học liệu & Chia sẻ
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/document3.png" width="100%" alt="Documents Management" />
+        <p align="center"><em>Quản lý danh sách học liệu số</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/document-sharing.png" width="100%" alt="Document Sharing" />
+        <p align="center"><em>Tính năng chia sẻ học liệu giữa các tài khoản</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+### 4. Chatbot RAG & Công cụ AI Nâng cao
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td colspan="2" style="padding: 5px;">
+        <img src="image/frontend/rag_chatbot.png" width="100%" alt="RAG Chatbot" />
+        <p align="center"><em>Chatbot RAG hỗ trợ hỏi đáp theo ngữ nghĩa tài liệu</em></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/search_online.png" width="100%" alt="Online Search" />
+        <p align="center"><em>Tích hợp tìm kiếm Web trực tiếp</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/youtube_interactive.png" width="100%" alt="YouTube Interactive" />
+        <p align="center"><em>Tạo bài học tương tác từ video YouTube</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+### 5. Cộng đồng & Tiện ích
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/community.png" width="100%" alt="Community" />
+        <p align="center"><em>Diễn đàn trao đổi cộng đồng</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/frontend/extract-from-pdf.png" width="100%" alt="PDF Utilities" />
+        <p align="center"><em>Các công cụ xử lý tệp tin (PDF, Office, Web)</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+---
+
+
 
 ## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose (Khuyên dùng)
 
@@ -382,8 +492,8 @@ docker compose --profile local-db up
 | Redis | `6379` | `6379` | Dùng Redis client/CLI |
 | Redis Insight (service `redis-commander`) | `8081` | `5540` | [http://localhost:8081](http://localhost:8081) |
 | MongoDB (profile `local-db`) | `27017` | `27017` | Dùng MongoDB client/Compass |
-| Grafana (monitoring stack - optional) | `3300` | `3000` | [http://localhost:3300](http://localhost:3300) |
-| Prometheus (monitoring stack - optional) | `9090` | `9090` | [http://localhost:9090](http://localhost:9090) |
+| Grafana (monitoring stack) | `3300` | `3000` | [http://localhost:3300](http://localhost:3300) (User: `admin`, Pass: `yourpassword123`) |
+| Prometheus (monitoring stack) | `9090` | `9090` | [http://localhost:9090](http://localhost:9090) |
 | Cloudflare R2 (production object storage) | `N/A` | `N/A` | Dịch vụ cloud, không map localhost port |
 
 #### Theo dõi trình duyệt NotebookLM khi chạy Docker
@@ -731,6 +841,51 @@ flowchart LR
 
 > 💡 **Lưu ý:** Thời gian có thể thay đổi tùy thuộc vào kích thước code changes và tình trạng cache của GitHub Actions.
 
+### 6.3 Giao diện và cấu hình CI/CD trên GitHub
+
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/CICD/github_actions.png" width="100%" alt="GitHub Actions Workflow" />
+        <p align="center"><em>Hình 3: GitHub Actions Workflow</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/CICD/runners.png" width="100%" alt="GitHub Actions Runners" />
+        <p align="center"><em>Hình 4: Trạng thái Runners</em></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/CICD/done.png" width="100%" alt="Pipeline Success" />
+        <p align="center"><em>Hình 5: Pipeline chạy thành công</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/CICD/issues.png" width="100%" alt="GitHub Issues auto-create" />
+        <p align="center"><em>Hình 6: Tự động tạo Issue khi CI fail</em></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/CICD/scripts.png" width="100%" alt="CI Scripts" />
+        <p align="center"><em>Hình 7: Các scripts kiểm tra dữ liệu</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/CICD/secret.png" width="100%" alt="GHCR Token Secret" />
+        <p align="center"><em>Hình 8: Cấu hình Secret cho GHCR</em></p>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="padding: 5px;">
+        <img src="image/CICD/domain.png" width="100%" alt="Cloudflare Domain" />
+        <p align="center"><em>Hình 9: Tên miền truy cập hệ thống trên Cloudflare</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+
 ### 6.4 Cách chạy CI local
 
 ```bash
@@ -795,6 +950,28 @@ Coverage report sau khi chạy:
 - **Bucket production (R2):** cấu hình qua `R2_BUCKET`
 - **Storage:** uploads/, generated/slides/, generated/podcasts/
 
+### 📦 Giao diện Object Storage
+
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 33%; padding: 5px;">
+        <img src="image/object_storage/minio.png" width="100%" alt="MinIO Console" />
+        <p align="center"><em>Hình 10: MinIO Console (Local)</em></p>
+      </td>
+      <td style="width: 33%; padding: 5px;">
+        <img src="image/object_storage/r2_object.png" width="100%" alt="Cloudflare R2" />
+        <p align="center"><em>Hình 11: Cloudflare R2 (Production)</em></p>
+      </td>
+      <td style="width: 33%; padding: 5px;">
+        <img src="image/object_storage/generated.png" width="100%" alt="Generated Files in Storage" />
+        <p align="center"><em>Hình 12: File học liệu được sinh ra trong Storage</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
 ### Quick Commands
 ```bash
 # Redis - Check task results
@@ -825,14 +1002,20 @@ Hệ thống đã tích hợp endpoint metrics cho backend FastAPI và có thể
 - URL local: http://localhost:8000/metrics
 
 ### Chạy stack monitoring
-1. `cd Monitoring/railway-grafana-stack`
-2. `docker compose up`
+Để khởi động bộ công cụ giám sát (Grafana, Prometheus, Loki, Tempo), hãy chạy lệnh sau:
+
+```bash
+cd Monitoring/railway-grafana-stack
+docker compose up -d
+```
 
 Các dịch vụ chính:
-- Grafana: http://localhost:3300
-- Prometheus: http://localhost:9090
-- Loki: http://localhost:3100
-- Tempo: http://localhost:3200
+- **Grafana**: [http://localhost:3300](http://localhost:3300)
+    - **User**: `admin`
+    - **Password**: `yourpassword123`
+- **Prometheus**: http://localhost:9090
+- **Loki**: http://localhost:3100
+- **Tempo**: http://localhost:3200
 
 ### Cấu hình scrape backend
 - File Prometheus: `Monitoring/railway-grafana-stack/prometheus/prom.yml`
