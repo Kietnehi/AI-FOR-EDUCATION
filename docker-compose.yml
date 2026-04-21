@@ -278,6 +278,8 @@ services:
               count: 1
               capabilities: [gpu]
     depends_on:
+      backend:
+        condition: service_healthy
       redis:
         condition: service_healthy
       mongo:
@@ -308,6 +310,8 @@ services:
       CELERY_TASK_TIME_LIMIT_SECONDS: ${CELERY_TASK_TIME_LIMIT_SECONDS:-2100}
       CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
     depends_on:
+      backend:
+        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
