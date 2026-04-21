@@ -33,11 +33,16 @@ export function useNotify() {
     [addNotification]
   );
 
+  const success = useCallback((message: string, title?: string) => notify(message, "success", title), [notify]);
+  const error = useCallback((message: string, title?: string) => notify(message, "error", title), [notify]);
+  const info = useCallback((message: string, title?: string) => notify(message, "info", title), [notify]);
+  const warning = useCallback((message: string, title?: string) => notify(message, "warning", title), [notify]);
+
   return {
     notify,
-    success: (message: string, title?: string) => notify(message, "success", title),
-    error: (message: string, title?: string) => notify(message, "error", title),
-    info: (message: string, title?: string) => notify(message, "info", title),
-    warning: (message: string, title?: string) => notify(message, "warning", title),
+    success,
+    error,
+    info,
+    warning,
   };
 }

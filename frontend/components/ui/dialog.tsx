@@ -28,10 +28,22 @@ export function Dialog({ open, onClose, children, title, maxWidth = "md" }: Dial
     } else {
       document.body.style.overflow = "";
     }
+    
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    if (open) {
+      window.addEventListener("keydown", handleEsc);
+    }
+
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleEsc);
     };
-  }, [open]);
+  }, [open, onClose]);
 
   const maxWidthClass = {
     sm: "max-w-sm",

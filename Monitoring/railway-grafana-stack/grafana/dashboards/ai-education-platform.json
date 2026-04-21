@@ -32,7 +32,7 @@
             },
             "gridPos": {
                 "h": 4,
-                "w": 6,
+                "w": 4,
                 "x": 0,
                 "y": 0
             },
@@ -54,7 +54,7 @@
                     "type": "prometheus",
                     "uid": "grafana_prometheus"
                 },
-                "expr": "sum(rate(http_requests_total{endpoint=~\".*user.*\"}[5m])) * 60",
+                "expr": "sum(rate(http_requests_total{handler=~\".*(user|auth|personalization).*\"}[5m])) * 60",
                 "refId": "A"
             }],
             "title": "Active Users (req/min)",
@@ -84,8 +84,8 @@
             },
             "gridPos": {
                 "h": 4,
-                "w": 6,
-                "x": 6,
+                "w": 4,
+                "x": 4,
                 "y": 0
             },
             "id": 14,
@@ -136,8 +136,8 @@
             },
             "gridPos": {
                 "h": 4,
-                "w": 6,
-                "x": 12,
+                "w": 4,
+                "x": 8,
                 "y": 0
             },
             "id": 15,
@@ -188,8 +188,8 @@
             },
             "gridPos": {
                 "h": 4,
-                "w": 6,
-                "x": 18,
+                "w": 4,
+                "x": 12,
                 "y": 0
             },
             "id": 16,
@@ -214,6 +214,138 @@
                 "refId": "A"
             }],
             "title": "Materials Uploaded (1h)",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "grafana_prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 70
+                            },
+                            {
+                                "color": "red",
+                                "value": 90
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 16,
+                "y": 0
+            },
+            "id": 23,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "values": false,
+                    "calcs": ["lastNotNull"],
+                    "fields": ""
+                },
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafana_prometheus"
+                    },
+                    "expr": "(100 * sum(rate(container_cpu_usage_seconds_total{job=\"cadvisor\",id=\"/\"}[5m])) / clamp_min(sum(machine_cpu_cores{job=\"cadvisor\"}), 1)) or vector(0)",
+                    "refId": "A"
+                }
+            ],
+            "title": "CPU Usage (%)",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "grafana_prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 75
+                            },
+                            {
+                                "color": "red",
+                                "value": 90
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 20,
+                "y": 0
+            },
+            "id": 24,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "values": false,
+                    "calcs": ["lastNotNull"],
+                    "fields": ""
+                },
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafana_prometheus"
+                    },
+                    "expr": "(100 * sum(container_memory_working_set_bytes{job=\"cadvisor\",id=\"/\"}) / clamp_min(sum(machine_memory_bytes{job=\"cadvisor\"}), 1)) or vector(0)",
+                    "refId": "A"
+                }
+            ],
+            "title": "RAM Usage (%)",
             "type": "stat"
         },
         {
@@ -385,8 +517,8 @@
                     "type": "prometheus",
                     "uid": "grafana_prometheus"
                 },
-                "expr": "sum(rate(http_requests_total{endpoint=~\".*/api/.*\"}[5m])) by (endpoint, method)",
-                "legendFormat": "{{method}} {{endpoint}}",
+                "expr": "sum(rate(http_requests_total{handler=~\".*/api/.*\"}[5m])) by (handler, method)",
+                "legendFormat": "{{method}} {{handler}}",
                 "refId": "A"
             }],
             "title": "API Endpoint Usage",
@@ -623,6 +755,6 @@
     "timezone": "",
     "title": "AI Education Platform",
     "uid": "ai-education-platform",
-    "version": 0,
+    "version": 7,
     "weekStart": ""
 }

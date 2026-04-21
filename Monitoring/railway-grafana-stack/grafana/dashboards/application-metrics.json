@@ -84,10 +84,10 @@
                     "type": "prometheus",
                     "uid": "grafana_prometheus"
                 },
-                "expr": "sum(rate(http_requests_total[5m])) by (service)",
+                "expr": "sum(rate(http_requests_total[5m])) by (job)",
                 "refId": "A"
             }],
-            "title": "Request Rate by Service",
+            "title": "Request Rate by Job",
             "type": "timeseries"
         },
         {
@@ -171,10 +171,10 @@
                     "type": "prometheus",
                     "uid": "grafana_prometheus"
                 },
-                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service))",
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
                 "refId": "A"
             }],
-            "title": "Response Time (p95) by Service",
+            "title": "Response Time (p95) by Job",
             "type": "timeseries"
         },
         {
@@ -226,7 +226,7 @@
                     "type": "prometheus",
                     "uid": "grafana_prometheus"
                 },
-                "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m]))",
+                "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) or vector(0)",
                 "refId": "A"
             }],
             "title": "Error Rate (5xx)",
@@ -302,7 +302,7 @@
                     "type": "tempo",
                     "uid": "grafana_tempo"
                 },
-                "query": "",
+                "query": "{ resource.service.name = \"example_api\" }",
                 "refId": "A"
             }],
             "title": "Trace Search",
@@ -324,6 +324,6 @@
     "timezone": "",
     "title": "Application Metrics",
     "uid": "application-metrics",
-    "version": 0,
+    "version": 5,
     "weekStart": ""
 }

@@ -46,7 +46,6 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=yourpassword123
       - GF_DEFAULT_INSTANCE_NAME=Grafana
-      - GF_INSTALL_PLUGINS=grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
       - LOKI_INTERNAL_URL=http://loki:3100
       - PROMETHEUS_INTERNAL_URL=http://prometheus:9090
       - TEMPO_INTERNAL_URL=http://tempo:3200

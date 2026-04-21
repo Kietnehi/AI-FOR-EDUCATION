@@ -34,31 +34,21 @@ async def lifespan(_: FastAPI):
     await connect_mongo()
     await ensure_indexes()
     
-    # Initialize object storage bucket(s)
+    # Initialize object storage bucket(s) in background to avoid blocking startup
     from app.services.storage import storage_service
     if storage_service.enabled:
-        try:
-            storage_service.ensure_bucket_exists()
-            logger.info("Object storage bucket '%s' initialized successfully", storage_service.bucket_name)
-        except Exception as e:
-            logger.warning("Failed to initialize object storage bucket: %s", e)
+        async def _init_storage():
+            try:
+                # Wrap sync call to a thread to be safe
+                await asyncio.to_thread(storage_service.ensure_bucket_exists)
+                logger.info("Object storage bucket '%s' initialized in background", storage_service.bucket_name)
+            except Exception as e:
+                logger.warning("Failed to initialize object storage bucket in background: %s", e)
+        asyncio.create_task(_init_storage())
     else:
         logger.info("Object storage disabled; using local filesystem storage")
     
     logger.info("Application startup complete")
-    
-    # Start background notification loop (Simple alternative to Celery/Redis for notifications)
-    async def notification_worker():
-        from app.tasks import _run_check_schedule_reminders
-        logger.info("Starting background notification worker (non-Celery mode)")
-        while True:
-            try:
-                await _run_check_schedule_reminders()
-            except Exception as e:
-                logger.error(f"Error in background notification worker: {e}")
-            await asyncio.sleep(60) # Run every minute
-
-    notification_task = asyncio.create_task(notification_worker())
     
     try:
         yield
@@ -66,7 +56,6 @@ async def lifespan(_: FastAPI):
         # Uvicorn may cancel lifespan tasks during Ctrl+C/reload on Windows.
         logger.info("Application lifespan cancelled during shutdown")
     finally:
-        notification_task.cancel()
         await close_mongo()
         logger.info("Application shutdown complete")
 

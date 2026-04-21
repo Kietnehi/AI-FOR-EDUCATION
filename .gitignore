@@ -49,6 +49,7 @@ dist/
 .ipynb_checkpoints/
 Test_markdown.ipynb
 backend/backend_debug.log
+celerybeat-schedule
 backend/coverage.xml
 backend/htmlcov/
 frontend/coverage/

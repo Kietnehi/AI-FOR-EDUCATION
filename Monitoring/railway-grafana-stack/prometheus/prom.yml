@@ -20,6 +20,12 @@ scrape_configs:
     static_configs:
       - targets: ['host.docker.internal:8000', 'backend:8000']
 
+  # Container metrics (CPU/RAM) from cAdvisor
+  - job_name: 'cadvisor'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['cadvisor:8080']
+
   #  ? TODO: add your services here
   # - job_name: 'your-job-name'
   #   scheme: https

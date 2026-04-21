@@ -29,10 +29,17 @@ services:
       retries: 3
 
   backend:
-    image: ${DOCKERHUB_NAMESPACE}/ai-for-education-backend:${IMAGE_TAG}
+    image: ai-for-education-backend:${IMAGE_TAG:-local}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        REQUIREMENTS_FILE: ${REQUIREMENTS_FILE:-requirements.txt}
+        INSTALL_GPU_RUNTIME: ${INSTALL_GPU_RUNTIME:-0}
+        INSTALL_PLAYWRIGHT_BROWSER: ${INSTALL_PLAYWRIGHT_BROWSER:-0}
     container_name: any2-backend
     restart: unless-stopped
-    pull_policy: always
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
     environment:
       APP_ENV: ${APP_ENV}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -103,10 +110,10 @@ services:
         condition: service_healthy
 
   celery-worker:
-    image: ${DOCKERHUB_NAMESPACE}/ai-for-education-backend:${IMAGE_TAG}
+    image: ai-for-education-backend:${IMAGE_TAG:-local}
     container_name: any2-celery-worker
     restart: unless-stopped
-    pull_policy: always
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
     environment:
       APP_ENV: ${APP_ENV}
@@ -166,10 +173,16 @@ services:
         condition: service_healthy
 
   frontend:
-    image: ${DOCKERHUB_NAMESPACE}/ai-for-education-frontend:${IMAGE_TAG}
+    image: ai-for-education-frontend:${IMAGE_TAG:-local}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST}
     container_name: any2-frontend
     restart: unless-stopped
-    pull_policy: always
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
       NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST}

@@ -18,8 +18,8 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 
 const API_BASE = typeof window !== "undefined"
-  ? "/api"
-  : ((process.env.BACKEND_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api").replace(/\/+$/, ""));
+  ? (process.env.NEXT_PUBLIC_API_BASE_URL || "/api").replace(/\/+$/, "")
+  : ((process.env.BACKEND_API_BASE_URL || "http://backend:8000/api").replace(/\/+$/, ""));
 
 async function fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const response = await fetch(input, {
@@ -287,6 +287,20 @@ export function PdfConverter() {
   const [equations, setEquations] = useState<string[]>([]);
   const [textView, setTextView] = useState<"rendered" | "raw">("rendered");
   const [notice, setNotice] = useState("");
+  const [warning, setWarning] = useState("");
+
+  // Track processing time to show warnings for long tasks
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (loading && activeTab === "extract-pdf") {
+      timer = setTimeout(() => {
+        setWarning("Đang xử lý nhiều dữ liệu (Ảnh/Bảng)... Vui lòng đợi thêm một chút.");
+      }, 45000); // 45 seconds
+    } else {
+      setWarning("");
+    }
+    return () => clearTimeout(timer);
+  }, [loading, activeTab]);
 
   const renderedMarkdown = useMemo(() => prettifyExtractedMarkdown(extractedText), [extractedText]);
 
@@ -402,13 +416,29 @@ export function PdfConverter() {
         const equationPayload = await eqRes.json();
         setEquations(Array.isArray(equationPayload?.equations) ? equationPayload.equations : []);
       }
-    } catch (err: any) { setError(err.message); }
-    finally { setLoading(false); }
+    } catch (err: any) { 
+      console.error("Extraction failed:", err);
+      let msg = "Lỗi kết nối server. Vui lòng thử lại.";
+      if (err instanceof Error) msg = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.detail) msg = parsed.detail;
+      } catch {}
+      setError(msg); 
+      setNotice(msg);
+    }
+    finally { setLoading(false); setWarning(""); }
   };
 
   return (
     <div className="w-full space-y-6">
-      <Toast message={notice} type="info" onClose={() => setNotice("")} />
+      <Toast message={notice} type="error" onClose={() => setNotice("")} />
+      {warning && (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 animate-pulse text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {warning}
+        </div>
+      )}
       <Tabs
         tabs={[
           { id: "file-to-pdf", label: "Office/Ảnh → PDF", icon: <FileImage className="w-4 h-4" /> },

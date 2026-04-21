@@ -1,7 +1,9 @@
 param(
     [string]$ProjectRoot = "D:\DACN",
     [string]$ComposeFile = "docker-compose.prod.yml",
-    [string]$EnvFile = ".env.prod"
+    [string]$EnvFile = ".env.prod",
+    [ValidateSet("local-build", "dockerhub")]
+    [string]$DeployMode = "local-build"
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,8 +20,13 @@ if (-not (Test-Path $EnvFile)) {
     throw "Env file not found: $EnvFile"
 }
 
-Write-Host "[deploy] Pulling latest images..."
-docker compose --env-file $EnvFile -f $ComposeFile pull
+if ($DeployMode -eq "dockerhub") {
+    Write-Host "[deploy] Pulling latest images from registry..."
+    docker compose --env-file $EnvFile -f $ComposeFile pull
+} else {
+    Write-Host "[deploy] Building local images on self-hosted runner..."
+    docker compose --env-file $EnvFile -f $ComposeFile build backend frontend
+}
 
 Write-Host "[deploy] Starting/recreating services..."
 docker compose --env-file $EnvFile -f $ComposeFile up -d --remove-orphans
