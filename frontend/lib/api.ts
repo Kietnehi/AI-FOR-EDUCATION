@@ -26,14 +26,12 @@ import {
   Schedule,
   ScheduleEvent,
   ScheduleUploadResponse,
+  GenerationTaskQueuedResponse,
+  GenerationTaskStatusResponse,
+  AuthUser,
 } from "@/types";
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  name?: string;
-  picture?: string;
-}
+export type { AuthUser };
 
 export interface CooperationContactPayload {
   name: string;
@@ -426,11 +424,36 @@ export async function processMaterial(
   return result;
 }
 
+export async function getGenerationTaskStatus(taskId: string): Promise<GenerationTaskStatusResponse> {
+  return apiFetch<GenerationTaskStatusResponse>(`/tasks/${taskId}/status`, {
+    skipCache: true,
+  });
+}
+
+export async function pollGenerationTask(
+  taskId: string,
+  onProgress?: (progress: number) => void
+): Promise<any> {
+  while (true) {
+    const status = await getGenerationTaskStatus(taskId);
+    if (status.status === "completed") {
+      return status.result;
+    }
+    if (status.status === "failed") {
+      throw new Error(status.error || "Quá trình tạo thất bại");
+    }
+    if (onProgress && status.progress !== undefined) {
+      onProgress(status.progress);
+    }
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+}
+
 export async function generateSlides(
   id: string,
   options?: { max_slides?: number; tone?: string; skip_refine?: boolean; force_regenerate?: boolean }
 ): Promise<GeneratedContent> {
-  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/slides`, {
+  const queued = await apiFetch<GenerationTaskQueuedResponse>(`/materials/${id}/generate/slides/async`, {
     method: "POST",
     body: JSON.stringify({
       tone: options?.tone || "teacher",
@@ -439,13 +462,14 @@ export async function generateSlides(
       force_regenerate: options?.force_regenerate || false,
     }),
   });
+  const data = await pollGenerationTask(queued.task_id);
   primeCache(`/generated-contents/${data.id}`, data);
   invalidateCache(`/materials/${id}/generated-contents`);
   return data;
 }
 
 export async function generatePodcast(id: string, force_regenerate: boolean = false): Promise<GeneratedContent> {
-  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/podcast`, {
+  const queued = await apiFetch<GenerationTaskQueuedResponse>(`/materials/${id}/generate/podcast/async`, {
     method: "POST",
     body: JSON.stringify({ 
       style: "lecturer", 
@@ -453,6 +477,7 @@ export async function generatePodcast(id: string, force_regenerate: boolean = fa
       force_regenerate
     }),
   });
+  const data = await pollGenerationTask(queued.task_id);
   primeCache(`/generated-contents/${data.id}`, data);
   invalidateCache(`/materials/${id}/generated-contents`);
   return data;
@@ -464,11 +489,11 @@ export async function generateMinigame(
   difficulty: "easy" | "medium" | "hard" = "medium",
   force_regenerate: boolean = false
 ): Promise<GeneratedContent> {
-  const data = await apiFetch<GeneratedContent>(`/materials/${id}/generate/minigame`, {
+  const queued = await apiFetch<GenerationTaskQueuedResponse>(`/materials/${id}/generate/minigame/async`, {
     method: "POST",
     body: JSON.stringify({ game_type: gameType, difficulty, force_regenerate }),
-    cacheTtlMs: gameType === "shooting_quiz" ? 180000 : 60000,
   });
+  const data = await pollGenerationTask(queued.task_id);
   invalidateCache(`/materials/${id}/generated-contents`);
   return data;
 }

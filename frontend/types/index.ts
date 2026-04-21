@@ -1,3 +1,10 @@
+export type AuthUser = {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+};
+
 export type Material = {
   id: string;
   user_id: string;
@@ -395,5 +402,20 @@ export type SttModel =
 export type DuckDuckGoSearchType = "text" | "news" | "images" | "videos" | "books";
 
 export type DuckDuckGoSearchItem = Record<string, any>;
+
+export type GenerationTaskQueuedResponse = {
+  task_id: string;
+  status: string;
+  message: string;
+};
+
+export type GenerationTaskStatusResponse = {
+  task_id: string;
+  status: string;
+  celery_state: string;
+  progress?: number;
+  result?: any;
+  error?: string;
+};
 
 export * from "./schedule";
