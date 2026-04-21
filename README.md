@@ -154,6 +154,22 @@ Dự án được chia thành 2 luồng xử lý chính:
 | Pytest | Test backend |
 | ESLint | Kiểm tra chất lượng mã frontend |
 
+### Trigger CI/CD an toàn (không commit `.env`)
+
+Khi cần kích hoạt pipeline CI/CD để deploy, bạn có thể commit thay đổi tài liệu hoặc code nhỏ (ví dụ README) thay vì commit file môi trường.
+
+- Không commit các file chứa secret: `.env`, `.env.prod`, `backend/.env`, `frontend/.env.local`.
+- Chỉ commit thay đổi an toàn (docs/code) để trigger workflow.
+- Secret production nên được cấu hình qua GitHub Secrets hoặc env trên server/self-hosted runner.
+
+Ví dụ commit để trigger pipeline:
+
+```bash
+git add README.md
+git commit -m "docs: trigger CI/CD deploy"
+git push
+```
+
 ---
 
 ## 2. Kiến trúc tổng thể
