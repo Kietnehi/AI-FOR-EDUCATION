@@ -335,7 +335,7 @@ AI-FOR-EDUCATION/
 
 *Giao diện Docker Desktop hiển thị đầy đủ các thành phần đang chạy: Frontend, Backend, Database (MongoDB, Redis), Storage (Minio), Redis Commander và các Celery Workers/Flower phục vụ tác vụ nền.*
 
-> 💡 **Ghi chú về Storage:** Hệ thống hỗ trợ **MinIO (local)** và **Cloudflare R2 (production)**. Khi bật `USE_OBJECT_STORAGE=true` và `USE_R2=true`, file upload và file generate sẽ ưu tiên lưu trên R2;x nếu R2 không khả dụng, hệ thống sẽ fallback local.
+> 💡 **Ghi chú về Storage:** Hệ thống hỗ trợ **MinIO (local)** và **Cloudflare R2 (production)**. Khi bật `USE_OBJECT_STORAGE=true` và `USE_R2=true`, file upload và file generate sẽ ưu tiên lưu trên R2;xx nếu R2 không khả dụng, hệ thống sẽ fallback local.
 
 Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/macOS/Linux với tính năng **Hot-reload** hoàn chỉnh (sửa code cập nhật ngay lập tức mà không cần restart container).
 
