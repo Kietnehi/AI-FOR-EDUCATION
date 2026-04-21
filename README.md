@@ -167,6 +167,22 @@ Dự án được chia thành 2 luồng xử lý chính:
 | Pytest | Test backend |
 | ESLint | Kiểm tra chất lượng mã frontend |
 
+### Trigger CI/CD an toàn (không commit `.env`)
+
+Khi cần kích hoạt pipeline CI/CD để deploy, bạn có thể commit thay đổi tài liệu hoặc code nhỏ (ví dụ README) thay vì commit file môi trường.
+
+- Không commit các file chứa secret: `.env`, `.env.prod`, `backend/.env`, `frontend/.env.local`.
+- Chỉ commit thay đổi an toàn (docs/code) để trigger workflow.
+- Secret production nên được cấu hình qua GitHub Secrets hoặc env trên server/self-hosted runner.
+
+Ví dụ commit để trigger pipeline:
+
+```bash
+git add README.md
+git commit -m "docs: trigger CI/CD deploy"
+git push
+```
+
 ---
 
 ## 2. Kiến trúc tổng thể
@@ -450,16 +466,16 @@ AI-FOR-EDUCATION/
 
 ![Hệ thống Docker Containers](image/container_docker.png)
 
-*Giao diện Docker Desktop hiển thị đầy đủ các thành phần đang chạy: Frontend, Backend, Database (MongoDB, Redis), Storage (Minio), Redis Commander và các Celery Workers/Flower phục vụ tác vụ nền.*
+*Giao diện Docker Desktop hiển thị đầy đủ các thành phần đang chạy: Frontend, Backend, Database (MongoDB, Redis), Storage (Minio), Redis Commander và các Celery Workers/Flower phục vụ tác vụ nền.*sss
 
-> 💡 **Ghi chú về Storage:** Hệ thống hỗ trợ **MinIO (local)** và **Cloudflare R2 (production)**. Khi bật `USE_OBJECT_STORAGE=true` và `USE_R2=true`, file upload và file generate sẽ ưu tiên lưu trên R2; nếu R2 không khả dụng, hệ thống sẽ fallback local.
+> 💡 **Ghi chú về Storage:** Hệ thống hỗ trợ **MinIO (local)** và **Cloudflare R2 (production)**. Khi bật `USE_OBJECT_STORAGE=true` và `USE_R2=true`, file upload và file generate sẽ ưu tiên lưu trên R2;xx nếu R2 không khả dụng, hệ thống sẽ fallback local.
 
 Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/macOS/Linux với tính năng **Hot-reload** hoàn chỉnh (sửa code cập nhật ngay lập tức mà không cần restart container).
 
 ### ⚙️ Hướng dẫn các bước:
 
 #### 1. Chuẩn bị file môi trường
-Tạo file `.env` ở thư mục gốc của dự án:
+Tạo file `.env` ở thư mục gốc của dự án:ss
 ```bash
 cp .env.docker.example .env
 ```
@@ -548,12 +564,12 @@ Tạo và cấu hình trên Atlas:
 1. Tạo cluster (M0/M2/M5 đều được cho MVP).
 2. Tạo Database User (username/password).
 3. Vào Network Access và thêm IP hiện tại (hoặc `0.0.0.0/0` cho môi trường dev, không khuyến nghị cho production).
-4. Lấy connection string dạng SRV.
+4. Lấy connection string dạng SRV.vvvvv
 
 Ví dụ:
 
 ```text
-mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>
+mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>......
 ```
 
 ### 5.3 Bước 2: Cấu hình biến môi trường
@@ -1128,8 +1144,8 @@ Lưu ý vận hành:
 - **Groq API:** [Groq Cloud (Cho Whisper STT nhanh nhất)](https://console.groq.com/keys)
 
 ### 📚 Tài liệu tham khảo
-- **Redis, Celery & Object Storage:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md)
-- **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md)
+- **Redis, Celery & Object Storage:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md).
+- **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md).
 - **Docker:** [Trang chủ Docker](https://www.docker.com/)
 - **Redis:** [Redis Documentation](https://redis.io/)
 - **RedisInsight:** [RedisInsight GUI](https://github.com/redis/RedisInsight)

@@ -18,12 +18,15 @@ on:
       - completed
     branches:
       - main
-      - kiet
+      - ductoan
 
 permissions:
   contents: read
   issues: write
-  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
 
 env:
   SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
@@ -32,7 +35,10 @@ env:
 
 jobs:
   prepare-release:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Windows
+      - x64
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       release_name: ${{ steps.meta.outputs.release_name }}
@@ -47,38 +53,51 @@ jobs:
 
       - name: Tạo metadata phát hành
         id: meta
-        shell: bash
+        shell: powershell
         run: |
-          SHA_SHORT="${SOURCE_SHA::7}"
-          RELEASE_VERSION="placeholder-${SHA_SHORT}"
-          RELEASE_NAME="AI Learning Studio ${RELEASE_VERSION}"
-          mkdir -p release
-          cat > release/release-metadata.json <<EOF
-          {
-            "releaseName": "${RELEASE_NAME}",
-            "releaseVersion": "${RELEASE_VERSION}",
-            "commitSha": "${SOURCE_SHA}",
-            "commitShaShort": "${SHA_SHORT}",
-            "branch": "${SOURCE_BRANCH}",
-            "workflow": "${GITHUB_WORKFLOW}",
-            "runId": "${GITHUB_RUN_ID}",
-            "targetEnvironment": "${TARGET_ENVIRONMENT}",
-            "generatedAt": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          }
-          EOF
-          cat > release/release-notes.md <<EOF
+          $shaShort = "${env:SOURCE_SHA}".Substring(0, 7)
+          $releaseVersion = "placeholder-$shaShort"
+          $releaseName = "AI Learning Studio $releaseVersion"
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+
+          $metadata = @{
+            releaseName = $releaseName
+            releaseVersion = $releaseVersion
+            commitSha = "${env:SOURCE_SHA}"
+            commitShaShort = $shaShort
+            branch = "${env:SOURCE_BRANCH}"
+            workflow = "${env:GITHUB_WORKFLOW}"
+            runId = "${env:GITHUB_RUN_ID}"
+            targetEnvironment = "${env:TARGET_ENVIRONMENT}"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          } | ConvertTo-Json
+          Set-Content -Path release/release-metadata.json -Value $metadata -Encoding UTF8
+
+          $notes = @"
           # Ghi chú phát hành tượng trưng
 
-          - Bản phát hành: ${RELEASE_NAME}
-          - Phiên bản: ${RELEASE_VERSION}
-          - Nhánh: ${SOURCE_BRANCH}
-          - Commit: ${SOURCE_SHA}
-          - Môi trường đích: ${TARGET_ENVIRONMENT}
-          - Trạng thái: Sẵn sàng cho bước triển khai tượng trưng
-          EOF
-          echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
-          echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release_sha_short=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          - Bản phát hành: $releaseName
+          - Phiên bản: $releaseVersion
+          - Nhánh: ${env:SOURCE_BRANCH}
+          - Commit: ${env:SOURCE_SHA}
+          - Môi trường đích: ${env:TARGET_ENVIRONMENT}
+          - Trạng thái: Sẵn sàng cho bước triển khai
+          "@
+          Set-Content -Path release/release-notes.md -Value $notes.TrimStart() -Encoding UTF8
+
+          "release_name=$releaseName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "release_version=$releaseVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "release_sha_short=$shaShort" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Chuẩn bị file môi trường Docker
+        shell: powershell
+        run: |
+          if (-not (Test-Path ".env.prod")) {
+            if (Test-Path ".env.prod.example") {
+              Copy-Item -Path .env.prod.example -Destination .env.prod -Force
+              Write-Host "Đã copy .env.prod.example sang .env.prod"
+            }
+          }
 
       - name: Tải artifact metadata phát hành lên
         uses: actions/upload-artifact@v7
@@ -86,327 +105,86 @@ jobs:
           name: cd-release-metadata
           path: release
 
-  build-frontend-artifact:
-    runs-on: ubuntu-latest
-    needs: prepare-release
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Tải mã nguồn
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-
-      - name: Cài đặt Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Cài đặt dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Đóng gói bundle phát hành frontend
-        shell: bash
-        run: |
-          mkdir -p ../release/frontend
-          cp -R .next ../release/frontend/.next
-          cp -R public ../release/frontend/public
-          cp package.json ../release/frontend/package.json
-          cp package-lock.json ../release/frontend/package-lock.json
-          cp next.config.mjs ../release/frontend/next.config.mjs
-
-      - name: Tải artifact frontend lên
-        uses: actions/upload-artifact@v7
-        with:
-          name: frontend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release/frontend
-
-  package-backend-artifact:
-    runs-on: ubuntu-latest
-    needs: prepare-release
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - name: Tải mã nguồn
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-
-      - name: Cài đặt Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - name: Kiểm tra cú pháp mã nguồn backend
-        run: python -m compileall app
-
-      - name: Đóng gói bundle phát hành backend
-        shell: bash
-        run: |
-          mkdir -p ../release/backend
-          cp -R app ../release/backend/app
-          cp requirements.txt ../release/backend/requirements.txt
-          cp requirements-test.txt ../release/backend/requirements-test.txt
-          cp Dockerfile ../release/backend/Dockerfile
-          cp pytest.ini ../release/backend/pytest.ini
-
-      - name: Tải artifact backend lên
-        uses: actions/upload-artifact@v7
-        with:
-          name: backend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release/backend
-
-  package-docker-bundle:
-    runs-on: ubuntu-latest
-    needs: prepare-release
-
-    steps:
-      - name: Tải mã nguồn
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-
-      - name: Cài đặt Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Chuẩn bị file môi trường Docker
-        run: cp .env.docker.example .env
-
-      - name: Kiểm tra cấu hình docker compose
-        run: docker compose config > release-docker-compose.resolved.yml
-
-      - name: Đóng gói bundle phát hành Docker
-        shell: bash
-        run: |
-          mkdir -p release/docker
-          cp docker-compose.yml release/docker/docker-compose.yml
-          cp .env.docker.example release/docker/.env.docker.example
-          cp release-docker-compose.resolved.yml release/docker/docker-compose.resolved.yml
-
-      - name: Tải artifact Docker lên
-        uses: actions/upload-artifact@v7
-        with:
-          name: docker-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release/docker
-
-  publish-container-images:
-    runs-on: ubuntu-latest
-    needs: prepare-release
-
-    steps:
-      - name: Tải mã nguồn
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-
-      - name: Cài đặt Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Đăng nhập GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Chuẩn hóa tên namespace image
-        id: owner
-        shell: bash
-        run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Tạo metadata image backend
-        id: backend-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ steps.owner.outputs.value }}/ai-for-education-backend
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ needs.prepare-release.outputs.release_sha_short }}
-            type=raw,value=${{ env.SOURCE_BRANCH }}
-
-      - name: Tạo metadata image frontend
-        id: frontend-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ steps.owner.outputs.value }}/ai-for-education-frontend
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ needs.prepare-release.outputs.release_sha_short }}
-            type=raw,value=${{ env.SOURCE_BRANCH }}
-
-      - name: Build và đẩy image backend lên GHCR
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: true
-          build-args: |
-            REQUIREMENTS_FILE=requirements.txt
-            # Để 1/1 nếu muốn image publish bám sát local, kể cả CUDA/Playwright.
-            # Nếu muốn pipeline CI/CD nhẹ hơn, có thể tự đổi về 0/0.
-            INSTALL_GPU_RUNTIME=0
-            INSTALL_PLAYWRIGHT_BROWSER=0
-          tags: ${{ steps.backend-meta.outputs.tags }}
-          labels: ${{ steps.backend-meta.outputs.labels }}
-
-      - name: Build và đẩy image frontend lên GHCR
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          # Dockerfile.dev bám local hơn; nếu muốn image production gọn hơn thì đổi sang frontend/Dockerfile.
-          file: ./frontend/Dockerfile
-          push: true
-          tags: ${{ steps.frontend-meta.outputs.tags }}
-          labels: ${{ steps.frontend-meta.outputs.labels }}
-
-      - name: Tạo báo cáo publish image
-        shell: bash
-        run: |
-          mkdir -p release/images
-          cat > release/images/ghcr-images.md <<EOF
-          # Docker images đã publish lên GHCR
-
-          ## Backend
-
-          ${{ steps.backend-meta.outputs.tags }}
-
-          ## Frontend
-
-          ${{ steps.frontend-meta.outputs.tags }}
-          EOF
-
-      - name: Tải artifact báo cáo image lên
-        uses: actions/upload-artifact@v7
-        with:
-          name: ghcr-images-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release/images/ghcr-images.md
-
   deploy-placeholder:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Windows
+      - x64
     needs:
       - prepare-release
-      - build-frontend-artifact
-      - package-backend-artifact
-      - package-docker-bundle
-      - publish-container-images
     environment:
-      name: ${{ github.event.inputs.target_environment || 'staging-placeholder' }}
+      name: ${{ github.event.inputs.target_environment || 'production-local' }}
 
     steps:
-      - name: Tải artifact metadata phát hành xuống
-        uses: actions/download-artifact@v7
+      - name: Tải mã nguồn
+        uses: actions/checkout@v6
         with:
-          name: cd-release-metadata
-          path: release/metadata
+          ref: ${{ env.SOURCE_SHA }}
 
-      - name: Tạo báo cáo triển khai tượng trưng
-        shell: bash
+      - name: Tạo file .env.prod cho deploy từ GitHub Secrets
+        shell: powershell
+        env:
+          ENV_PROD_CONTENT: ${{ secrets.ENV_PROD }}
         run: |
-          mkdir -p release/deploy
-          cat > release/deploy/deployment-summary.md <<EOF
-          # Báo cáo triển khai tượng trưng
+          if ([string]::IsNullOrWhiteSpace("${env:ENV_PROD_CONTENT}")) {
+            throw "Missing GitHub Secret ENV_PROD. Hãy tạo secret ENV_PROD chứa toàn bộ nội dung file .env.prod."
+          }
+
+          [System.IO.File]::WriteAllText(
+            (Join-Path $PWD ".env.prod"),
+            "${env:ENV_PROD_CONTENT}".Replace("`r`n", "`n"),
+            [System.Text.UTF8Encoding]::new($false)
+          )
+
+          Write-Host "Da tao .env.prod tai: $(Join-Path $PWD '.env.prod')"
+
+      - name: Triển khai trực tiếp bằng Docker Compose trên self-hosted runner
+        shell: powershell
+        run: |
+          if (-not (Test-Path "scripts/deploy.ps1")) {
+            throw "Missing deploy script: scripts/deploy.ps1"
+          }
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
+
+      - name: Tạo báo cáo triển khai
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path release/deploy | Out-Null
+          $summary = @"
+          # Báo cáo triển khai tự động
 
           - Bản phát hành: ${{ needs.prepare-release.outputs.release_name }}
           - Phiên bản: ${{ needs.prepare-release.outputs.release_version }}
-          - Môi trường đích: ${TARGET_ENVIRONMENT}
-          - Nhánh nguồn: ${SOURCE_BRANCH}
-          - Commit: ${SOURCE_SHA}
-          - Người kích hoạt: ${GITHUB_ACTOR}
-          - Lần chạy workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          - URL công khai: chưa-cấu-hình
-          - Chế độ triển khai: chỉ tượng trưng
+          - Môi trường đích: ${env:TARGET_ENVIRONMENT}
+          - Nhánh nguồn: ${env:SOURCE_BRANCH}
+          - Commit: ${env:SOURCE_SHA}
+          - Người kích hoạt: ${env:GITHUB_ACTOR}
+          - Lần chạy workflow: ${env:GITHUB_SERVER_URL}/${env:GITHUB_REPOSITORY}/actions/runs/${env:GITHUB_RUN_ID}
+          - Registry image: Không dùng (local build)
+          - Cách triển khai: Self-hosted Windows runner build local image bằng Docker Compose
 
           Trạng thái hiện tại:
 
-          - Frontend đã build xong và đã tải bundle artifact lên
-          - Backend đã kiểm tra cú pháp và đã tải bundle artifact lên
-          - Cấu hình docker compose đã được resolve thành công
-          - Docker image frontend/backend đã được publish lên GHCR
-          - Chưa thực hiện triển khai lên server thật
-          EOF
-          cat release/deploy/deployment-summary.md >> "$GITHUB_STEP_SUMMARY"
+          - Frontend/Backend images được build thông qua Docker Compose trực tiếp trên máy chủ
+          - Dịch vụ được khởi động lại thành công
+          "@
+          Set-Content -Path release/deploy/deployment-summary.md -Value $summary.TrimStart() -Encoding UTF8
+          Get-Content release/deploy/deployment-summary.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
       - name: Tải artifact báo cáo triển khai lên
         uses: actions/upload-artifact@v7
         with:
           name: deployment-summary-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: |
-            release/deploy/deployment-summary.md
-            release/metadata/release-metadata.json
-            release/metadata/release-notes.md
-
-  release-bundle:
-    runs-on: ubuntu-latest
-    needs:
-      - prepare-release
-      - build-frontend-artifact
-      - package-backend-artifact
-      - package-docker-bundle
-      - publish-container-images
-      - deploy-placeholder
-
-    steps:
-      - name: Tải artifact metadata phát hành xuống
-        uses: actions/download-artifact@v7
-        with:
-          name: cd-release-metadata
-          path: release-bundle/metadata
-
-      - name: Tải artifact frontend xuống
-        uses: actions/download-artifact@v7
-        with:
-          name: frontend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release-bundle/frontend
-
-      - name: Tải artifact backend xuống
-        uses: actions/download-artifact@v7
-        with:
-          name: backend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release-bundle/backend
-
-      - name: Tải artifact Docker xuống
-        uses: actions/download-artifact@v7
-        with:
-          name: docker-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release-bundle/docker
-
-      - name: Tải artifact báo cáo triển khai xuống
-        uses: actions/download-artifact@v7
-        with:
-          name: deployment-summary-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release-bundle/deploy
-
-      - name: Tải artifact báo cáo image xuống
-        uses: actions/download-artifact@v7
-        with:
-          name: ghcr-images-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release-bundle/images
-
-      - name: Tải artifact bundle phát hành tổng hợp lên
-        uses: actions/upload-artifact@v7
-        with:
-          name: full-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}
-          path: release-bundle
+          path: release/deploy/deployment-summary.md
 
   cd-summary:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Windows
+      - x64
     needs:
       - prepare-release
-      - build-frontend-artifact
-      - package-backend-artifact
-      - package-docker-bundle
-      - publish-container-images
       - deploy-placeholder
-      - release-bundle
     if: always()
     steps:
       - name: Tạo tóm tắt công việc CD chi tiết (Detailed CD Job Summary)
@@ -415,12 +193,7 @@ jobs:
           script: |
             const results = {
               prepare: "${{ needs.prepare-release.result }}",
-              frontend: "${{ needs.build-frontend-artifact.result }}",
-              backend: "${{ needs.package-backend-artifact.result }}",
-              docker: "${{ needs.package-docker-bundle.result }}",
-              images: "${{ needs.publish-container-images.result }}",
-              deploy: "${{ needs.deploy-placeholder.result }}",
-              bundle: "${{ needs.release-bundle.result }}"
+              deploy: "${{ needs.deploy-placeholder.result }}"
             };
             
             const statusIcon = (res) => res === "success" ? "✅" : (res === "failure" ? "❌" : "⏭️");
@@ -443,47 +216,27 @@ jobs:
             | Thành phần | Trạng thái | Chi tiết |
             | :--- | :---: | :--- |
             | 🛠️ **Chuẩn bị Metadata** | ${statusIcon(results.prepare)} | ${statusText(results.prepare)} |
-            | 🖥️ **Build Frontend** | ${statusIcon(results.frontend)} | ${statusText(results.frontend)} |
-            | ⚙️ **Package Backend** | ${statusIcon(results.backend)} | ${statusText(results.backend)} |
-            | 🐳 **Resolve Docker** | ${statusIcon(results.docker)} | ${statusText(results.docker)} |
-            | 📦 **Publish GHCR Images** | ${statusIcon(results.images)} | ${statusText(results.images)} |
-            | 🚀 **Deploy Placeholder** | ${statusIcon(results.deploy)} | ${statusText(results.deploy)} |
-            | 📚 **Tổng hợp Release Bundle** | ${statusIcon(results.bundle)} | ${statusText(results.bundle)} |
+            | 🚀 **Deploy (Docker Compose Build)** | ${statusIcon(results.deploy)} | ${statusText(results.deploy)} |
             
             ---
-
-            ### 🖇️ Artifacts liên quan
-            - **Full Release Bundle:** \`full-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
-            - **Frontend Build:** \`frontend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
-            - **Backend Package:** \`backend-release-bundle-${{ needs.prepare-release.outputs.release_sha_short }}\`
-            - **GHCR Image Report:** \`ghcr-images-${{ needs.prepare-release.outputs.release_sha_short }}\`
-            
-            ---
-            *Ghi chú: Bản phát hành này là một bước triển khai tượng trưng để kiểm tra luồng phát hành.*
+            *Ghi chú: Pipeline đã được tối ưu, loại bỏ các bước build artifacts dư thừa. Sử dụng Docker Compose để build image và chạy trực tiếp trên self-hosted Windows runner.*
             `;
             
             core.summary.addRaw(summary).write();
 
   report-failure:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Windows
+      - x64
     needs:
       - prepare-release
-      - build-frontend-artifact
-      - package-backend-artifact
-      - package-docker-bundle
-      - publish-container-images
       - deploy-placeholder
-      - release-bundle
     if: >-
       always() &&
       (
         needs.prepare-release.result == 'failure' ||
-        needs.build-frontend-artifact.result == 'failure' ||
-        needs.package-backend-artifact.result == 'failure' ||
-        needs.package-docker-bundle.result == 'failure' ||
-        needs.publish-container-images.result == 'failure' ||
-        needs.deploy-placeholder.result == 'failure' ||
-        needs.release-bundle.result == 'failure'
+        needs.deploy-placeholder.result == 'failure'
       )
 
     steps:
@@ -491,12 +244,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           PREPARE_RESULT: ${{ needs.prepare-release.result }}
-          FRONTEND_RESULT: ${{ needs.build-frontend-artifact.result }}
-          BACKEND_RESULT: ${{ needs.package-backend-artifact.result }}
-          DOCKER_RESULT: ${{ needs.package-docker-bundle.result }}
-          IMAGES_RESULT: ${{ needs.publish-container-images.result }}
           DEPLOY_RESULT: ${{ needs.deploy-placeholder.result }}
-          BUNDLE_RESULT: ${{ needs.release-bundle.result }}
         with:
           script: |
             const owner = context.repo.owner;
@@ -507,12 +255,7 @@ jobs:
 
             const rows = [
               ['Chuẩn bị phát hành', process.env.PREPARE_RESULT],
-              ['Bundle frontend', process.env.FRONTEND_RESULT],
-              ['Bundle backend', process.env.BACKEND_RESULT],
-              ['Bundle Docker', process.env.DOCKER_RESULT],
-              ['Publish GHCR images', process.env.IMAGES_RESULT],
-              ['Triển khai tượng trưng', process.env.DEPLOY_RESULT],
-              ['Bundle phát hành tổng hợp', process.env.BUNDLE_RESULT],
+              ['Triển khai trên self-hosted runner (Docker Compose)', process.env.DEPLOY_RESULT],
             ];
 
             const toStatus = (value) => value === 'success' ? '✅ THÀNH CÔNG' : value === 'failure' ? '❌ THẤT BẠI' : '⏭️ BỎ QUA';
@@ -522,7 +265,7 @@ jobs:
             const body = [
               '## Báo cáo lỗi CD',
               '',
-              'CD tượng trưng gặp lỗi sau một lần chạy pipeline phát hành.',
+              'CD gặp lỗi sau một lần chạy pipeline phát hành.',
               '',
               `- Nhánh: \`${branch}\``,
               `- Commit: \`${process.env.SOURCE_SHA || context.sha}\``,

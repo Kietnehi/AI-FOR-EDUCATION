@@ -2,19 +2,29 @@ global:
   scrape_interval: 15s # Default scrape interval
 
 scrape_configs:
+  # Prometheus self-monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'ai-learning-backend'
+  # Sample data generator (for testing dashboards)
+  - job_name: 'sample-data'
+    scrape_interval: 5s
     metrics_path: /metrics
     static_configs:
-      - targets: ['host.docker.internal:8000']
+      - targets: ['host.docker.internal:8001']
 
-  # - job_name: 'example_api'
-  #   scheme: http
-  #   static_configs:
-  #     - targets: ['example_api:9091']
+  # Real backend (when metrics endpoint is ready)
+  - job_name: 'backend'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['host.docker.internal:8000', 'backend:8000']
+
+  # Container metrics (CPU/RAM) from cAdvisor
+  - job_name: 'cadvisor'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['cadvisor:8080']
 
   #  ? TODO: add your services here
   # - job_name: 'your-job-name'

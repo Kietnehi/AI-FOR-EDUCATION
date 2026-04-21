@@ -24,6 +24,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import {
+  AuthUser,
   deleteMaterial,
   listMaterials,
   searchUsers,
@@ -32,7 +33,7 @@ import {
   unshareMaterial,
   updateMaterial,
 } from "@/lib/api";
-import { AuthUser, Material } from "@/types";
+import { Material } from "@/types";
 import { useNotify } from "@/components/use-notify";
 import { useAuth } from "@/components/auth-provider";
 

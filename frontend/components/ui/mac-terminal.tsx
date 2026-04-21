@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface MacTerminalProps {
@@ -36,7 +36,7 @@ export const MacTerminal: React.FC<MacTerminalProps> = ({
     setIsAutoScrolling(isAtBottom);
   };
 
-  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     if (isAutoScrolling && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
       if (behavior === "auto") {
@@ -48,30 +48,14 @@ export const MacTerminal: React.FC<MacTerminalProps> = ({
         });
       }
     }
-  };
+  }, [isAutoScrolling]);
 
-  useEffect(() => {
-    // Khi đang gõ chữ liên tục, dùng 'auto' để mượt hơn và không giật
-    scrollToBottom(isTyping ? "auto" : "smooth");
-  }, [history, displayText, isTyping]);
-
-  useEffect(() => {
-    if (!autoStart || currentCommandIndex >= commands.length) return;
-
-    const timer = setTimeout(() => {
-      startNextCommand();
-    }, commands[currentCommandIndex].delay || 1000);
-
-    return () => clearTimeout(timer);
-  }, [currentCommandIndex, autoStart]);
-
-  const startNextCommand = async () => {
+  const startNextCommand = useCallback(async () => {
     if (currentCommandIndex >= commands.length) return;
 
     setIsTyping(true);
     const cmd = commands[currentCommandIndex].command;
-    let typed = "";
-    
+
     for (let i = 0; i <= cmd.length; i++) {
       setDisplayText(cmd.slice(0, i));
       await new Promise((resolve) => setTimeout(resolve, 50 + Math.random() * 50));
@@ -86,7 +70,22 @@ export const MacTerminal: React.FC<MacTerminalProps> = ({
       setIsTyping(false);
       setCurrentCommandIndex((prev) => prev + 1);
     }, 300);
-  };
+  }, [commands, currentCommandIndex]);
+
+  useEffect(() => {
+    // Khi đang gõ chữ liên tục, dùng 'auto' để mượt hơn và không giật
+    scrollToBottom(isTyping ? "auto" : "smooth");
+  }, [history, displayText, isTyping, scrollToBottom]);
+
+  useEffect(() => {
+    if (!autoStart || currentCommandIndex >= commands.length) return;
+
+    const timer = setTimeout(() => {
+      startNextCommand();
+    }, commands[currentCommandIndex].delay || 1000);
+
+    return () => clearTimeout(timer);
+  }, [currentCommandIndex, autoStart, commands, startNextCommand]);
 
   return (
     <motion.div

@@ -87,7 +87,7 @@ export const MaterialViewer = memo(({ material, loading, error, onClose }: Mater
         <div className="h-full flex flex-col p-8 overflow-y-auto custom-scrollbar gap-10">
           <div className="bg-[var(--bg-elevated)] p-10 rounded-[2.5rem] border border-[var(--border-structural)] shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 w-40 h-40 bg-brand-500/5 blur-3xl rounded-full" />
-             <AudioPlayer url={previewUrl} title={title} />
+             <AudioPlayer audioUrl={previewUrl} title={title} />
           </div>
           {cleaned_text && (
             <div className="space-y-4">

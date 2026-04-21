@@ -219,7 +219,7 @@ export function ScheduleView() {
     return groups;
   }, [events]);
 
-  const activeEvents = groupedEvents[activeDay] || [];
+  const activeEvents = useMemo(() => groupedEvents[activeDay] || [], [groupedEvents, activeDay]);
   const activeDayInfo = DAYS.find(d => d.value === activeDay) || { label: "Tất cả", value: -1, short: "Tất cả", color: "bg-slate-900" };
 
   const completionPercentage = useMemo(() => {

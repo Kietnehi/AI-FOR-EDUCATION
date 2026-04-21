@@ -1,6 +1,6 @@
 "use client";
 
-type BadgeVariant = "default" | "processed" | "processing" | "uploaded" | "failed" | "generated" | "queued" | "generating";
+type BadgeVariant = "default" | "secondary" | "outline" | "processed" | "processing" | "uploaded" | "failed" | "generated" | "queued" | "generating";
 interface BadgeProps {
   variant?: BadgeVariant;
   status?: string;
@@ -47,6 +47,16 @@ const variantMap: Record<string, { bg: string; text: string; dot: string }> = {
   },
   default: {
     bg: "bg-[var(--bg-secondary)] border-[var(--border-light)]",
+    text: "text-[var(--text-secondary)]",
+    dot: "bg-[var(--text-tertiary)]",
+  },
+  secondary: {
+    bg: "bg-[var(--bg-secondary)] border-[var(--border-light)]",
+    text: "text-[var(--text-secondary)]",
+    dot: "bg-[var(--text-tertiary)]",
+  },
+  outline: {
+    bg: "bg-[var(--bg-elevated)] border-[var(--border-light)]",
     text: "text-[var(--text-secondary)]",
     dot: "bg-[var(--text-tertiary)]",
   },
