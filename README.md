@@ -342,7 +342,7 @@ Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/ma
 ### ⚙️ Hướng dẫn các bước:
 
 #### 1. Chuẩn bị file môi trường
-Tạo file `.env` ở thư mục gốc của dự án:
+Tạo file `.env` ở thư mục gốc của dự án:ss
 ```bash
 cp .env.docker.example .env
 ```
