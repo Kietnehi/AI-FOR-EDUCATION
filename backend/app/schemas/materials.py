@@ -43,6 +43,14 @@ class MaterialUpdateRequest(BaseModel):
     tags: list[str] | None = None
 
 
+class MaterialUpdateRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    subject: str | None = None
+    education_level: str | None = None
+    tags: list[str] | None = None
+
+
 class MaterialGuardrailCheckResponse(BaseModel):
     is_academic: bool
     category: str

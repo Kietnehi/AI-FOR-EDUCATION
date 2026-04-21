@@ -45,7 +45,7 @@ const TestimonialCard = ({ testimonial }: { testimonial: Testimonial }) => (
         <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">{testimonial.date}</span>
       </div>
       <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed line-clamp-3">
-        "{testimonial.content}"
+        &ldquo;{testimonial.content}&rdquo;
       </p>
       <div className="flex items-center justify-between pt-4 border-t border-[var(--border-structural)] dark:border-slate-800">
         <div className="flex items-center gap-3">

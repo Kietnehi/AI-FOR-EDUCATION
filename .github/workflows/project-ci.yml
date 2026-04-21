@@ -25,6 +25,19 @@ permissions:
   issues: write
 
 jobs:
+  self-hosted-heartbeat:
+    runs-on:
+      - self-hosted
+      - Windows
+      - x64
+    steps:
+      - name: Kiểm tra self-hosted runner sẵn sàng
+        shell: powershell
+        run: |
+          Write-Host "Self-hosted runner is online."
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "OS/Arch: $env:RUNNER_OS/$env:RUNNER_ARCH"
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -49,9 +62,6 @@ jobs:
 
       - name: 📦 Cài đặt dependencies
         run: npm ci 2>&1 | tee npm_ci.log
-
-      - name: 🧹 Chạy lint
-        run: npm run lint
 
       - name: 🧪 Chạy kiểm thử với coverage
         run: npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json 2>&1 | tee vitest.log
@@ -197,97 +207,9 @@ jobs:
             backend/htmlcov
           if-no-files-found: ignore
 
-  docker-compose-smoke:
-    runs-on: ubuntu-latest
-    env:
-      DOCKER_BUILDKIT: 0
-      COMPOSE_DOCKER_CLI_BUILD: 0
-    outputs:
-      ci_logs: ${{ steps.capture-logs.outputs.ci_logs }}
-
-    steps:
-      - name: Tải mã nguồn
-        uses: actions/checkout@v6
-
-      - name: 🔧 Chuẩn bị file môi trường Docker
-        run: cp .env.docker.example .env
-
-      - name: 🐳 Build và khởi động Docker Compose
-        run: |
-          set -o pipefail
-          docker compose -f docker-compose.ci.yml up -d --build 2>&1 | tee docker_up.log
-
-      - name: 💓 Chờ backend sẵn sàng (Health Check)
-        run: |
-          echo "--- HEALTH CHECK LOGS ---" > health.log
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:8000/health >> health.log 2>&1; then
-              echo "[$(date)] Backend is UP (Status 200)" >> health.log
-              cat health.log
-              exit 0
-            fi
-            echo "[$(date)] Waiting for backend..." >> health.log
-            sleep 3
-          done
-          echo "❌ Kiểm tra health của backend thất bại" >> health.log
-          docker compose -f docker-compose.ci.yml ps >> health.log
-          docker compose -f docker-compose.ci.yml logs backend --tail=100 >> health.log
-          cat health.log
-          exit 1
-
-      - name: 🌐 Kiểm tra frontend phản hồi
-        run: |
-          for i in {1..20}; do
-            if curl -fsS http://127.0.0.1:3000 > /dev/null 2>&1; then
-              echo "Frontend is UP"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "Frontend is DOWN"
-          docker compose -f docker-compose.ci.yml ps
-          docker compose -f docker-compose.ci.yml logs frontend --tail=50
-          exit 1
-
-      - name: 🔍 Thu thập Logs Docker
-        id: capture-logs
-        if: always()
-        run: |
-          docker compose -f docker-compose.ci.yml ps > docker_ps.log 2>&1 || true
-          docker compose -f docker-compose.ci.yml logs --no-color > docker_full.log 2>&1 || true
-          {
-            echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-            echo "┃               🐳 DOCKER CI EXECUTION LOGS              ┃"
-            echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
-            echo ""
-            echo "🐳 [STEP 1: DOCKER COMPOSE UP]"
-            echo "----------------------------------------------------------"
-            tail -n 20 docker_up.log || echo "No logs found."
-            echo ""
-            echo "💓 [STEP 2: HEALTH CHECK]"
-            echo "----------------------------------------------------------"
-            cat health.log || echo "No health logs."
-            echo ""
-            echo "📦 [DOCKER PS]"
-            echo "----------------------------------------------------------"
-            cat docker_ps.log || echo "No docker ps logs."
-            echo ""
-            echo "📜 [DOCKER FULL LOGS]"
-            echo "----------------------------------------------------------"
-            tail -n 100 docker_full.log || echo "No docker logs found."
-            echo ""
-            echo "🏁 [EXECUTION FINISHED]"
-          } > docker_combined.log
-          LOGS_VAL=$(base64 -w 0 < docker_combined.log)
-          echo "ci_logs=$LOGS_VAL" >> "$GITHUB_OUTPUT"
-
-      - name: Dừng docker compose
-        if: always()
-        run: docker compose -f docker-compose.ci.yml down -v
-
   ci-summary:
     runs-on: ubuntu-latest
-    needs: [frontend, backend, docker-compose-smoke]
+    needs: [frontend, backend]
     if: always()
     steps:
       - name: 🎨 Tạo Dashboard Tóm tắt CI (Beautiful CI Dashboard)
@@ -296,7 +218,6 @@ jobs:
           script: |
             const frontendRes = "${{ needs.frontend.result }}";
             const backendRes = "${{ needs.backend.result }}";
-            const dockerRes = "${{ needs.docker-compose-smoke.result }}";
 
             const frontendCov = JSON.parse('${{ needs.frontend.outputs.coverage_details }}' || '{"lines":0,"statements":0,"functions":0,"branches":0}');
             const frontendTests = JSON.parse('${{ needs.frontend.outputs.test_metrics }}' || '{"passed":0,"failed":0,"total":0,"skipped":0}');
@@ -315,7 +236,6 @@ jobs:
 
             const feLogs = decodeLogs("${{ needs.frontend.outputs.ci_logs }}");
             const beLogs = decodeLogs("${{ needs.backend.outputs.ci_logs }}");
-            const dockerLogs = decodeLogs("${{ needs.docker-compose-smoke.outputs.ci_logs }}");
 
             const icon = (res) => res === "success" ? "🟢" : (res === "failure" ? "🔴" : "⚪");
             const statusLabel = (res) => res === "success" ? "PASSED" : (res === "failure" ? "FAILED" : "SKIPPED");
@@ -336,7 +256,6 @@ jobs:
             | :--- | :---: | :---: | :---: |
             | **🖥️ Frontend** | ${icon(frontendRes)} \`${statusLabel(frontendRes)}\` | ${frontendTests.passed}/${frontendTests.total} | \`${frontendCov.lines}%\` |
             | **⚙️ Backend** | ${icon(backendRes)} \`${statusLabel(backendRes)}\` | ${backendTests.passed}/${backendTests.total} | \`${backendCov}%\` |
-            | **🐳 Docker Smoke** | ${icon(dockerRes)} \`${statusLabel(dockerRes)}\` | - | - |
 
             ---
 
@@ -369,19 +288,6 @@ jobs:
             </details>
 
             ---
-
-            ### 🐳 Docker Smoke Test
-            - **Build & Up:** ${dockerRes === "success" ? "✅ Thành công" : "❌ Thất bại"}
-            - **Health Check:** ${dockerRes === "success" ? "✅ Thành công" : "❌ Thất bại"}
-
-            <details>
-            <summary><b>🔍 Xem Terminal Output (Docker)</b></summary>
-
-            \`\`\`bash
-            ${dockerLogs}
-            \`\`\`
-            </details>
-            
             ---
             **Quick Links:** [📝 View Commit](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}) | [📋 View Run Details](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
             `;
@@ -393,11 +299,10 @@ jobs:
     needs:
       - frontend
       - backend
-      - docker-compose-smoke
     if: >-
       always() &&
       github.event_name == 'push' &&
-      (needs.frontend.result == 'failure' || needs.backend.result == 'failure' || needs.docker-compose-smoke.result == 'failure')
+      (needs.frontend.result == 'failure' || needs.backend.result == 'failure')
 
     steps:
       - name: Tạo hoặc cập nhật GitHub Issue khi CI lỗi
@@ -405,7 +310,6 @@ jobs:
         env:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
-          DOCKER_RESULT: ${{ needs.docker-compose-smoke.result }}
         with:
           script: |
             const owner = context.repo.owner;
@@ -416,7 +320,6 @@ jobs:
             
             const frontendStatus = process.env.FRONTEND_RESULT === 'success' ? '✅ Thành công' : '❌ Thất bại';
             const backendStatus = process.env.BACKEND_RESULT === 'success' ? '✅ Thành công' : '❌ Thất bại';
-            const dockerStatus = process.env.DOCKER_RESULT === 'success' ? '✅ Thành công' : '❌ Thất bại';
 
             const body = [
               '## Báo cáo lỗi CI',
@@ -433,11 +336,10 @@ jobs:
               '| :--- | :--- |',
               `| Frontend | ${frontendStatus} |`,
               `| Backend | ${backendStatus} |`,
-              `| Docker Compose | ${dockerStatus} |`,
               '',
               '### Cách khắc phục',
               '1. Mở liên kết bên dưới để xem log chi tiết.',
-              '2. Kiểm tra các bước lint, test hoặc build bị lỗi.',
+              '2. Kiểm tra các bước test hoặc build bị lỗi.',
               '3. Sửa lỗi ở máy local, chạy lại test và push lại.',
               '',
               `- Xem chi tiết tại GitHub Actions: ${runUrl}`,

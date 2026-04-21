@@ -1,0 +1,201 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: any2-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: any2-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend:
+    image: ai-for-education-backend:${IMAGE_TAG:-local}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        REQUIREMENTS_FILE: ${REQUIREMENTS_FILE:-requirements.txt}
+        INSTALL_GPU_RUNTIME: ${INSTALL_GPU_RUNTIME:-0}
+        INSTALL_PLAYWRIGHT_BROWSER: ${INSTALL_PLAYWRIGHT_BROWSER:-0}
+    container_name: any2-backend
+    restart: unless-stopped
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
+    environment:
+      APP_ENV: ${APP_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+      REDIS_URL: ${REDIS_URL}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      CONTACT_RECIPIENT_EMAIL: ${CONTACT_RECIPIENT_EMAIL}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      OPENAI_GUARDRAIL_MODEL: ${OPENAI_GUARDRAIL_MODEL}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_BASE_URL: ${GROQ_BASE_URL}
+      WHISPER_MODEL: ${WHISPER_MODEL}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE}
+      PEXELS_API_KEY: ${PEXELS_API_KEY}
+      CHROMA_COLLECTION_NAME: ${CHROMA_COLLECTION_NAME}
+      CHROMA_PERSIST_DIR: /app/storage/chroma
+      UPLOAD_DIR: /app/storage/uploads
+      GENERATED_DIR: /app/storage/generated
+      IMAGE_CACHE_DIR: /app/storage/images
+      NOTEBOOKLM_DOCUMENTS_DIR: /app/storage/notebooklm/documents
+      NOTEBOOKLM_USER_DATA_DIR: /app/storage/notebooklm/chrome-profile
+      NOTEBOOKLM_HEADLESS: ${NOTEBOOKLM_HEADLESS}
+      NOTEBOOKLM_GENERATE_WAIT_SECONDS: ${NOTEBOOKLM_GENERATE_WAIT_SECONDS}
+      USE_OBJECT_STORAGE: ${USE_OBJECT_STORAGE}
+      USE_R2: ${USE_R2}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      R2_ENDPOINT: ${R2_ENDPOINT}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
+      CHUNK_SIZE: ${CHUNK_SIZE}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP}
+      RETRIEVAL_TOP_K: ${RETRIEVAL_TOP_K}
+      MATERIAL_GUARDRAIL_EXCERPT_CHARS: ${MATERIAL_GUARDRAIL_EXCERPT_CHARS}
+      CHAT_MEMORY_TURNS: ${CHAT_MEMORY_TURNS}
+      MASCOT_MEMORY_TURNS: ${MASCOT_MEMORY_TURNS}
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_storage:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  celery-worker:
+    image: ai-for-education-backend:${IMAGE_TAG:-local}
+    container_name: any2-celery-worker
+    restart: unless-stopped
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+    environment:
+      APP_ENV: ${APP_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+      REDIS_URL: ${REDIS_URL}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      OPENAI_GUARDRAIL_MODEL: ${OPENAI_GUARDRAIL_MODEL}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_BASE_URL: ${GROQ_BASE_URL}
+      WHISPER_MODEL: ${WHISPER_MODEL}
+      PEXELS_API_KEY: ${PEXELS_API_KEY}
+      CHROMA_COLLECTION_NAME: ${CHROMA_COLLECTION_NAME}
+      CHROMA_PERSIST_DIR: /app/storage/chroma
+      UPLOAD_DIR: /app/storage/uploads
+      GENERATED_DIR: /app/storage/generated
+      IMAGE_CACHE_DIR: /app/storage/images
+      NOTEBOOKLM_DOCUMENTS_DIR: /app/storage/notebooklm/documents
+      NOTEBOOKLM_USER_DATA_DIR: /app/storage/notebooklm/chrome-profile
+      USE_OBJECT_STORAGE: ${USE_OBJECT_STORAGE}
+      USE_R2: ${USE_R2}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      R2_ENDPOINT: ${R2_ENDPOINT}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
+      CHUNK_SIZE: ${CHUNK_SIZE}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP}
+      RETRIEVAL_TOP_K: ${RETRIEVAL_TOP_K}
+      CHAT_MEMORY_TURNS: ${CHAT_MEMORY_TURNS}
+      MASCOT_MEMORY_TURNS: ${MASCOT_MEMORY_TURNS}
+      MATERIAL_GUARDRAIL_EXCERPT_CHARS: ${MATERIAL_GUARDRAIL_EXCERPT_CHARS}
+    volumes:
+      - backend_storage:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: ai-for-education-frontend:${IMAGE_TAG:-local}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST}
+    container_name: any2-frontend
+    restart: unless-stopped
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+      NEXT_PUBLIC_API_HOST: ${NEXT_PUBLIC_API_HOST}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  redis_data:
+  minio_data:
+  backend_storage:

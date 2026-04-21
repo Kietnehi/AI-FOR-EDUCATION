@@ -3,8 +3,8 @@
 import { forwardRef, ButtonHTMLAttributes, ReactNode } from "react";
 import { motion, HTMLMotionProps } from "framer-motion";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "success";
-type Size = "sm" | "md" | "lg";
+type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "success";
+type Size = "sm" | "md" | "lg" | "icon";
 
 interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
   variant?: Variant;
@@ -20,6 +20,8 @@ const variantClasses: Record<Variant, string> = {
     "bg-gradient-to-r from-brand-600 to-accent-500 text-white shadow-md hover:shadow-lg hover:shadow-brand-500/25",
   secondary:
     "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-light)] hover:border-brand-400 hover:text-brand-600",
+  outline:
+    "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-light)] hover:border-brand-400 hover:text-brand-600",
   ghost:
     "bg-transparent text-[var(--text-secondary)] hover:bg-brand-50 hover:text-brand-600",
   danger:
@@ -32,6 +34,7 @@ const sizeClasses: Record<Size, string> = {
   sm: "h-8 px-3 text-xs gap-1.5 rounded-lg",
   md: "h-10 px-4 text-sm gap-2 rounded-xl",
   lg: "h-12 px-6 text-base gap-2.5 rounded-2xl",
+  icon: "h-10 w-10 p-0 text-sm rounded-xl",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

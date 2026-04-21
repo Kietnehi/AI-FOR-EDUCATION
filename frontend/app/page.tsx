@@ -356,7 +356,7 @@ export default function DashboardPage() {
                 && dashboardPersonalization.habit_overview.freeze_remaining_this_week > 0 ? (
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => handleCheckIn(true)}
                     disabled={checkinSubmitting}
                   >
