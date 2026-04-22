@@ -38,6 +38,14 @@
 
   <br/><br/>
 
+<p align="">
+  <a href="./README_EN.md">
+    <img src="https://img.shields.io/badge/README-English-blue?style=for-the-badge" alt="English README"/>
+  </a>
+</p>
+
+  <br/><br/>
+
   <a href="https://skillicons.dev">
     <img src="https://skillicons.dev/icons?i=nextjs,react,tailwind,ts,python,fastapi,mongodb,docker" alt="Tech Stack"/>
   </a>
@@ -77,6 +85,15 @@
 # 🎓 AI Learning Studio — Nền tảng AI Tạo Học Liệu Số
 
 **Nền tảng MVP production-ready giúp giáo viên và học sinh tạo nội dung học tập thông minh bằng AI. Chỉ cần tải tài liệu lên, hệ thống sẽ tự động tạo slide, podcast, minigame và chatbot hỏi đáp trong vài phút.**
+
+<div align="center">
+  <a href="https://drive.google.com/drive/folders/1jqmgd-Ku9A8Dn8_jNkcK26SXU6ES9OnR">
+    <img src="https://img.shields.io/badge/TÀI_LIỆU_DỰ_ÁN-GOOGLE_DRIVE-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" height="40"/>
+  </a>
+  <br/>
+  <strong>📂 Slide • Docs • ERD • Pipeline Architecture</strong>
+  <br/><br/>
+</div>
 
 Đây là hệ thống AI Agent đa phương thức (Multimodal RAG) toàn diện, được thiết kế theo kiến trúc vi dịch vụ (microservices) và triển khai hoàn toàn bằng **Docker**.
 
@@ -1146,6 +1163,7 @@ Lưu ý vận hành:
 - **Groq API:** [Groq Cloud (Cho Whisper STT nhanh nhất)](https://console.groq.com/keys)
 
 ### 📚 Tài liệu tham khảo
+- **🚀 Google Drive Dự Án (Slide, Docs, ERD, Pipeline):** [**Truy cập tại đây**](https://drive.google.com/drive/folders/1jqmgd-Ku9A8Dn8_jNkcK26SXU6ES9OnR)
 - **Redis, Celery & Object Storage:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md).
 - **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md).
 - **Docker:** [Trang chủ Docker](https://www.docker.com/)
