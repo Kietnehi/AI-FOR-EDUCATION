@@ -1,53 +1,53 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=150&section=header&text=AI%20Learning%20Studio&fontSize=40&fontAlignY=35&animation=twinkling&fontColor=ffffff" width="100%" alt="Header"/>
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=150&section=header&text=AI%20Learning%20Studio&fontSize=40&fontAlignY=35&animation=twinkling&fontColor=ffffff" width="100%" alt="Header"/>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
     <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=22&pause=1000&color=3B82F6&center=true&vCenter=true&width=600&lines=🚀+Nền+tảng+AI+Tạo+Học+Liệu+Số;🤖+Multimodal+RAG+%7C+FastAPI+%7C+Next.js;🎓+Dự+án+AI+For+Education+-+SGU" alt="Typing SVG" />
   </a>
 
-  `<br/><br/>`
+  <br/><br/>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/stargazers">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/stargazers">
     <img src="https://img.shields.io/github/stars/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FFD700&logo=github&logoColor=black&label=Stars" alt="Stars"/>
   </a>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/network/members">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/network/members">
     <img src="https://img.shields.io/github/forks/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FF8C00&logo=github&logoColor=white&label=Forks" alt="Forks"/>
   </a>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/issues">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/issues">
     <img src="https://img.shields.io/github/issues/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=FF4D4D&logo=github&logoColor=white&label=Issues" alt="Issues"/>
   </a>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/pulls">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/pulls">
     <img src="https://img.shields.io/github/issues-pr/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=00E676&logo=github&logoColor=white&label=Pull%20Requests" alt="Pull Requests"/>
   </a>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/blob/main/LICENSE">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/Kietnehi/AI-FOR-EDUCATION?style=for-the-badge&color=0088FF&logo=github&logoColor=white&label=License" alt="License"/>
   </a>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml">
     <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml/badge.svg" alt="CI Dự Án"/>
   </a>
 
-<a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml">
+  <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml">
     <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml/badge.svg" alt="CD Dự Án"/>
   </a>
 
-  `<br/><br/>`
+  <br/><br/>
 
-<a href="https://skillicons.dev">
+  <a href="https://skillicons.dev">
     <img src="https://skillicons.dev/icons?i=nextjs,react,tailwind,ts,python,fastapi,mongodb,docker" alt="Tech Stack"/>
   </a>
 
-  `<br/><br/>`
+  <br/><br/>
 
-  `<img src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/openai.svg" alt="OpenAI" height="48"/>`&nbsp;&nbsp;&nbsp;
-  `<img src="https://commons.wikimedia.org/wiki/Special:FilePath/Google-gemini-icon.png" alt="Gemini" height="48"/>`
+  <img src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/openai.svg" alt="OpenAI" height="48"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Google-gemini-icon.png" alt="Gemini" height="48"/>
 
-  `<br/><br/>`
+  <br/><br/>
 
 </div>
 
@@ -71,7 +71,7 @@
 </div>
 
 <div align="center">
-  <img src="output.gif" width="100%" alt="Demo AI Learning Studio" />
+  <img src="output.gif" width="100%" alt="AI Learning Studio Demo" />
 </div>
 
 # 🎓 AI Learning Studio — Nền tảng AI Tạo Học Liệu Số
@@ -82,10 +82,13 @@
 
 Dự án được chia thành 2 luồng xử lý chính:
 
-* **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống sử dụng **Advanced RAG Pipeline** (Semantic Chunking, Hybrid Search, Re-ranking) để trích xuất tri thức từ tài liệu (PDF, Word, Excel) và giải đáp thắc mắc của học sinh với độ chính xác cao nhất (citations đi kèm).
-* **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (Whisper STT, OCR), kết hợp tìm kiếm web (Tavily, SerpAPI) để tự động hóa việc tạo ra các học liệu trực quan: Slide bài giảng, Podcast, Minigame, và Video/Infographic.
+  * **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống sử dụng **Advanced RAG Pipeline** (Semantic Chunking, Hybrid Search, Re-ranking) để trích xuất tri thức từ tài liệu (PDF, Word, Excel) và giải đáp thắc mắc của học sinh với độ chính xác cao nhất (citations đi kèm).
+  * **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (Whisper STT, OCR), kết hợp tìm kiếm web (Tavily, SerpAPI) để tự động hóa việc tạo ra các học liệu trực quan: Slide bài giảng, Podcast, Minigame, và Video/Infographic.
 
 **🛠 Công nghệ cốt lõi:** FastAPI, Next.js 14, MongoDB, ChromaDB (Vector Store), và hệ sinh thái mô hình AI tiên tiến (Gemini, OpenAI, Groq).
+
+
+
 
 ## Tính năng chính
 
@@ -104,7 +107,7 @@ Dự án được chia thành 2 luồng xử lý chính:
 
 > **Lưu ý:** MongoDB sử dụng MongoDB Atlas qua `MONGO_URI`
 
-- **Search Website Online**: Trang tìm kiếm web tích hợp ngay trong AI Learning Studio, cho phép tra cứu theo từ khóa với các nhóm kết quả như website, tin tức, hình ảnh, video và sách để người dùng tổng hợp thông tin nhanh hơn.
+ - **Search Website Online**: Trang tìm kiếm web tích hợp ngay trong AI Learning Studio, cho phép tra cứu theo từ khóa với các nhóm kết quả như website, tin tức, hình ảnh, video và sách để người dùng tổng hợp thông tin nhanh hơn.
 
 ---
 
@@ -112,59 +115,59 @@ Dự án được chia thành 2 luồng xử lý chính:
 
 ### Frontend
 
-| Công nghệ                         | Mô tả                                   |
-| ----------------------------------- | ----------------------------------------- |
-| Next.js 14                          | Framework frontend chính với App Router |
-| React 18                            | Xây dựng UI theo mô hình component    |
-| TypeScript                          | Kiểm soát kiểu dữ liệu ở frontend   |
-| Tailwind CSS v4                     | Hệ thống utility CSS cho giao diện     |
-| Framer Motion                       | Animation và tương tác UI             |
-| Lucide React                        | Bộ icon chính của dự án              |
-| React Markdown + Remark GFM         | Render nội dung Markdown trong UI        |
-| Three.js + React Three Fiber + Drei | Thành phần 3D và mascot tương tác   |
+| Công nghệ | Mô tả |
+|-----------|-------|
+| Next.js 14 | Framework frontend chính với App Router |
+| React 18 | Xây dựng UI theo mô hình component |
+| TypeScript | Kiểm soát kiểu dữ liệu ở frontend |
+| Tailwind CSS v4 | Hệ thống utility CSS cho giao diện |
+| Framer Motion | Animation và tương tác UI |
+| Lucide React | Bộ icon chính của dự án |
+| React Markdown + Remark GFM | Render nội dung Markdown trong UI |
+| Three.js + React Three Fiber + Drei | Thành phần 3D và mascot tương tác |
 
 ### Backend & AI
 
-| Công nghệ                                                | Mô tả                                                        |
-| ---------------------------------------------------------- | -------------------------------------------------------------- |
-| Python 3.11+                                               | Ngôn ngữ chính cho backend và AI pipeline                  |
-| FastAPI                                                    | REST API framework                                             |
-| Pydantic / pydantic-settings                               | Validation schema và cấu hình ứng dụng                    |
-| Motor / PyMongo                                            | Kết nối và thao tác MongoDB                                |
-| ChromaDB                                                   | Vector database lưu embeddings cục bộ                       |
-| FlashRank                                                  | Re-ranker model giúp tối ưu độ chính xác của RAG       |
-| BM25 (Rank-BM25)                                           | Thuật toán tìm kiếm từ khóa kết hợp với Vector Search |
-| OpenAI API                                                 | Sinh nội dung, embeddings và fallback model                  |
-| Google Gemini (`google-genai`)                           | LLM chính (hỗ trợ xoay vòng nhiều API Key)                |
-| Groq API                                                   | Speech-to-Text cloud tốc độ cao                             |
-| SerpAPI                                                    | Lấy dữ liệu transcript và metadata YouTube siêu tốc      |
-| Docling / PyPDF / python-docx / pandas / openpyxl / Pillow | Trích xuất và xử lý tài liệu đa định dạng           |
-| python-pptx                                                | Tạo slide PowerPoint tự động                               |
-| Tavily Search / DuckDuckGo Search / Google Books API       | Tìm kiếm web và sách                                       |
-| Playwright                                                 | Tự động hóa trình duyệt (luồng NotebookLM)              |
+| Công nghệ | Mô tả |
+|-----------|-------|
+| Python 3.11+ | Ngôn ngữ chính cho backend và AI pipeline |
+| FastAPI | REST API framework |
+| Pydantic / pydantic-settings | Validation schema và cấu hình ứng dụng |
+| Motor / PyMongo | Kết nối và thao tác MongoDB |
+| ChromaDB | Vector database lưu embeddings cục bộ |
+| FlashRank | Re-ranker model giúp tối ưu độ chính xác của RAG |
+| BM25 (Rank-BM25) | Thuật toán tìm kiếm từ khóa kết hợp với Vector Search |
+| OpenAI API | Sinh nội dung, embeddings và fallback model |
+| Google Gemini (`google-genai`) | LLM chính (hỗ trợ xoay vòng nhiều API Key) |
+| Groq API | Speech-to-Text cloud tốc độ cao |
+| SerpAPI | Lấy dữ liệu transcript và metadata YouTube siêu tốc |
+| Docling / PyPDF / python-docx / pandas / openpyxl / Pillow | Trích xuất và xử lý tài liệu đa định dạng |
+| python-pptx | Tạo slide PowerPoint tự động |
+| Tavily Search / DuckDuckGo Search / Google Books API | Tìm kiếm web và sách |
+| Playwright | Tự động hóa trình duyệt (luồng NotebookLM) |
 
 ### Dữ liệu, hàng đợi và lưu trữ
 
-| Công nghệ   | Mô tả                                                    |
-| ------------- | ---------------------------------------------------------- |
-| MongoDB       | Cơ sở dữ liệu nghiệp vụ chính                       |
-| Redis         | Broker và result backend cho Celery                       |
-| Celery        | Xử lý background jobs                                    |
-| Flower        | Theo dõi Celery worker                                    |
-| MinIO         | Object storage S3-compatible cho môi trường local       |
+| Công nghệ | Mô tả |
+|-----------|-------|
+| MongoDB | Cơ sở dữ liệu nghiệp vụ chính |
+| Redis | Broker và result backend cho Celery |
+| Celery | Xử lý background jobs |
+| Flower | Theo dõi Celery worker |
+| MinIO | Object storage S3-compatible cho môi trường local |
 | Cloudflare R2 | Object storage production cho file upload và file sinh ra |
-| Boto3         | Tích hợp MinIO / Cloudflare R2                           |
+| Boto3 | Tích hợp MinIO / Cloudflare R2 |
 
 ### DevOps, kiểm thử và phát hành
 
-| Công nghệ                      | Mô tả                                                            |
-| -------------------------------- | ------------------------------------------------------------------ |
-| Docker / Docker Compose          | Môi trường chạy local, CI smoke test và đóng gói dịch vụ |
-| GitHub Actions                   | CI/CD pipeline                                                     |
-| GHCR                             | Publish container image frontend và backend                       |
-| Vitest + Testing Library + jsdom | Unit test / integration test frontend                              |
-| Pytest                           | Test backend                                                       |
-| ESLint                           | Kiểm tra chất lượng mã frontend                               |
+| Công nghệ | Mô tả |
+|-----------|-------|
+| Docker / Docker Compose | Môi trường chạy local, CI smoke test và đóng gói dịch vụ |
+| GitHub Actions | CI/CD pipeline |
+| GHCR | Publish container image frontend và backend |
+| Vitest + Testing Library + jsdom | Unit test / integration test frontend |
+| Pytest | Test backend |
+| ESLint | Kiểm tra chất lượng mã frontend |
 
 ### Trigger CI/CD an toàn (không commit `.env`)
 
@@ -322,7 +325,6 @@ AI-FOR-EDUCATION/
 </p>
 
 ### 4.1 Materials
-
 - `POST /api/materials` — Tạo học liệu từ text
 - `POST /api/materials/upload` — Tạo học liệu từ file upload
 - `GET /api/materials` — Danh sách học liệu (có pagination)
@@ -333,7 +335,6 @@ AI-FOR-EDUCATION/
 - `POST /api/materials/guardrail-check-upload` — Kiểm tra nội dung từ file upload
 
 ### 4.2 Generation
-
 - `POST /api/materials/{material_id}/generate/slides` — Tạo slides `.pptx`
 - `POST /api/materials/{material_id}/generate/podcast` — Tạo podcast script
 - `POST /api/materials/{material_id}/generate/minigame` — Tạo minigame/quiz
@@ -341,12 +342,10 @@ AI-FOR-EDUCATION/
 - `POST /api/notebooklm/generate-media` — Tạo video + infographic với NotebookLM (2 bước: confirm → download)
 
 ### 4.3 Files
-
 - `GET /api/files/{file_path}/download` — Download file (hỗ trợ đường dẫn tuyệt đối)
 - `GET /api/files/notebooklm/temp/{session_id}/{file_type}/{file_name}/preview` — Xem trước file tạm từ NotebookLM (video/infographic)
 
 ### 4.4 Chat
-
 - `POST /api/chat/{material_id}/session` — Tạo session chat mới
 - `GET /api/chat/sessions/{session_id}` — Lấy session + tin nhắn
 - `POST /api/chat/sessions/{session_id}/message` — Gửi tin nhắn (có hỗ trợ ảnh)
@@ -356,12 +355,10 @@ AI-FOR-EDUCATION/
 - `POST /api/chat/tts` — Chuyển text thành audio (Text-to-Speech)
 
 ### 4.5 Games
-
 - `POST /api/games/{generated_content_id}/submit` — Nộp bài làm minigame
 - `GET /api/games/attempts/{attempt_id}` — Xem kết quả bài làm
 
 ### 4.6 YouTube Interactive Lesson
-
 - `POST /api/youtube-lessons` — Tạo bài học tương tác từ video YouTube
 - `GET /api/youtube-lessons/{lesson_id}` — Lấy chi tiết bài học YouTube
 - `POST /api/youtube-lessons/{lesson_id}/translate-transcript` — Dịch transcript sang ngôn ngữ khác
@@ -372,7 +369,6 @@ AI-FOR-EDUCATION/
 ## 📸 Giao diện ứng dụng
 
 ### 1. Tổng quan & Đăng nhập
-
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
@@ -389,7 +385,6 @@ AI-FOR-EDUCATION/
 </div>
 
 ### 2. Dashboard & Quản lý tiến độ
-
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
@@ -412,7 +407,6 @@ AI-FOR-EDUCATION/
 </div>
 
 ### 3. Quản lý học liệu & Chia sẻ
-
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
@@ -429,7 +423,6 @@ AI-FOR-EDUCATION/
 </div>
 
 ### 4. Chatbot RAG & Công cụ AI Nâng cao
-
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
@@ -452,7 +445,6 @@ AI-FOR-EDUCATION/
 </div>
 
 ### 5. Cộng đồng & Tiện ích
-
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
@@ -470,6 +462,8 @@ AI-FOR-EDUCATION/
 
 ---
 
+
+
 ## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose (Khuyên dùng)
 
 ![Hệ thống Docker Containers](image/container_docker.png)
@@ -483,17 +477,13 @@ Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/ma
 ### ⚙️ Hướng dẫn các bước:
 
 #### 1. Chuẩn bị file môi trường
-
 Tạo file `.env` ở thư mục gốc của dự án:ss
-
 ```bash
 cp .env.docker.example .env
 ```
-
 Mở file `.env` và điền ít nhất `MONGO_URI` (Khuyến nghị dùng MongoDB Atlas) và các API Key cần thiết (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`).
 
 #### 2. Khởi động hệ thống
-
 ```bash
 # Chạy với MongoDB Atlas (mặc định - nhẹ nhất)
 docker compose build
@@ -503,35 +493,33 @@ docker compose up
 docker compose --profile local-db build
 docker compose --profile local-db up
 ```
-
 *Lưu ý: Chạy lại `docker compose build` khi có thay đổi cấu hình `Dockerfile` hoặc dependencies.*
 
 #### 3. Truy cập hệ thống
-
-* 🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
-* 🔧 **Backend API:** [http://localhost:8000](http://localhost:8000)
-* 📄 **Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-* 🖥️ **Theo dõi Chrome của NotebookLM trong Docker:** [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html)
+*   🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
+*   🔧 **Backend API:** [http://localhost:8000](http://localhost:8000)
+*   📄 **Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+*   🖥️ **Theo dõi Chrome của NotebookLM trong Docker:** [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html)
 
 #### Bảng Port và Đường dẫn truy cập nhanh
 
-| Dịch vụ                                   | Host Port | Container Port | Đường dẫn truy cập                                                                  |
-| ------------------------------------------- | --------- | -------------- | ---------------------------------------------------------------------------------------- |
-| Frontend                                    | `3000`  | `3000`       | [http://localhost:3000](http://localhost:3000)                                              |
-| Backend API                                 | `8000`  | `8000`       | [http://localhost:8000](http://localhost:8000)                                              |
-| Swagger Docs                                | `8000`  | `8000`       | [http://localhost:8000/docs](http://localhost:8000/docs)                                    |
-| Health Check                                | `8000`  | `8000`       | [http://localhost:8000/health](http://localhost:8000/health)                                |
-| noVNC (NotebookLM Browser)                  | `6080`  | `6080`       | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html)                            |
-| VNC (NotebookLM Browser - native client)    | `5900`  | `5900`       | Dùng VNC client (không phải HTTP)                                                     |
-| Flower (Celery Monitor)                     | `5555`  | `5555`       | [http://localhost:5555](http://localhost:5555)                                              |
-| MinIO API                                   | `9000`  | `9000`       | [http://localhost:9000](http://localhost:9000)                                              |
-| MinIO Console                               | `9001`  | `9001`       | [http://localhost:9001](http://localhost:9001)                                              |
-| Redis                                       | `6379`  | `6379`       | Dùng Redis client/CLI                                                                   |
-| Redis Insight (service `redis-commander`) | `8081`  | `5540`       | [http://localhost:8081](http://localhost:8081)                                              |
-| MongoDB (profile `local-db`)              | `27017` | `27017`      | Dùng MongoDB client/Compass                                                             |
-| Grafana (monitoring stack)                  | `3300`  | `3000`       | [http://localhost:3300](http://localhost:3300) (User: `admin`, Pass: `yourpassword123`) |
-| Prometheus (monitoring stack)               | `9090`  | `9090`       | [http://localhost:9090](http://localhost:9090)                                              |
-| Cloudflare R2 (production object storage)   | `N/A`   | `N/A`        | Dịch vụ cloud, không map localhost port                                               |
+| Dịch vụ | Host Port | Container Port | Đường dẫn truy cập |
+|---------|-----------|----------------|--------------------|
+| Frontend | `3000` | `3000` | [http://localhost:3000](http://localhost:3000) |
+| Backend API | `8000` | `8000` | [http://localhost:8000](http://localhost:8000) |
+| Swagger Docs | `8000` | `8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| Health Check | `8000` | `8000` | [http://localhost:8000/health](http://localhost:8000/health) |
+| noVNC (NotebookLM Browser) | `6080` | `6080` | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html) |
+| VNC (NotebookLM Browser - native client) | `5900` | `5900` | Dùng VNC client (không phải HTTP) |
+| Flower (Celery Monitor) | `5555` | `5555` | [http://localhost:5555](http://localhost:5555) |
+| MinIO API | `9000` | `9000` | [http://localhost:9000](http://localhost:9000) |
+| MinIO Console | `9001` | `9001` | [http://localhost:9001](http://localhost:9001) |
+| Redis | `6379` | `6379` | Dùng Redis client/CLI |
+| Redis Insight (service `redis-commander`) | `8081` | `5540` | [http://localhost:8081](http://localhost:8081) |
+| MongoDB (profile `local-db`) | `27017` | `27017` | Dùng MongoDB client/Compass |
+| Grafana (monitoring stack) | `3300` | `3000` | [http://localhost:3300](http://localhost:3300) (User: `admin`, Pass: `yourpassword123`) |
+| Prometheus (monitoring stack) | `9090` | `9090` | [http://localhost:9090](http://localhost:9090) |
+| Cloudflare R2 (production object storage) | `N/A` | `N/A` | Dịch vụ cloud, không map localhost port |
 
 #### Theo dõi trình duyệt NotebookLM khi chạy Docker
 
@@ -542,15 +530,14 @@ Luồng NotebookLM trong Docker không mở cửa sổ Chrome native trên máy 
 - Tài liệu chi tiết: [markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
 
 #### 4. Dừng hệ thống
-
 ```bash
 docker compose down
 ```
 
 ### 💡 Lưu ý về Hot-Reload:
-
 - **Hot-reload trên Windows:** Hệ thống sử dụng cơ chế **Polling** (`CHOKIDAR_USEPOLLING=true`) để đảm bảo nhận diện thay đổi file ngay lập tức từ ổ đĩa NTFS của Windows vào Linux container.
 - **Vị trí lưu trữ:** Để đạt hiệu năng tốt nhất trên Windows, bạn nên để code bên trong hệ thống file của **WSL2** (`\\wsl$\...`).
+
 
 ---
 
@@ -597,13 +584,11 @@ copy .env.example .env
 ```
 
 Mở file `.env` và cập nhật tối thiểu:
-
 - `MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>`
 - `MONGO_DB_NAME=ai_learning_platform`
 - `OPENAI_API_KEY=` (có thể để trống nếu chỉ dùng Gemini, nhưng cần để fallback)
 
 **Lưu ý về Gemini API keys:**
-
 - **Nếu muốn dùng nhiều Gemini keys** (để tránh rate limit): điền `GEMINI_API_KEYS` với các keys phân cách bằng dấu phẩy (ví dụ: `key1,key2,key3`). Hệ thống sẽ thử lần lượt từng key.
 - **Nếu chỉ có 1 Gemini key**: điền `GEMINI_API_KEY` là đủ. Có thể để `GEMINI_API_KEYS` trống.
 - **Ưu tiên**: `GEMINI_API_KEYS` sẽ được dùng trước. Nếu `GEMINI_API_KEYS` rỗng, hệ thống dùng `GEMINI_API_KEY`.
@@ -612,14 +597,12 @@ Mở file `.env` và cập nhật tối thiểu:
 - **Backup**: Bạn nên có ít nhất 2 Gemini keys để đảm bảo tính sẵn sàng cao.
 
 Biến môi trường cho Speech-to-Text:
-
 - `WHISPER_MODEL=base`
 - `WHISPER_LANGUAGE=` (để trống để auto detect)
 - `GROQ_API_KEY=` (điền khi dùng Groq model)
 - `GROQ_BASE_URL=https://api.groq.com`
 
 Lưu ý:
-
 - Nếu bỏ trống `OPENAI_API_KEY`, hệ thống vẫn chạy bằng fallback để demo luồng.
 - Muốn kết quả AI thật, cần điền `OPENAI_API_KEY` hợp lệ.
 - **Hệ thống hỗ trợ nhiều Gemini API keys qua `GEMINI_API_KEYS` (comma-separated)**. Keys sẽ được dùng xoay vòng. Nếu `GEMINI_API_KEYS` không có, hệ thống dùng `GEMINI_API_KEY` đơn (backward compatibility). Khi tất cả Gemini keys fail, sẽ fallback sang OpenAI (nếu có).
@@ -634,14 +617,12 @@ copy .env.example .env.local
 ```
 
 Mặc định đã đúng local:
-
 - `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api`
 - `NEXT_PUBLIC_API_HOST=http://localhost:8000`
 
 ### 5.4 Bước 3: Cài dependencies và chạy backend
 
 **Cách 1 (khuyên dùng - đơn giản):**
-
 ```powershell
 cd ..\backend
 pip install -r requirements.txt
@@ -649,7 +630,6 @@ python run.py
 ```
 
 **Cách 2 (lệnh đầy đủ):**
-
 ```powershell
 cd ..\backend
 pip install -r requirements.txt
@@ -663,7 +643,6 @@ choco install ffmpeg
 ```
 
 Khi backend chạy thành công:
-
 - API: `http://localhost:8000`
 - Swagger: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/health`
@@ -872,18 +851,18 @@ flowchart LR
 
 ### 6.2 Các job chính và thời gian ước tính
 
-| Job                              | Thời gian (lần đầu) | Thời gian (có cache) | Mô tả                                |
-| -------------------------------- | ----------------------- | ---------------------- | -------------------------------------- |
-| **Frontend**               | 2-3 phút               | 1-2 phút              | Install deps + lint + test + coverage  |
-| **Backend**                | 1-2 phút               | 30-60 giây            | Install deps + pytest + coverage       |
-| **Docker Compose Smoke**   | 3-5 phút               | 1-2 phút              | Build images + health check            |
-| **CD Prepare Release**     | 30 giây                | 30 giây               | Generate metadata + release notes      |
-| **CD Build Frontend**      | 2-3 phút               | 1-2 phút              | npm build + bundle                     |
-| **CD Package Backend**     | 30 giây                | 30 giây               | Syntax check + bundle                  |
-| **CD Package Docker**      | 30 giây                | 30 giây               | Compose config + bundle                |
-| **CD Publish GHCR Images** | 2-5 phút               | 1-3 phút              | Build và push image frontend/backend  |
-| **CD Deploy Placeholder**  | 30 giây                | 30 giây               | Tạo deployment summary placeholder    |
-| **CD Release Bundle**      | 1 phút                 | 1 phút                | Download + merge all release artifacts |
+| Job | Thời gian (lần đầu) | Thời gian (có cache) | Mô tả |
+|-----|---------------------|----------------------|-------|
+| **Frontend** | 2-3 phút | 1-2 phút | Install deps + lint + test + coverage |
+| **Backend** | 1-2 phút | 30-60 giây | Install deps + pytest + coverage |
+| **Docker Compose Smoke** | 3-5 phút | 1-2 phút | Build images + health check |
+| **CD Prepare Release** | 30 giây | 30 giây | Generate metadata + release notes |
+| **CD Build Frontend** | 2-3 phút | 1-2 phút | npm build + bundle |
+| **CD Package Backend** | 30 giây | 30 giây | Syntax check + bundle |
+| **CD Package Docker** | 30 giây | 30 giây | Compose config + bundle |
+| **CD Publish GHCR Images** | 2-5 phút | 1-3 phút | Build và push image frontend/backend |
+| **CD Deploy Placeholder** | 30 giây | 30 giây | Tạo deployment summary placeholder |
+| **CD Release Bundle** | 1 phút | 1 phút | Download + merge all release artifacts |
 
 > 💡 **Lưu ý:** Thời gian có thể thay đổi tùy thuộc vào kích thước code changes và tình trạng cache của GitHub Actions.
 
@@ -934,6 +913,8 @@ flowchart LR
   </table>
 </div>
 
+
+
 ### 6.4 Cách chạy CI local
 
 ```bash
@@ -981,20 +962,17 @@ Coverage report sau khi chạy:
 ## 6.5 Redis, Celery & Object Storage
 
 ### 🔴 Redis - Message Broker & Result Backend
-
 - **Port:** `6379`
 - **Monitoring:** http://localhost:8081 (Redis Insight)
 - **Vai trò:** Message broker cho Celery tasks + lưu kết quả
 
 ### 🍀 Celery - Distributed Task Queue
-
 - **Services:** Celery Worker (execute tasks) + Flower (monitoring)
 - **Port:** `5555` (Flower UI)
 - **Tasks:** Generate slides, podcast, minigame
 - **Monitoring:** http://localhost:5555
 
 ### 📦 MinIO / Cloudflare R2 - Object Storage
-
 - **Ports:** `9000` (API), `9001` (Console)
 - **Console:** http://localhost:9001 (minioadmin/minioadmin123)
 - **Bucket local (MinIO):** `ai-learning-storage`
@@ -1022,8 +1000,8 @@ Coverage report sau khi chạy:
   </table>
 </div>
 
-### Quick Commands
 
+### Quick Commands
 ```bash
 # Redis - Check task results
 docker exec any2-redis redis-cli -n 1 KEYS "celery-task-meta-*"
@@ -1036,7 +1014,6 @@ docker logs any2-celery-worker --tail=50
 ```
 
 ### Integration Flow
-
 ```
 Upload → MinIO/Cloudflare R2 → MongoDB → Queue (Redis) → Celery Worker → Generate → MinIO/Cloudflare R2 → Result (Redis)
 ```
@@ -1050,12 +1027,10 @@ Upload → MinIO/Cloudflare R2 → MongoDB → Queue (Redis) → Celery Worker �
 Hệ thống đã tích hợp endpoint metrics cho backend FastAPI và có thể scrape bằng Prometheus để visualize trên Grafana.
 
 ### Endpoint metrics
-
 - Backend expose metrics tại: `GET /metrics`
 - URL local: http://localhost:8000/metrics
 
 ### Chạy stack monitoring
-
 Để khởi động bộ công cụ giám sát (Grafana, Prometheus, Loki, Tempo), hãy chạy lệnh sau:
 
 ```bash
@@ -1064,28 +1039,24 @@ docker compose up -d
 ```
 
 Các dịch vụ chính:
-
 - **Grafana**: [http://localhost:3300](http://localhost:3300)
-  - **User**: `admin`
-  - **Password**: `yourpassword123`
+    - **User**: `admin`
+    - **Password**: `yourpassword123`
 - **Prometheus**: http://localhost:9090
 - **Loki**: http://localhost:3100
 - **Tempo**: http://localhost:3200
 
 ### Cấu hình scrape backend
-
 - File Prometheus: `Monitoring/railway-grafana-stack/prometheus/prom.yml`
 - Job backend hiện tại: `ai-learning-backend`
 - Target local: `host.docker.internal:8000`
 
 ### Kiểm tra nhanh
-
 1. Mở http://localhost:9090/targets
 2. Đảm bảo target `ai-learning-backend` ở trạng thái `UP`
 3. Mở Grafana và query datasource Prometheus với `up`
 
 ### Query gợi ý cho Grafana
-
 - `rate(http_requests_total[5m])`
 - `sum(rate(http_requests_total[5m])) by (handler, method, status)`
 - `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler))`
@@ -1095,39 +1066,32 @@ Các dịch vụ chính:
 ## 7. Troubleshooting
 
 ### Lỗi không có lệnh `python`
-
 Trên Windows, dùng `py` thay cho `python`.
 
 ### Lỗi kết nối MongoDB Atlas
-
 - Kiểm tra lại username/password trong connection string SRV.
 - Kiểm tra Network Access trên Atlas đã allow IP hiện tại chưa.
 - Kiểm tra biến `MONGO_URI` trong `backend/.env` đã đúng format chưa.
 
 ### Lỗi frontend không gọi được backend
-
 - Kiểm tra backend có đang chạy cổng `8000`.
 - Kiểm tra `frontend/.env.local` có đúng `NEXT_PUBLIC_API_BASE_URL`.
 
 ### Không có OpenAI API key
-
 - Hệ thống vẫn chạy demo với fallback.
 - Muốn kết quả AI thật, cần điền `OPENAI_API_KEY` hợp lệ.
 
 ### Lỗi Speech-to-Text Groq trả 500
-
 - Kiểm tra đã cài package `groq`: `pip install groq`.
 - Kiểm tra `GROQ_API_KEY` trong `backend/.env`.
 - Đảm bảo `GROQ_BASE_URL=https://api.groq.com`.
 - Nếu đổi model STT sang `local-base`, kiểm tra FFmpeg có sẵn bằng lệnh `ffmpeg -version`.
 
 ### Lỗi 404 với đường dẫn `/openai/v1/openai/v1/audio/transcriptions`
-
 - Nguyên nhân: base URL Groq bị lặp path.
 - Cách đúng: dùng `GROQ_BASE_URL=https://api.groq.com`.
 
 ### Lỗi CSS/TailwindCSS
-
 - Đảm bảo đã cài đầy đủ: `npm install tailwindcss @tailwindcss/postcss postcss`
 - File `postcss.config.mjs` phải tồn tại trong `frontend/`.
 
@@ -1176,14 +1140,12 @@ Lưu ý vận hành:
 ## 8. Tài liệu bổ sung & API Keys
 
 ### 🔑 Quản lý API Keys
-
 - **Google Gemini API:** [Google AI Studio (Lấy API Key tại đây)](https://aistudio.google.com/api-keys)
 - **OpenAI API:** [OpenAI Platform](https://openai.com/api/)
 - **OpenRouter API:** [OpenRouter Dashboard (Cho các model gpt-4o-mini, gpt-4o, claude-3...)](https://openrouter.ai/)
 - **Groq API:** [Groq Cloud (Cho Whisper STT nhanh nhất)](https://console.groq.com/keys)
 
 ### 📚 Tài liệu tham khảo
-
 - **Redis, Celery & Object Storage:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md).
 - **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md).
 - **Docker:** [Trang chủ Docker](https://www.docker.com/)
@@ -1194,11 +1156,11 @@ Lưu ý vận hành:
 - **Celery:** [Distributed Task Queue](https://docs.celeryq.dev/en/stable/)
 - **Gemini API:** [Gemini API Quickstart](https://ai.google.dev/gemini-api/docs/quickstart)
 - **Web Search:** [Hướng dẫn Web Search (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
-- **LLM API Flow:** [Luồng xử lý AI &amp; LLM](markdown_docs/LLM_API_FLOW.md)
+- **LLM API Flow:** [Luồng xử lý AI & LLM](markdown_docs/LLM_API_FLOW.md)
 - **Reasoning & Streaming:** [Luồng reasoning và streaming trong chatbot](markdown_docs/REASONING_STREAMING.md)
-- **Minigame Design:** [Thiết kế &amp; logic Minigame](markdown_docs/MINIGAME.md)
-- **NotebookLM Media:** [NotebookLM Video &amp; Infographic](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md)
-- **Docker Review bản hiện tại:** [Đánh giá Docker &amp; Hot-reload](markdown_docs/DOCKER_REVIEW.md)
+- **Minigame Design:** [Thiết kế & logic Minigame](markdown_docs/MINIGAME.md)
+- **NotebookLM Media:** [NotebookLM Video & Infographic](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md)
+- **Docker Review bản hiện tại:** [Đánh giá Docker & Hot-reload](markdown_docs/DOCKER_REVIEW.md)
 - **CI Summary bản hiện tại:** [Tóm tắt Pipeline CI dự án](markdown_docs/CI_SUMMARY.md)
 - **CD Summary:** [Tóm tắt CI/CD và phát hành](markdown_docs/TOM_TAT_CD.md)
 - **NotebookLM Docker Browser:** [Theo dõi Chrome của NotebookLM trong Docker](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
@@ -1214,13 +1176,13 @@ Lưu ý vận hành:
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header" alt="header" />
 </p>
 
-|                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-|                                                                                                                          `<a href="https://github.com/Kietnehi"><img src="https://github-readme-stats.vercel.app/api?username=Kietnehi&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/>``</a>`                                                                                                                          |                                                                                                                           `<a href="https://github.com/ductoanoxo"><img src="https://github-readme-stats.vercel.app/api?username=ductoanoxo&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/>``</a>`                                                                                                                           |                                                                                                                           `<a href="https://github.com/phatle224"><img src="https://github-readme-stats.vercel.app/api?username=phatle224&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/>``</a>`                                                                                                                           |                                                                                                                          `<a href="https://github.com/nhdotvn"><img src="https://github-readme-stats.vercel.app/api?username=nhdotvn&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/>``</a>`                                                                                                                          |
-|                                                                                                                                                                                                        `<img src="https://github.com/Kietnehi.png" width="80"/>`                                                                                                                                                                                                        |                                                                                                                                                                                                          `<img src="https://github.com/ductoanoxo.png" width="80"/>`                                                                                                                                                                                                          |                                                                                                                                                                                                         `<img src="https://github.com/phatle224.png" width="80"/>`                                                                                                                                                                                                         |                                                                                                                                                                                                       `<img src="https://github.com/nhdotvn.png" width="80"/>`                                                                                                                                                                                                       |
-|                                                                                                                                                                                               `<b><a href="https://github.com/Kietnehi">`Trương Phú Kiệt`</a></b>`                                                                                                                                                                                               |                                                                                                                                                                                                     `<b><a href="https://github.com/ductoanoxo">`Đức Toàn`</a></b>`                                                                                                                                                                                                     |                                                                                                                                                                                                     `<b><a href="https://github.com/phatle224">`Phát Lê`</a></b>`                                                                                                                                                                                                     |                                                                                                                                                                                                `<b><a href="https://github.com/nhdotvn">`Lê Ngọc Hiệp`</a></b>`                                                                                                                                                                                                |
-|                                                                                                                                                                                                                       Fullstack Dev & AI Researcher                                                                                                                                                                                                                       |                                                                                                                                                                                                                                    Developer                                                                                                                                                                                                                                    |                                                                                                                                                                                                                                Data Engineer                                                                                                                                                                                                                                |                                                                                                                                                                                                                               Supporter                                                                                                                                                                                                                               |
-| `<p align="center"><img src="https://img.shields.io/github/followers/Kietnehi?style=for-the-badge"/>` `<img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2FKietnehi&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/>` `<a href="https://github.com/Kietnehi"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/>``</a></p>` | `<p align="center"><img src="https://img.shields.io/github/followers/ductoanoxo?style=for-the-badge"/>` `<img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fductoanoxo&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/>` `<a href="https://github.com/ductoanoxo"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/>``</a></p>` | `<p align="center"><img src="https://img.shields.io/github/followers/phatle224?style=for-the-badge"/>` `<img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fphatle224&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/>` `<a href="https://github.com/phatle224"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/>``</a></p>` | `<p align="center"><img src="https://img.shields.io/github/followers/nhdotvn?style=for-the-badge"/>` `<img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fnhdotvn&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/>` `<a href="https://github.com/nhdotvn"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/>``</a></p>` |
+| | | | |
+| :---: | :---: | :---: | :---: |
+| <a href="https://github.com/Kietnehi"><img src="https://github-readme-stats.vercel.app/api?username=Kietnehi&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/ductoanoxo"><img src="https://github-readme-stats.vercel.app/api?username=ductoanoxo&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/phatle224"><img src="https://github-readme-stats.vercel.app/api?username=phatle224&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/nhdotvn"><img src="https://github-readme-stats.vercel.app/api?username=nhdotvn&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> |
+| <img src="https://github.com/Kietnehi.png" width="80"/> | <img src="https://github.com/ductoanoxo.png" width="80"/> | <img src="https://github.com/phatle224.png" width="80"/> | <img src="https://github.com/nhdotvn.png" width="80"/> |
+| <b><a href="https://github.com/Kietnehi">Trương Phú Kiệt</a></b> | <b><a href="https://github.com/ductoanoxo">Đức Toàn</a></b> | <b><a href="https://github.com/phatle224">Phát Lê</a></b> | <b><a href="https://github.com/nhdotvn">Lê Ngọc Hiệp</a></b> |
+| Fullstack Dev & AI Researcher | Developer | Data Engineer | Supporter |
+| <p align="center"><img src="https://img.shields.io/github/followers/Kietnehi?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2FKietnehi&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/Kietnehi"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/ductoanoxo?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fductoanoxo&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/ductoanoxo"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/phatle224?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fphatle224&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/phatle224"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/nhdotvn?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fnhdotvn&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/nhdotvn"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> |
 
 <p align="center">
   <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
@@ -1249,16 +1211,16 @@ Lưu ý vận hành:
   </a>
 </p>
 
-<!-- Quote động -->
 
-<p align="center">
+<!-- Quote động -->
+  <p align="center">
     <img src="https://quotes-github-readme.vercel.app/api?type=horizontal&theme=dark" alt="Daily Quote"/>
   </p>
 
-<p align="center">
+  <p align="center">
   <i>Thank you for stopping by! Don’t forget to give this repo a <b>⭐️ Star</b> if you find it useful.</i>
   </p>
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=80&section=footer"/>
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=80&section=footer"/>
 
-</div>
+  </div>
