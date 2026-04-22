@@ -72,6 +72,11 @@
 
 
 
+<div align="center">
+  <img src="output.gif" width="100%" alt="Demo AI Learning Studio" />
+  <p align="center"><em>Video demo quy trình tạo học liệu tự động</em></p>
+</div>
+
 # 🎓 AI Learning Studio — Nền tảng AI Tạo Học Liệu Số
 
 **Nền tảng MVP production-ready giúp giáo viên và học sinh tạo nội dung học tập thông minh bằng AI. Chỉ cần tải tài liệu lên, hệ thống sẽ tự động tạo slide, podcast, minigame và chatbot hỏi đáp trong vài phút.**
