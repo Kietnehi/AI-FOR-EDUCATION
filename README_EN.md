@@ -802,9 +802,38 @@ docker exec any2-redis redis-cli -n 1 KEYS "celery-task-meta-*"
 
 ## 6.7 Monitoring (Prometheus + Grafana)
 
-- **Backend Metrics:** `GET /metrics`
-- **Grafana:** [http://localhost:3300](http://localhost:3300) (admin/yourpassword123)
-- **Prometheus:** http://localhost:9090
+The system includes a full observability stack to monitor backend performance, logs, and traces.
+
+- **Backend Metrics:** `GET /metrics` (Prometheus format)
+- **Grafana:** [http://localhost:3300](http://localhost:3300) (User: `admin`, Pass: `yourpassword123`)
+- **Prometheus:** [http://localhost:9090](http://localhost:9090)
+- **Loki:** Log aggregation
+- **Tempo:** Distributed tracing
+
+<div align="center">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/monitoring/devops.png" width="100%" alt="Monitoring Architecture" />
+        <p align="center"><em>Full Observability Stack Architecture</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/monitoring/prometheus.png" width="100%" alt="Prometheus Metrics" />
+        <p align="center"><em>Prometheus Metrics & Targets</em></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/monitoring/loki.png" width="100%" alt="Loki Logs" />
+        <p align="center"><em>Loki Log Aggregation in Grafana</em></p>
+      </td>
+      <td style="width: 50%; padding: 5px;">
+        <img src="image/monitoring/tempo.png" width="100%" alt="Tempo Traces" />
+        <p align="center"><em>Tempo Distributed Tracing</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ---
 
