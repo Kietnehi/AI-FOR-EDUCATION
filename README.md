@@ -61,6 +61,7 @@
 
 <div align="center">
   <img src="image/Tong_Quan_Project.png" width="100%" alt="Full Pipeline Project" />
+</div>
 <div align="center">
   <img src="image/pipeline/pipeline.png" width="100%" alt="Full Pipeline Project" />
   <br/><br/>
