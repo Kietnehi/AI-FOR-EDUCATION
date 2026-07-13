@@ -3,7 +3,7 @@
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=150&section=header&text=AI%20Learning%20Studio&fontSize=40&fontAlignY=35&animation=twinkling&fontColor=ffffff" width="100%" alt="Header"/>
 
   <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
-    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=22&pause=1000&color=3B82F6&center=true&vCenter=true&width=600&lines=🚀+Nền+tảng+AI+Tạo+Học+Liệu+Số;🤖+Multimodal+RAG+%7C+FastAPI+%7C+Next.js;🎓+Dự+án+AI+For+Education+-+SGU" alt="Typing SVG" />
+    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=22&pause=1000&color=3B82F6&center=true&vCenter=true&width=600&lines=🚀+AI+Digital+Content+Creation+Platform;🤖+Multimodal+RAG+%7C+FastAPI+%7C+Next.js;🎓+AI+For+Education+Project+-+SGU" alt="Typing SVG" />
   </a>
 
   <br/><br/>
@@ -29,18 +29,18 @@
   </a>
 
   <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml">
-    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml/badge.svg" alt="CI Dự Án"/>
+    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-ci.yml/badge.svg" alt="Project CI"/>
   </a>
 
   <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml">
-    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml/badge.svg" alt="CD Dự Án"/>
+    <img src="https://github.com/Kietnehi/AI-FOR-EDUCATION/actions/workflows/project-cd.yml/badge.svg" alt="Project CD"/>
   </a>
 
   <br/><br/>
 
 <p align="">
   <a href="./README_EN.md">
-    <img src="https://img.shields.io/badge/README-English-blue?style=for-the-badge" alt="English README"/>
+    <img src="https://img.shields.io/badge/README-Tiếng_Việt-red?style=for-the-badge" alt="Vietnamese README"/>
   </a>
 </p>
 
@@ -60,9 +60,6 @@
 </div>
 
 <div align="center">
-  <img src="image/Tong_Quan_Project.png" width="100%" alt="Full Pipeline Project" />
-</div>
-<div align="center">
   <img src="image/pipeline/pipeline.png" width="100%" alt="Full Pipeline Project" />
   <br/><br/>
   <table style="width: 100%; border-collapse: collapse;">
@@ -75,8 +72,8 @@
       </td>
     </tr>
     <tr>
-      <td align="center"><em>Hình 1: Chi tiết luồng RAG</em></td>
-      <td align="center"><em>Hình 2: Kiến trúc Worker & Monitoring</em></td>
+      <td align="center"><em>Figure 1: RAG Flow Details</em></td>
+      <td align="center"><em>Figure 2: Worker & Monitoring Architecture</em></td>
     </tr>
   </table>
 </div>
@@ -85,119 +82,119 @@
   <img src="output.gif" width="100%" alt="AI Learning Studio Demo" />
 </div>
 
-# 🎓 AI Learning Studio — Nền tảng AI Tạo Học Liệu Số
+# 🎓 AI Learning Studio — AI Digital Learning Content Platform
 
-**Nền tảng MVP production-ready giúp giáo viên và học sinh tạo nội dung học tập thông minh bằng AI. Chỉ cần tải tài liệu lên, hệ thống sẽ tự động tạo slide, podcast, minigame và chatbot hỏi đáp trong vài phút.**
+**A production-ready MVP platform that helps teachers and students create smart learning content using AI. Just upload documents, and the system automatically generates slides, podcasts, minigames, and a Q&A chatbot in minutes.**
 
 <div align="center">
   <a href="https://drive.google.com/drive/folders/1jqmgd-Ku9A8Dn8_jNkcK26SXU6ES9OnR">
-    <img src="https://img.shields.io/badge/TÀI_LIỆU_DỰ_ÁN-GOOGLE_DRIVE-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" height="40"/>
+    <img src="https://img.shields.io/badge/PROJECT_RESOURCES-GOOGLE_DRIVE-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" height="40"/>
   </a>
   <br/>
   <strong>📂 Slide • Docs • ERD • Pipeline Architecture</strong>
   <br/><br/>
 </div>
 
-Đây là hệ thống AI Agent đa phương thức (Multimodal RAG) toàn diện, được thiết kế theo kiến trúc vi dịch vụ (microservices) và triển khai hoàn toàn bằng **Docker**.
+This is a comprehensive Multimodal RAG (Retrieval-Augmented Generation) AI Agent system, designed with a microservices architecture and fully deployed using **Docker**.
 
-Dự án được chia thành 2 luồng xử lý chính:
+The project is divided into 2 main processing streams:
 
-  * **Chatbot for Student:** Trợ lý ảo hỗ trợ học tập trực tiếp. Hệ thống sử dụng **Advanced RAG Pipeline** (Semantic Chunking, Hybrid Search, Re-ranking) để trích xuất tri thức từ tài liệu (PDF, Word, Excel) và giải đáp thắc mắc của học sinh với độ chính xác cao nhất (citations đi kèm).
-  * **AI Worker Service:** Trái tim của hệ thống, xử lý các tác vụ nền tảng phức tạp được điều phối bởi **FastAPI** và quản lý trạng thái qua **MongoDB**. Phân hệ này có khả năng xử lý đầu vào đa phương thức (Whisper STT, OCR), kết hợp tìm kiếm web (Tavily, SerpAPI) để tự động hóa việc tạo ra các học liệu trực quan: Slide bài giảng, Podcast, Minigame, và Video/Infographic.
+  * **Chatbot for Students:** A virtual assistant for direct learning support. The system uses an **Advanced RAG Pipeline** (Semantic Chunking, Hybrid Search, Re-ranking) to extract knowledge from documents (PDF, Word, Excel) and answer student questions with high accuracy (citations included).
+  * **AI Worker Service:** The heart of the system, processing complex background tasks coordinated by **FastAPI** and managed via **MongoDB**. This module handles multimodal inputs (Whisper STT, OCR), combines web search (Tavily, SerpAPI) to automate the creation of visual learning materials: Lecture Slides, Podcasts, Minigames, and Video/Infographics.
 
-**🛠 Công nghệ cốt lõi:** FastAPI, Next.js 14, MongoDB, ChromaDB (Vector Store), và hệ sinh thái mô hình AI tiên tiến (Gemini, OpenAI, Groq).
-
-
+**🛠 Core Technologies:** FastAPI, Next.js 14, MongoDB, ChromaDB (Vector Store), and an advanced AI model ecosystem (Gemini, OpenAI, Groq).
 
 
-## Tính năng chính
 
-- 📊 **Tạo slide bài giảng** `.pptx` tự động từ tài liệu học tập.
-- 🎙️ **Tạo podcast script** với cấu trúc speaker/timeline và hỗ trợ TTS.
-- 🎮 **Tạo minigame/quiz** tương tác (MCQ, điền từ, flashcard, ghép cặp).
-- 🤖 **Chatbot RAG Nâng Cao**: Hỏi đáp theo học liệu với cơ chế **Hybrid Search** (Vector + BM25) và **FlashRank Re-ranking** giúp kết quả chính xác vượt trội.
-- 🧩 **Semantic Chunking**: Chia nhỏ tài liệu thông minh theo ngữ nghĩa thay vì giới hạn từ (token), giữ trọn vẹn ngữ cảnh.
-- 🏁 **Mục tiêu ngày (Daily Goals)**: Tự động theo dõi tiến trình học tập dựa trên lịch trình, hiển thị phần trăm hoàn thành theo thời gian thực.
-- 🧭 **Web Search thông minh**: Mascot và Chatbot có thể tra cứu Web (Tavily/Google Search/SerpAPI) để bổ trợ kiến thức mới nhất.
-- 🎥 **YouTube Interactive Lesson**: Tạo bài học từ video YouTube, dùng **SerpAPI** lấy transcript siêu tốc và tạo câu hỏi tương tác.
-- 🎤 **Speech-to-Text đa dạng**: Hỗ trợ Whisper (Local) hoặc Groq Cloud (Tốc độ cao).
-- 🔊 **Text-to-Speech**: Chuyển văn bản thành giọng nói tiếng Việt tự nhiên.
-- 💻 **Premium AI Terminal**: Giao diện console mô phỏng macOS cực đẹp giúp người dùng theo dõi tiến trình xử lý AI.
-- 📐 **3D Mascot Assistant**: Trợ lý ảo 3D tích hợp Three.js tương tác sinh động.
 
-> **Lưu ý:** MongoDB sử dụng MongoDB Atlas qua `MONGO_URI`
+## Key Features
 
- - **Search Website Online**: Trang tìm kiếm web tích hợp ngay trong AI Learning Studio, cho phép tra cứu theo từ khóa với các nhóm kết quả như website, tin tức, hình ảnh, video và sách để người dùng tổng hợp thông tin nhanh hơn.
+- 📊 **Automatic Slide Generation**: Creates `.pptx` lecture slides from learning materials automatically.
+- 🎙️ **Podcast Script Generation**: Creates structured speaker/timeline scripts with TTS support.
+- 🎮 **Minigame/Quiz Generation**: Interactive content (MCQ, fill-in-the-blank, flashcards, matching).
+- 🤖 **Advanced RAG Chatbot**: Semantic Q&A based on documents using **Hybrid Search** (Vector + BM25) and **FlashRank Re-ranking** for superior accuracy.
+- 🧩 **Semantic Chunking**: Intelligent document splitting by semantic context rather than token limits, preserving context.
+- 🏁 **Daily Goals**: Automatically tracks learning progress based on schedules with real-time completion percentages.
+- 🧭 **Smart Web Search**: Mascot and Chatbot can search the Web (Tavily/Google Search/SerpAPI) to supplement knowledge.
+- 🎥 **YouTube Interactive Lesson**: Creates lessons from YouTube videos using **SerpAPI** for fast transcript extraction and interactive questions.
+- 🎤 **Multimodal Speech-to-Text**: Supports Whisper (Local) or Groq Cloud (High speed).
+- 🔊 **Text-to-Speech**: Natural Vietnamese voice conversion.
+- 💻 **Premium AI Terminal**: A beautiful macOS-like console interface to track AI processing progress.
+- 📐 **3D Mascot Assistant**: An interactive 3D virtual assistant integrated with Three.js.
+
+> **Note:** MongoDB uses MongoDB Atlas via `MONGO_URI`
+
+ - **Online Web Search**: Integrated web search page for quick information gathering (websites, news, images, videos, books) to help users synthesize information faster.
 
 ---
 
-## 1. Công nghệ sử dụng
+## 1. Technologies Used
 
 ### Frontend
 
-| Công nghệ | Mô tả |
-|-----------|-------|
-| Next.js 14 | Framework frontend chính với App Router |
-| React 18 | Xây dựng UI theo mô hình component |
-| TypeScript | Kiểm soát kiểu dữ liệu ở frontend |
-| Tailwind CSS v4 | Hệ thống utility CSS cho giao diện |
-| Framer Motion | Animation và tương tác UI |
-| Lucide React | Bộ icon chính của dự án |
-| React Markdown + Remark GFM | Render nội dung Markdown trong UI |
-| Three.js + React Three Fiber + Drei | Thành phần 3D và mascot tương tác |
+| Technology | Description |
+|-----------|-------------|
+| Next.js 14 | Primary frontend framework with App Router |
+| React 18 | Component-based UI building |
+| TypeScript | Frontend type safety |
+| Tailwind CSS v4 | Utility-first CSS system |
+| Framer Motion | Animations and UI interactions |
+| Lucide React | Primary icon set |
+| React Markdown + Remark GFM | Markdown rendering in UI |
+| Three.js + React Three Fiber + Drei | 3D components and interactive mascot |
 
 ### Backend & AI
 
-| Công nghệ | Mô tả |
-|-----------|-------|
-| Python 3.11+ | Ngôn ngữ chính cho backend và AI pipeline |
+| Technology | Description |
+|-----------|-------------|
+| Python 3.11+ | Primary language for backend and AI pipeline |
 | FastAPI | REST API framework |
-| Pydantic / pydantic-settings | Validation schema và cấu hình ứng dụng |
-| Motor / PyMongo | Kết nối và thao tác MongoDB |
-| ChromaDB | Vector database lưu embeddings cục bộ |
-| FlashRank | Re-ranker model giúp tối ưu độ chính xác của RAG |
-| BM25 (Rank-BM25) | Thuật toán tìm kiếm từ khóa kết hợp với Vector Search |
-| OpenAI API | Sinh nội dung, embeddings và fallback model |
-| Google Gemini (`google-genai`) | LLM chính (hỗ trợ xoay vòng nhiều API Key) |
-| Groq API | Speech-to-Text cloud tốc độ cao |
-| SerpAPI | Lấy dữ liệu transcript và metadata YouTube siêu tốc |
-| Docling / PyPDF / python-docx / pandas / openpyxl / Pillow | Trích xuất và xử lý tài liệu đa định dạng |
-| python-pptx | Tạo slide PowerPoint tự động |
-| Tavily Search / DuckDuckGo Search / Google Books API | Tìm kiếm web và sách |
-| Playwright | Tự động hóa trình duyệt (luồng NotebookLM) |
+| Pydantic / pydantic-settings | Validation schema and application configuration |
+| Motor / PyMongo | MongoDB connection and operations |
+| ChromaDB | Vector database for local embeddings |
+| FlashRank | Re-ranker model for RAG accuracy optimization |
+| BM25 (Rank-BM25) | Keyword search algorithm combined with Vector Search |
+| OpenAI API | Content generation, embeddings, and fallback model |
+| Google Gemini (`google-genai`) | Primary LLM (supports API key rotation) |
+| Groq API | High-speed cloud Speech-to-Text |
+| SerpAPI | Fast YouTube transcript and metadata extraction |
+| Docling / PyPDF / python-docx / pandas / openpyxl / Pillow | Multi-format document processing |
+| python-pptx | Automatic PowerPoint slide generation |
+| Tavily Search / DuckDuckGo Search / Google Books API | Web and book search |
+| Playwright | Browser automation (NotebookLM flow) |
 
-### Dữ liệu, hàng đợi và lưu trữ
+### Data, Queues and Storage
 
-| Công nghệ | Mô tả |
-|-----------|-------|
-| MongoDB | Cơ sở dữ liệu nghiệp vụ chính |
-| Redis | Broker và result backend cho Celery |
-| Celery | Xử lý background jobs |
-| Flower | Theo dõi Celery worker |
-| MinIO | Object storage S3-compatible cho môi trường local |
-| Cloudflare R2 | Object storage production cho file upload và file sinh ra |
-| Boto3 | Tích hợp MinIO / Cloudflare R2 |
+| Technology | Description |
+|-----------|-------------|
+| MongoDB | Primary business database |
+| Redis | Broker and result backend for Celery |
+| Celery | Background task processing |
+| Flower | Celery worker monitoring |
+| MinIO | S3-compatible object storage for local environment |
+| Cloudflare R2 | Production object storage for file uploads and generated content |
+| Boto3 | MinIO / Cloudflare R2 integration |
 
-### DevOps, kiểm thử và phát hành
+### DevOps, Testing and Release
 
-| Công nghệ | Mô tả |
-|-----------|-------|
-| Docker / Docker Compose | Môi trường chạy local, CI smoke test và đóng gói dịch vụ |
+| Technology | Description |
+|-----------|-------------|
+| Docker / Docker Compose | Deployment, CI smoke test, and service packaging |
 | GitHub Actions | CI/CD pipeline |
-| GHCR | Publish container image frontend và backend |
-| Vitest + Testing Library + jsdom | Unit test / integration test frontend |
-| Pytest | Test backend |
-| ESLint | Kiểm tra chất lượng mã frontend |
+| GHCR | Publish frontend and backend container images |
+| Vitest + Testing Library + jsdom | Frontend unit / integration testing |
+| Pytest | Backend testing |
+| ESLint | Frontend code quality checks |
 
-### Trigger CI/CD an toàn (không commit `.env`)
+### Safe CI/CD Trigger (no `.env` commit)
 
-Khi cần kích hoạt pipeline CI/CD để deploy, bạn có thể commit thay đổi tài liệu hoặc code nhỏ (ví dụ README) thay vì commit file môi trường.
+When you need to trigger the CI/CD pipeline for deployment, you can commit safe documentation or code changes (e.g., README) instead of environment files.
 
-- Không commit các file chứa secret: `.env`, `.env.prod`, `backend/.env`, `frontend/.env.local`.
-- Chỉ commit thay đổi an toàn (docs/code) để trigger workflow.
-- Secret production nên được cấu hình qua GitHub Secrets hoặc env trên server/self-hosted runner.
+- Do not commit secret files: `.env`, `.env.prod`, `backend/.env`, `frontend/.env.local`.
+- Only commit safe changes (docs/code) to trigger the workflow.
+- Production secrets should be configured via GitHub Secrets or server env.
 
-Ví dụ commit để trigger pipeline:
+Example commit to trigger the pipeline:
 
 ```bash
 git add README.md
@@ -207,125 +204,116 @@ git push
 
 ---
 
-## 2. Kiến trúc tổng thể
+## 2. Overall Architecture
 
-### 2.1 Thành phần
+### 2.1 Components
 
-- `frontend/` — Giao diện AI Learning Studio (dashboard, upload, materials, slides, podcast, minigame, chatbot)
+- `frontend/` — AI Learning Studio UI (dashboard, upload, materials, slides, podcast, minigame, chatbot)
 - `backend/` — REST API, business logic, ingestion pipeline, RAG pipeline
-- **Redis** — Message broker cho Celery tasks
-- **Celery Worker** — Thực thi background tasks (generate slides, podcast, minigame)
-- **Celery Flower** — Monitoring UI cho Celery tasks
-- **MinIO / Cloudflare R2** — Object storage lưu trữ files (uploads, generated content)
-- MongoDB — Lưu metadata tài liệu, chunks, nội dung tạo sinh, session chat, attempt game
-- ChromaDB — Lưu vector embeddings để truy vấn ngữ nghĩa
-- OpenAI — Dùng cho embedding và generation (nếu có API key)
-- Whisper/Groq — Dùng cho Speech-to-Text khi người dùng ghi âm trong chatbot
+- **Redis** — Message broker for Celery tasks
+- **Celery Worker** — Background task execution (generate slides, podcast, minigame)
+- **Celery Flower** — Monitoring UI for Celery tasks
+- **MinIO / Cloudflare R2** — Object storage for files (uploads, generated content)
+- MongoDB — Business data storage (metadata, chunks, generated content, sessions, games)
+- ChromaDB — Vector store for semantic search
+- OpenAI — For embeddings and generation (if API key available)
+- Whisper/Groq — For Speech-to-Text in chatbot
 
-### 2.2 Luồng xử lý chính
+### 2.2 Core Processing Flow
 
 ```mermaid
 flowchart LR
-    A[Upload tài liệu] --> B[Trích xuất text]
-    B --> C[Làm sạch & Semantic Chunking]
-    C --> D[Tạo Embeddings]
-    D --> E[Lưu ChromaDB + MongoDB]
+    A[Upload Document] --> B[Text Extraction]
+    B --> C[Cleaning & Semantic Chunking]
+    C --> D[Generate Embeddings]
+    D --> E[Save to ChromaDB + MongoDB]
     E --> F[Hybrid Search: Vector + BM25]
     F --> G[FlashRank Re-ranking]
-    G --> H{Tạo nội dung}
+    G --> H{Content Generation}
     H --> I[📊 Slides]
     H --> J[🎙️ Podcast]
     H --> K[🎮 Minigame]
-    H --> L[🤖 Chatbot RAG]
+    H --> L[🤖 RAG Chatbot]
 ```
 
-1. Người dùng nhập hoặc tải file học liệu (PDF/DOCX/TXT/MD).
-2. Backend đọc và trích xuất text.
-3. Làm sạch nội dung.
-4. Chia nhỏ (chunking).
-5. Tạo embeddings cho từng chunk.
-6. Lưu vector vào ChromaDB.
-7. Lưu metadata/chunk vào MongoDB.
-8. Dùng retrieval theo query.
-9. Dùng context truy xuất để tạo slide, podcast script, minigame, trả lời chatbot có citations.
+1. User enters or uploads learning material (PDF/DOCX/TXT/MD).
+2. Backend reads and extracts text.
+3. Content cleaning.
+4. Chunking.
+5. Create embeddings for each chunk.
+6. Save vectors to ChromaDB.
+7. Save metadata/chunks to MongoDB.
+8. Retrieval by query.
+9. Use retrieved context to generate slides, podcast scripts, minigames, and chatbot answers with citations.
 
-### 2.3 Sơ đồ thực thể quan hệ (ERD)
+### 2.3 Entity Relationship Diagram (ERD)
 
 <div align="center">
   <img src="image/ERD.png" width="100%" alt="Entity Relationship Diagram" />
-  <p align="center"><em>Hình 3: Sơ đồ cấu trúc dữ liệu hệ thống (ERD)</em></p>
+  <p align="center"><em>Figure 3: System Data Structure (ERD)</em></p>
 </div>
 
 ---
 
-## 3. Cấu trúc thư mục
+## 3. Directory Structure
 
 ```text
 AI-FOR-EDUCATION/
-├─ backend/                     ← Mã nguồn Server (FastAPI + AI Pipeline)
-│  ├─ app/                      ← Logic ứng dụng chính
-│  │  ├─ ai/                    ← Các module xử lý AI (RAG, Chatbot, Embeddings,...)
-│  │  │  ├─ chatbot/            ← Điều phối chatbot và logic hội thoại
-│  │  │  ├─ chunking/           ← Chia nhỏ tài liệu (Semantic vs Text Chunker)
-│  │  │  ├─ embeddings/         ← Chuyển đổi văn bản thành vector
-│  │  │  ├─ generation/         ← Tạo nội dung (Slides, Podcast, Minigame,...)
-│  │  │  ├─ ingestion/          ← Làm sạch và nạp dữ liệu đầu vào
-│  │  │  ├─ parsing/            ← Trích xuất text từ các định dạng file (PDF, Word,...)
-│  │  │  ├─ retrieval/          ← Truy xuất (Hybrid Search + FlashRank Reranker)
-│  │  │  └─ vector_store/       ← Quản lý lưu trữ vector (ChromaDB)
-│  │  ├─ api/                   ← Định nghĩa các Endpoints REST API
-│  │  ├─ core/                  ← Cấu hình hệ thống, biến môi trường, logging
-│  │  ├─ db/                    ← Kết nối Database (MongoDB, ChromaDB)
-│  │  ├─ models/                ← Định nghĩa Schema Database (Pydantic/Mongo)
-│  │  ├─ repositories/          ← Lớp tương tác trực tiếp với Database
-│  │  ├─ schemas/               ← Data Transfer Objects (DTO) cho API request/response
-│  │  ├─ services/              ← Business logic xử lý yêu cầu nghiệp vụ
-│  │  │  ├─ storage.py          ← MinIO/Cloudflare R2 storage service
-│  │  │  ├─ material_service.py ← Quản lý học liệu
-│  │  │  ├─ generation_service.py← Tạo nội dung tự động
-│  │  │  ├─ chat_service.py     ← Trợ lý chatbot RAG
-│  │  │  ├─ youtube_lesson_service.py ← Xử lý bài học YouTube (SerpAPI)
+├─ backend/                     ← Server Source (FastAPI + AI Pipeline)
+│  ├─ app/                      ← Main application logic
+│  │  ├─ ai/                    ← AI modules (RAG, Chatbot, Embeddings,...)
+│  │  │  ├─ chatbot/            ← Chatbot coordination
+│  │  │  ├─ chunking/           ← Document splitting (Semantic vs Text Chunker)
+│  │  │  ├─ embeddings/         ← Text to vector
+│  │  │  ├─ generation/         ← Content generation (Slides, Podcast, Minigame,...)
+│  │  │  ├─ ingestion/          ← Input data ingestion
+│  │  │  ├─ parsing/            ← Text extraction (PDF, Word,...)
+│  │  │  ├─ retrieval/          ← Retrieval (Hybrid Search + FlashRank Reranker)
+│  │  │  └─ vector_store/       ← Vector storage (ChromaDB)
+│  │  ├─ api/                   ← REST API Endpoints
+│  │  ├─ core/                  ← Configuration, logging
+│  │  ├─ db/                    ← Database connections (MongoDB, ChromaDB)
+│  │  ├─ models/                ← Database Schemas (Pydantic/Mongo)
+│  │  ├─ repositories/          ← Data access layer
+│  │  ├─ schemas/               ← API request/response DTOs
+│  │  ├─ services/              ← Business logic layer
+│  │  │  ├─ storage.py          ← Storage service (MinIO/R2)
+│  │  │  ├─ material_service.py ← Material management
+│  │  │  ├─ generation_service.py← Auto generation
+│  │  │  ├─ chat_service.py     ← RAG chatbot service
+│  │  │  ├─ youtube_lesson_service.py ← YouTube processing (SerpAPI)
 │  │  │  └─ ...
 │  │  ├─ tasks.py               ← Celery background tasks (Slides, Email, Reminders)
-│  │  └─ main.py                ← File chạy chính của FastAPI
-├─ frontend/                    ← Mã nguồn Giao diện (Next.js + TailwindCSS)
-│  ├─ app/                      ← Các trang và Layout (Next.js App Router)
-│  │  ├─ chatbot/               ← Trợ lý học tập trực tiếp
-│  │  ├─ schedule/              ← Quản lý lịch trình & Daily Goals
-│  │  ├─ materials/             ← Quản lý học liệu số
+│  │  └─ main.py                ← FastAPI entry point
+├─ frontend/                    ← UI Source (Next.js + TailwindCSS)
+│  ├─ app/                      ← Pages and Layouts (App Router)
+│  │  ├─ chatbot/               ← Learning assistant
+│  │  ├─ schedule/              ← Progress & Goals
+│  │  ├─ materials/             ← Material management
 │  │  └─ ...
-│  ├─ components/               ← Thành phần UI dùng chung
-│  │  ├─ 3d/                    ← Mascot 3D (Three.js)
-│  │  ├─ layout/                ← Sidebar, AppShell, Navigation
-│  │  ├─ ui/                    ← MacTerminal, Glassy Buttons, Cards
+│  ├─ components/               ← Reusable UI components
+│  │  ├─ 3d/                    ← 3D Mascot (Three.js)
+│  │  ├─ layout/                ← App structure (Sidebar, AppShell)
+│  │  ├─ ui/                    ← Custom UI elements (MacTerminal, Glassy Buttons)
 │  │  └─ ...
-│  ├─ lib/                      ← API Client (apiFetch), State, Utilities
-│  ├─ public/                   ← Tài nguyên tĩnh (3D Models, Icons, Logos)
-│  ├─ types/                    ← Định nghĩa kiểu dữ liệu TypeScript
-│  ├─ Dockerfile                ← Docker cấu hình cho frontend
-│  ├─ package.json              ← Quản lý thư viện Node.js
-│  └─ .env.example              ← Mẫu file biến môi trường frontend
-├─ Document_PRD/                ← Tài liệu đặc tả yêu cầu và thiết kế dự án
-├─ image/                       ← Ảnh minh họa cho README và hệ thống
-├─ markdown_docs/               ← Các tài liệu hướng dẫn chi tiết (.md)
-│  ├─ REDIS_CELERY_MINIO.md     ← Redis, Celery, MinIO integration guide
-│  ├─ CI_SUMMARY_2026-03-28.md  ← CI/CD pipeline summary
-│  ├─ DOCKER_REVIEW_2026-03-27.md← Docker setup review
-│  ├─ LLM_API_FLOW.md           ← LLM API integration flow
-│  ├─ REASONING_STREAMING.md    ← Reasoning & streaming flow guide
-│  ├─ MINIGAME.md               ← Minigame documentation
-│  ├─ NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md
-│  ├─ TOM_TAT_CD_2026-03-28.md  ← CD pipeline summary
-│  └─ WEB_SEARCH_GUIDE_VI.md    ← Web search feature guide
-├─ TESTING_CODE/                ← Code test mẫu và tài liệu API bên thứ 3
-├─ docker-compose.yml           ← Cấu hình triển khai toàn bộ hệ thống bằng Docker
-├─ README.md                    ← Hướng dẫn dự án chính
-└─ .env.example                 ← Mẫu file môi trường tổng cho Docker
+│  ├─ lib/                      ← API Client, State, Utils
+│  ├─ public/                   ← Static assets (3D Models, Icons)
+│  ├─ types/                    ← TypeScript types
+│  ├─ Dockerfile                ← Frontend Docker config
+│  ├─ package.json              ← dependencies
+│  └─ .env.example              ← Frontend env template
+├─ Document_PRD/                ← Requirement and design docs
+├─ image/                       ← README images
+├─ markdown_docs/               ← Detailed guides
+├─ TESTING_CODE/                ← Sample tests
+├─ docker-compose.yml           ← Full stack Docker deployment
+├─ README.md                    ← Main README (VN)
+└─ .env.example                 ← Root env template
 ```
 
 ---
 
-## 4. API chính (MVP)
+## 4. Main API (MVP)
 
 > **API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
 
@@ -345,136 +333,136 @@ AI-FOR-EDUCATION/
 </p>
 
 ### 4.1 Materials
-- `POST /api/materials` — Tạo học liệu từ text
-- `POST /api/materials/upload` — Tạo học liệu từ file upload
-- `GET /api/materials` — Danh sách học liệu (có pagination)
-- `GET /api/materials/{material_id}` — Chi tiết học liệu
-- `POST /api/materials/{material_id}/process` — Xử lý tài liệu (extract, chunk, embedding)
-- `DELETE /api/materials/{material_id}` — Xóa học liệu
-- `POST /api/materials/guardrail-check` — Kiểm tra nội dung học liệu (guardrail)
-- `POST /api/materials/guardrail-check-upload` — Kiểm tra nội dung từ file upload
+- `POST /api/materials` — Create material from text
+- `POST /api/materials/upload` — Create material from file upload
+- `GET /api/materials` — List materials (with pagination)
+- `GET /api/materials/{material_id}` — Material details
+- `POST /api/materials/{material_id}/process` — Process document (extract, chunk, embedding)
+- `DELETE /api/materials/{material_id}` — Delete material
+- `POST /api/materials/guardrail-check` — Content guardrail check
+- `POST /api/materials/guardrail-check-upload` — Guardrail check for file upload
 
 ### 4.2 Generation
-- `POST /api/materials/{material_id}/generate/slides` — Tạo slides `.pptx`
-- `POST /api/materials/{material_id}/generate/podcast` — Tạo podcast script
-- `POST /api/materials/{material_id}/generate/minigame` — Tạo minigame/quiz
-- `GET /api/generated-contents/{content_id}` — Lấy nội dung đã tạo
-- `POST /api/notebooklm/generate-media` — Tạo video + infographic với NotebookLM (2 bước: confirm → download)
+- `POST /api/materials/{material_id}/generate/slides` — Generate slides `.pptx`
+- `POST /api/materials/{material_id}/generate/podcast` — Generate podcast script
+- `POST /api/materials/{material_id}/generate/minigame` — Generate minigame/quiz
+- `GET /api/generated-contents/{content_id}` — Get generated content
+- `POST /api/notebooklm/generate-media` — NotebookLM media (confirm → download)
 
 ### 4.3 Files
-- `GET /api/files/{file_path}/download` — Download file (hỗ trợ đường dẫn tuyệt đối)
-- `GET /api/files/notebooklm/temp/{session_id}/{file_type}/{file_name}/preview` — Xem trước file tạm từ NotebookLM (video/infographic)
+- `GET /api/files/{file_path}/download` — Download file
+- `GET /api/files/notebooklm/temp/{session_id}/{file_type}/{file_name}/preview` — Preview temp media (video/infographic)
 
 ### 4.4 Chat
-- `POST /api/chat/{material_id}/session` — Tạo session chat mới
-- `GET /api/chat/sessions/{session_id}` — Lấy session + tin nhắn
-- `POST /api/chat/sessions/{session_id}/message` — Gửi tin nhắn (có hỗ trợ ảnh)
-- `POST /api/chat/sessions/{session_id}/web-search` — Web search cho chatbot theo tài liệu
-- `POST /api/chat/mascot/message` — Chat với mascot (không dùng RAG)
-- `POST /api/chat/transcribe` — Chuyển audio thành text (hỗ trợ `local-base`, `whisper-large-v3`, `whisper-large-v3-turbo`)
-- `POST /api/chat/tts` — Chuyển text thành audio (Text-to-Speech)
+- `POST /api/chat/{material_id}/session` — New chat session
+- `GET /api/chat/sessions/{session_id}` — Get session messages
+- `POST /api/chat/sessions/{session_id}/message` — Send message (RAG + image support)
+- `POST /api/chat/sessions/{session_id}/web-search` — Web search for chatbot
+- `POST /api/chat/mascot/message` — Chat with mascot
+- `POST /api/chat/transcribe` — Audio to text
+- `POST /api/chat/tts` — Text-to-Speech
 
 ### 4.5 Games
-- `POST /api/games/{generated_content_id}/submit` — Nộp bài làm minigame
-- `GET /api/games/attempts/{attempt_id}` — Xem kết quả bài làm
+- `POST /api/games/{generated_content_id}/submit` — Submit minigame results
+- `GET /api/games/attempts/{attempt_id}` — View results
 
 ### 4.6 YouTube Interactive Lesson
-- `POST /api/youtube-lessons` — Tạo bài học tương tác từ video YouTube
-- `GET /api/youtube-lessons/{lesson_id}` — Lấy chi tiết bài học YouTube
-- `POST /api/youtube-lessons/{lesson_id}/translate-transcript` — Dịch transcript sang ngôn ngữ khác
-- `GET /api/youtube-lessons/history` — Lịch sử bài học YouTube
+- `POST /api/youtube-lessons` — Create lesson from YouTube video
+- `GET /api/youtube-lessons/{lesson_id}` — Get lesson details
+- `POST /api/youtube-lessons/{lesson_id}/translate-transcript` — Translate transcript
+- `GET /api/youtube-lessons/history` — Lesson history
 
 ---
 
-## 📸 Giao diện ứng dụng
+## 📸 Application Interface
 
-### 1. Tổng quan & Đăng nhập
+### 1. Overview & Login
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/intro.png" width="100%" alt="Introduction Page" />
-        <p align="center"><em>Trang giới thiệu dự án</em></p>
+        <p align="center"><em>Introduction Page</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/login.png" width="100%" alt="Login Page" />
-        <p align="center"><em>Giao diện Đăng nhập / Đăng ký</em></p>
+        <p align="center"><em>Login / Register Interface</em></p>
       </td>
     </tr>
   </table>
 </div>
 
-### 2. Dashboard & Quản lý tiến độ
+### 2. Dashboard & Progress Management
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/dashboard.png" width="100%" alt="Main Dashboard" />
-        <p align="center"><em>Dashboard chính với thống kê học tập</em></p>
+        <p align="center"><em>Main Dashboard with learning stats</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/streak_learning.png" width="100%" alt="Learning Streak" />
-        <p align="center"><em>Theo dõi Streak và mục tiêu hàng ngày</em></p>
+        <p align="center"><em>Streak tracking and Daily Goals</em></p>
       </td>
     </tr>
     <tr>
        <td colspan="2" style="padding: 5px;">
         <img src="image/frontend/schedule_learning.png" width="100%" alt="Learning Schedule" />
-        <p align="center"><em>Lịch trình học tập thông minh</em></p>
+        <p align="center"><em>Smart Learning Schedule</em></p>
       </td>
     </tr>
   </table>
 </div>
 
-### 3. Quản lý học liệu & Chia sẻ
+### 3. Materials Management & Sharing
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/document3.png" width="100%" alt="Documents Management" />
-        <p align="center"><em>Quản lý danh sách học liệu số</em></p>
+        <p align="center"><em>Digital material management</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/document-sharing.png" width="100%" alt="Document Sharing" />
-        <p align="center"><em>Tính năng chia sẻ học liệu giữa các tài khoản</em></p>
+        <p align="center"><em>Document sharing between accounts</em></p>
       </td>
     </tr>
   </table>
 </div>
 
-### 4. Chatbot RAG & Công cụ AI Nâng cao
+### 4. RAG Chatbot & Advanced AI Tools
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td colspan="2" style="padding: 5px;">
         <img src="image/frontend/rag_chatbot.png" width="100%" alt="RAG Chatbot" />
-        <p align="center"><em>Chatbot RAG hỗ trợ hỏi đáp theo ngữ nghĩa tài liệu</em></p>
+        <p align="center"><em>RAG Chatbot for semantic Q&A based on documents</em></p>
       </td>
     </tr>
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/search_online.png" width="100%" alt="Online Search" />
-        <p align="center"><em>Tích hợp tìm kiếm Web trực tiếp</em></p>
+        <p align="center"><em>Integrated Web Search</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/youtube_interactive.png" width="100%" alt="YouTube Interactive" />
-        <p align="center"><em>Tạo bài học tương tác từ video YouTube</em></p>
+        <p align="center"><em>Interactive lessons from YouTube videos</em></p>
       </td>
     </tr>
   </table>
 </div>
 
-### 5. Cộng đồng & Tiện ích
+### 5. Community & Utilities
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/community.png" width="100%" alt="Community" />
-        <p align="center"><em>Diễn đàn trao đổi cộng đồng</em></p>
+        <p align="center"><em>Community Forum</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/frontend/extract-from-pdf.png" width="100%" alt="PDF Utilities" />
-        <p align="center"><em>Các công cụ xử lý tệp tin (PDF, Office, Web)</em></p>
+        <p align="center"><em>File processing tools (PDF, Office, Web)</em></p>
       </td>
     </tr>
   </table>
@@ -484,377 +472,227 @@ AI-FOR-EDUCATION/
 
 
 
-## 🚀 Chạy toàn bộ hệ thống bằng Docker Compose (Khuyên dùng)
+## 🚀 Run the entire system with Docker Compose (Recommended)
 
-![Hệ thống Docker Containers](image/container_docker.png)
+![Docker Containers](image/container_docker.png)
 
-*Giao diện Docker Desktop hiển thị đầy đủ các thành phần đang chạy: Frontend, Backend, Database (MongoDB, Redis), Storage (Minio), Redis Commander và các Celery Workers/Flower phục vụ tác vụ nền.*sss
+*Docker Desktop interface showing all running components: Frontend, Backend, Database (MongoDB, Redis), Storage (Minio), Redis Commander and Celery Workers/Flower.*sss
 
-> 💡 **Ghi chú về Storage:** Hệ thống hỗ trợ **MinIO (local)** và **Cloudflare R2 (production)**. Khi bật `USE_OBJECT_STORAGE=true` và `USE_R2=true`, file upload và file generate sẽ ưu tiên lưu trên R2;xx nếu R2 không khả dụng, hệ thống sẽ fallback local.
+> 💡 **Storage Note:** Supports **MinIO (local)** and **Cloudflare R2 (production)**. When `USE_OBJECT_STORAGE=true` and `USE_R2=true`, R2 is prioritized;xx if unavailable, falls back to local.
 
-Dự án đã được tối ưu hóa cho môi trường Docker trên Windows/macOS/Linux với tính năng **Hot-reload** hoàn chỉnh (sửa code cập nhật ngay lập tức mà không cần restart container).
+Optimized for Docker with **Hot-reload** on Windows/macOS/Linux.
 
-### ⚙️ Hướng dẫn các bước:
+### ⚙️ Instructions:
 
-#### 1. Chuẩn bị file môi trường
-Tạo file `.env` ở thư mục gốc của dự án:ss
+#### 1. Prepare Environment File
+Create `.env` file in the root directory:ss
 ```bash
 cp .env.docker.example .env
 ```
-Mở file `.env` và điền ít nhất `MONGO_URI` (Khuyến nghị dùng MongoDB Atlas) và các API Key cần thiết (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`).
+Fill in `MONGO_URI` (Atlas recommended) and API Keys (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`).
 
-#### 2. Khởi động hệ thống
+#### 2. Start System
 ```bash
-# Chạy với MongoDB Atlas (mặc định - nhẹ nhất)
+# With MongoDB Atlas (Default - Lightweight)
 docker compose build
 docker compose up
 
-# HOẶC Chạy với MongoDB Local (nếu không có Atlas)
+# OR With MongoDB Local
 docker compose --profile local-db build
 docker compose --profile local-db up
 ```
-*Lưu ý: Chạy lại `docker compose build` khi có thay đổi cấu hình `Dockerfile` hoặc dependencies.*
+*Note: Run docker compose build again when Dockerfile or dependencies change.*
 
-#### 3. Truy cập hệ thống
+#### 3. Access
 *   🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
 *   🔧 **Backend API:** [http://localhost:8000](http://localhost:8000)
 *   📄 **Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-*   🖥️ **Theo dõi Chrome của NotebookLM trong Docker:** [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html)
+*   🖥️ **Monitor NotebookLM Chrome in Docker:** [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html)
 
-#### Bảng Port và Đường dẫn truy cập nhanh
+#### Ports and Quick Access
 
-| Dịch vụ | Host Port | Container Port | Đường dẫn truy cập |
-|---------|-----------|----------------|--------------------|
+| Service | Host Port | Container Port | Access URL |
+|---------|-----------|----------------|------------|
 | Frontend | `3000` | `3000` | [http://localhost:3000](http://localhost:3000) |
 | Backend API | `8000` | `8000` | [http://localhost:8000](http://localhost:8000) |
 | Swagger Docs | `8000` | `8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
 | Health Check | `8000` | `8000` | [http://localhost:8000/health](http://localhost:8000/health) |
 | noVNC (NotebookLM Browser) | `6080` | `6080` | [http://localhost:6080/vnc.html](http://localhost:6080/vnc.html) |
-| VNC (NotebookLM Browser - native client) | `5900` | `5900` | Dùng VNC client (không phải HTTP) |
+| VNC (NotebookLM Browser - native) | `5900` | `5900` | Use VNC client |
 | Flower (Celery Monitor) | `5555` | `5555` | [http://localhost:5555](http://localhost:5555) |
 | MinIO API | `9000` | `9000` | [http://localhost:9000](http://localhost:9000) |
 | MinIO Console | `9001` | `9001` | [http://localhost:9001](http://localhost:9001) |
-| Redis | `6379` | `6379` | Dùng Redis client/CLI |
+| Redis | `6379` | `6379` | Redis client |
 | Redis Insight (service `redis-commander`) | `8081` | `5540` | [http://localhost:8081](http://localhost:8081) |
-| MongoDB (profile `local-db`) | `27017` | `27017` | Dùng MongoDB client/Compass |
+| MongoDB (profile `local-db`) | `27017` | `27017` | MongoDB client |
 | Grafana (monitoring stack) | `3300` | `3000` | [http://localhost:3300](http://localhost:3300) (User: `admin`, Pass: `yourpassword123`) |
 | Prometheus (monitoring stack) | `9090` | `9090` | [http://localhost:9090](http://localhost:9090) |
-| Cloudflare R2 (production object storage) | `N/A` | `N/A` | Dịch vụ cloud, không map localhost port |
+| Cloudflare R2 | `N/A` | `N/A` | Cloud service |
 
-#### Theo dõi trình duyệt NotebookLM khi chạy Docker
+#### Monitoring NotebookLM Browser in Docker
 
-Luồng NotebookLM trong Docker không mở cửa sổ Chrome native trên máy host. Thay vào đó, backend chạy Chrome trong một display ảo bên trong container và xuất màn hình qua noVNC để bạn theo dõi trong trình duyệt.
+NotebookLM in Docker runs Chrome in a virtual display. Monitor it via noVNC:
 
-- Mở `http://localhost:6080/vnc.html`, bấm `Connect`, rồi kích hoạt workflow NotebookLM để quan sát Chrome trong container.
-- Nếu màn hình bị đen, hãy reload tab noVNC hoặc chạy `docker compose restart backend`.
-- Tài liệu chi tiết: [markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
+- Open `http://localhost:6080/vnc.html`, click `Connect`, and trigger the NotebookLM workflow.
+- If screen is black, reload noVNC or restart backend.
+- Detailed docs: [markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
 
-#### 4. Dừng hệ thống
+#### 4. Stop System
 ```bash
 docker compose down
 ```
 
-### 💡 Lưu ý về Hot-Reload:
-- **Hot-reload trên Windows:** Hệ thống sử dụng cơ chế **Polling** (`CHOKIDAR_USEPOLLING=true`) để đảm bảo nhận diện thay đổi file ngay lập tức từ ổ đĩa NTFS của Windows vào Linux container.
-- **Vị trí lưu trữ:** Để đạt hiệu năng tốt nhất trên Windows, bạn nên để code bên trong hệ thống file của **WSL2** (`\\wsl$\...`).
+### 💡 Hot-Reload Note:
+- **Windows Polling:** Uses `CHOKIDAR_USEPOLLING=true` for NTFS to Linux file change detection.
+- **Performance:** WSL2 file system is recommended for best performance.
 
 
 ---
 
-## 5. Hướng dẫn chạy local chi tiết
+## 5. Detailed Local Setup Guide
 
-### 5.1 Yêu cầu trước khi chạy
-
-- Windows 10/11 hoặc Linux/macOS
-- Tài khoản MongoDB Atlas (cluster đã tạo sẵn)
+### 5.1 Prerequisites
+- Windows 10/11 or Linux/macOS
+- MongoDB Atlas account
 - Python 3.11+
-- Node.js 20+ và npm
-- FFmpeg (bắt buộc cho local Whisper)
+- Node.js 20+ & npm
+- FFmpeg (for local Whisper)
 
-Kiểm tra nhanh:
-
+Quick Check:
 ```powershell
 py --version
 node -v
 npm -v
 ```
 
-### 5.2 Bước 1: Chuẩn bị MongoDB Atlas
+### 5.2 Step 1: Prepare MongoDB Atlas
+1. Create cluster (M0/M2/M5).
+2. Create DB User.
+3. Config Network Access.
+4. Get SRV connection string.vvvvv
 
-Tạo và cấu hình trên Atlas:
-
-1. Tạo cluster (M0/M2/M5 đều được cho MVP).
-2. Tạo Database User (username/password).
-3. Vào Network Access và thêm IP hiện tại (hoặc `0.0.0.0/0` cho môi trường dev, không khuyến nghị cho production).
-4. Lấy connection string dạng SRV.vvvvv
-
-Ví dụ:
-
+Example:
 ```text
 mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>......
 ```
 
-### 5.3 Bước 2: Cấu hình biến môi trường
+### 5.3 Step 2: Environment Configuration
 
 #### Backend
-
 ```powershell
 cd backend
 copy .env.example .env
 ```
+Fill in `MONGO_URI`, `MONGO_DB_NAME`, `GEMINI_API_KEYS`, etc.
 
-Mở file `.env` và cập nhật tối thiểu:
-- `MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/?retryWrites=true&w=majority&appName=<app-name>`
-- `MONGO_DB_NAME=ai_learning_platform`
-- `OPENAI_API_KEY=` (có thể để trống nếu chỉ dùng Gemini, nhưng cần để fallback)
+**Gemini API Key Rotation:**
+- Multiple keys: `GEMINI_API_KEYS=key1,key2,key3`.
+- Single key: `GEMINI_API_KEY=key`.
+- Fallback: System automatically switches to OpenAI if Gemini fails.
+- Backup: At least 2 keys recommended.
 
-**Lưu ý về Gemini API keys:**
-- **Nếu muốn dùng nhiều Gemini keys** (để tránh rate limit): điền `GEMINI_API_KEYS` với các keys phân cách bằng dấu phẩy (ví dụ: `key1,key2,key3`). Hệ thống sẽ thử lần lượt từng key.
-- **Nếu chỉ có 1 Gemini key**: điền `GEMINI_API_KEY` là đủ. Có thể để `GEMINI_API_KEYS` trống.
-- **Ưu tiên**: `GEMINI_API_KEYS` sẽ được dùng trước. Nếu `GEMINI_API_KEYS` rỗng, hệ thống dùng `GEMINI_API_KEY`.
-- **Không cần điền cả hai**. Chọn một trong hai để tránh nhầm lẫn.
-- **Fallback**: Khi tất cả Gemini keys đều thất bại, hệ thống sẽ tự động dùng OpenAI (nếu `OPENAI_API_KEY` có sẵn).
-- **Backup**: Bạn nên có ít nhất 2 Gemini keys để đảm bảo tính sẵn sàng cao.
-
-Biến môi trường cho Speech-to-Text:
+Speech-to-Text Environment Variables:
 - `WHISPER_MODEL=base`
-- `WHISPER_LANGUAGE=` (để trống để auto detect)
-- `GROQ_API_KEY=` (điền khi dùng Groq model)
+- `GROQ_API_KEY=`
 - `GROQ_BASE_URL=https://api.groq.com`
 
-Lưu ý:
-- Nếu bỏ trống `OPENAI_API_KEY`, hệ thống vẫn chạy bằng fallback để demo luồng.
-- Muốn kết quả AI thật, cần điền `OPENAI_API_KEY` hợp lệ.
-- **Hệ thống hỗ trợ nhiều Gemini API keys qua `GEMINI_API_KEYS` (comma-separated)**. Keys sẽ được dùng xoay vòng. Nếu `GEMINI_API_KEYS` không có, hệ thống dùng `GEMINI_API_KEY` đơn (backward compatibility). Khi tất cả Gemini keys fail, sẽ fallback sang OpenAI (nếu có).
-- Nếu password MongoDB có ký tự đặc biệt (ví dụ `@`, `#`, `%`), cần URL-encode trong `MONGO_URI`.
-- Nếu dùng model Groq cho Speech-to-Text, bắt buộc điền `GROQ_API_KEY`.
-
 #### Frontend
-
 ```powershell
 cd ..\frontend
 copy .env.example .env.local
 ```
-
-Mặc định đã đúng local:
+Defaults:
 - `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api`
-- `NEXT_PUBLIC_API_HOST=http://localhost:8000`
 
-### 5.4 Bước 3: Cài dependencies và chạy backend
-
-**Cách 1 (khuyên dùng - đơn giản):**
+### 5.4 Step 3: Dependencies & Run Backend
 ```powershell
 cd ..\backend
 pip install -r requirements.txt
 python run.py
 ```
-
-**Cách 2 (lệnh đầy đủ):**
-```powershell
-cd ..\backend
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8000
-```
-
-Cài FFmpeg (Windows) nếu chưa có:
-
-```powershell
-choco install ffmpeg
-```
-
-Khi backend chạy thành công:
-- API: `http://localhost:8000`
-- Swagger: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/health`
+Swagger: `http://localhost:8000/docs`
 
 <p align="center">
 <table style="margin: 0 auto;">
   <tr>
     <td align="center" style="padding:8px;">
       <img src="image/docs_8000.png" alt="Swagger UI" width="540" style="border:1px solid #e6e6e6; border-radius:6px;" />
-      <div style="margin-top:8px; font-weight:600;">Giao diện Swagger UI - /docs</div>
+      <div style="margin-top:8px; font-weight:600;">Swagger UI - /docs</div>
     </td>
     <td align="center" style="padding:8px;">
       <img src="image/health_8000.png" alt="Health Check" width="260" style="border:1px solid #e6e6e6; border-radius:6px;" />
-      <div style="margin-top:8px; font-weight:600;">Trạng thái hệ thống - /health</div>
+      <div style="margin-top:8px; font-weight:600;">Health Check - /health</div>
     </td>
   </tr>
 </table>
 </p>
 
-Kiểm tra backend bằng PowerShell:
-
+### 5.5 Step 4: Dependencies & Run Frontend
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/health" -Method Get
-```
-
-### 5.5 Bước 4: Cài dependencies và chạy frontend
-
-Mở terminal mới:
-
-```powershell
-cd d:\DACN\frontend
+cd ..\frontend
 npm install
 npm run dev
 ```
 
-Frontend chạy tại: `http://localhost:3000`
-
-### 5.6 Tóm tắt chạy nhanh (copy-paste)
-
-Terminal 1 (backend) - **Cách 1 (đơn giản):**
-
+### 5.6 Copy-Paste Quick Start
+Terminal 1 (Backend):
 ```powershell
-cd d:\DACN\backend
-copy .env.example .env
-pip install -r requirements.txt
-python run.py
+cd backend; pip install -r requirements.txt; python run.py
 ```
-
-Hoặc **Cách 2 (lệnh đầy đủ):**
-
+Terminal 2 (Frontend):
 ```powershell
-cd d:\DACN\backend
-copy .env.example .env
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-Terminal 2 (frontend):
-
-```powershell
-cd d:\DACN\frontend
-copy .env.example .env.local
-npm install
-npm run dev
+cd frontend; npm install; npm run dev
 ```
 
 ---
 
 ## 6. CI / CD
 
-Hiện tại dự án có **CI đầy đủ**, và **CD bán thực tế**: đã build artifact, publish Docker image lên GHCR, nhưng **chưa deploy lên server thật**. Bước triển khai hiện vẫn là `deploy-placeholder` để tổng hợp metadata và báo cáo phát hành..
+Full CI implementation and practical CD: build artifacts, publish Docker images to GHCR.
 
-- Workflow CI: `.github/workflows/project-ci.yml`
-- Workflow CD: `.github/workflows/project-cd.yml`
-- CI trigger: `push` và `pull_request` khi thay đổi ở `frontend/`, `backend/`, `docker-compose.yml`, `docker-compose.ci.yml`, `.env.docker.example`, `project-ci.yml`, `project-cd.yml`
-- CD trigger: `workflow_dispatch`, hoặc `workflow_run` sau khi `CI Dự Án` thành công trên `main` hoặc `kiet`
-- Flow hiện tại:
-  `CI` pass -> `CD Dự Án` tạo metadata -> build frontend artifact -> package backend artifact -> resolve Docker bundle -> publish image frontend/backend lên GHCR -> tạo `deploy-placeholder` -> gộp `full-release-bundle`
-- Frontend CI: `npm ci` -> `npm run lint` -> `npx vitest run --coverage --reporter=json`
-- Backend CI: `pip install -r requirements-test.txt` -> `pytest --junitxml=junit.xml`
-- Docker CI: `docker compose -f docker-compose.ci.yml build` -> `docker compose -f docker-compose.ci.yml up`, chờ `/health` của backend và HTTP response của frontend, rồi `down -v`
-- Khi CI fail trên sự kiện `push`, workflow sẽ tự tạo hoặc cập nhật GitHub Issue
-- Nếu CD fail, workflow CD cũng sẽ tự tạo hoặc cập nhật GitHub Issue
-- GHCR login hiện dùng secret cố định `GHCR_TOKEN`
-- Docker images được publish lên:
-  - `ghcr.io/kietnehi/ai-for-education-backend`
-  - `ghcr.io/kietnehi/ai-for-education-frontend`
-- Tag image hiện có thể bao gồm:
-  - `latest` cho default branch
-  - `<sha7>`
-  - `<branch>`
-- Artifact CD quan trọng nhất: `full-release-bundle-<sha>` trong tab Actions Artifacts của workflow `CD Dự Án`
-- Các artifact trung gian:
-  `cd-release-metadata`, `frontend-release-bundle-<sha>`, `backend-release-bundle-<sha>`, `docker-release-bundle-<sha>`, `ghcr-images-<sha>`, `deployment-summary-<sha>`
-- Tài liệu chi tiết:
-  - `markdown_docs/CI_SUMMARY_2026-03-28.md`
-  - `markdown_docs/TOM_TAT_CD_2026-03-28.md`
+- CI Workflow: `.github/workflows/project-ci.yml`
+- CD Workflow: `.github/workflows/project-cd.yml`
 
-### 6.1 Sơ đồ CI/CD tổng thể
+### 6.1 Overall CI/CD Diagram
 
 ```mermaid
 flowchart LR
-    A["Lập trình viên push code hoặc mở pull request"] --> B{"CI Dự Án được kích hoạt"}
+    A["Developer push or pull request"] --> B{"CI Project Triggered"}
 
-    subgraph CI["CI - Kiểm tra chất lượng và smoke test"]
+    subgraph CI["CI - Quality check & smoke test"]
         direction TB
-        B --> C["Frontend
-        checkout
-        setup Node.js 20
-        npm ci
-        npm run lint
-        vitest + coverage"]
-
-        B --> D["Backend
-        checkout
-        setup Python 3.11
-        pip install -r requirements-test.txt
-        pytest + junit.xml + coverage"]
-
-        B --> E["Docker Compose smoke
-        cp .env.docker.example .env
-        docker compose build
-        docker compose up
-        health check backend
-        HTTP check frontend
-        thu thập logs
-        docker compose down -v"]
-
-        C --> F{"Toàn bộ job CI đều đạt?"}
+        B --> C["Frontend: checkout, setup Node.js, lint, test + coverage"]
+        B --> D["Backend: checkout, setup Python, pytest + coverage"]
+        B --> E["Docker Compose smoke test: build, health check, logs"]
+        C --> F{"All CI jobs pass?"}
         D --> F
         E --> F
     end
 
-    F -->|"Không"| G["Tạo hoặc cập nhật GitHub Issue cho lỗi CI"]
-    F -->|"Có"| H{"Có đủ điều kiện chạy CD?"}
-    H -->|"Không"| I["Dừng ở bước xác thực CI"]
-    H -->|"Có: workflow_run trên main hoặc kiet
-    hoặc workflow_dispatch"| J["Khởi động CD Dự Án"]
+    F -->|"No"| G["Create/Update GitHub Issue"]
+    F -->|"Yes"| H{"CD Conditions met?"}
+    H -->|"Yes"| J["Start CD Project"]
 
-    subgraph CD["CD - Đóng gói artifact và publish image"]
+    subgraph CD["CD - Bundle artifacts & publish images"]
         direction TB
-        J --> K["Prepare release
-        checkout theo SOURCE_SHA
-        tạo release metadata
-        tạo release notes"]
-
-        K --> L["Build frontend artifact
-        npm ci
-        npm run build
-        đóng gói .next, public, package.json"]
-
-        K --> M["Package backend artifact
-        python -m compileall app
-        đóng gói app, requirements, Dockerfile"]
-
-        K --> N["Package Docker bundle
-        cp .env.docker.example .env
-        docker compose config
-        xuất docker-compose.resolved.yml"]
-
-        K --> O["Publish container images lên GHCR
-        đăng nhập GHCR
-        build/push backend image
-        build/push frontend image
-        gắn tag latest, sha ngắn, branch"]
-
-        L --> P["Deploy placeholder
-        tạo deployment summary"]
+        J --> K["Prepare release metadata & notes"]
+        K --> L["Build frontend artifact (.next bundle)"]
+        K --> M["Package backend artifact"]
+        K --> N["Package Docker bundle"]
+        K --> O["Publish images to GHCR"]
+        L --> P["Deploy placeholder summary"]
         M --> P
         N --> P
         O --> P
-
-        P --> Q["Release bundle
-        tải lại tất cả artifact
-        gộp frontend, backend, docker, images, deploy"]
-        Q --> R["Upload full-release-bundle-<sha>"]
+        P --> Q["Merge all release artifacts"]
+        Q --> R["Upload full release bundle"]
     end
 
-    O --> S["GHCR frontend image
-    ghcr.io/<owner>/ai-for-education-frontend"]
-    O --> T["GHCR backend image
-    ghcr.io/<owner>/ai-for-education-backend"]
-    R --> U["Đầu ra cuối
-    artifact phát hành hoàn chỉnh"]
+    O --> S["GHCR frontend image"]
+    O --> T["GHCR backend image"]
+    R --> U["Complete release artifact"]
 
-    K -. lỗi .-> V["Tạo hoặc cập nhật GitHub Issue cho lỗi CD"]
-    L -. lỗi .-> V
-    M -. lỗi .-> V
-    N -. lỗi .-> V
-    O -. lỗi .-> V
-    P -. lỗi .-> V
-    Q -. lỗi .-> V
+    K -. error .-> V["Create/Update GitHub Issue"]
 
     classDef ci fill:#eaf4ff,stroke:#2563eb,stroke-width:1.5px,color:#0f172a;
     classDef cd fill:#ecfdf3,stroke:#16a34a,stroke-width:1.5px,color:#0f172a;
@@ -869,195 +707,115 @@ flowchart LR
     class S,T,U out;
 ```
 
-### 6.2 Các job chính và thời gian ước tính
+### 6.2 Main Jobs and Estimated Time
 
-| Job | Thời gian (lần đầu) | Thời gian (có cache) | Mô tả |
-|-----|---------------------|----------------------|-------|
-| **Frontend** | 2-3 phút | 1-2 phút | Install deps + lint + test + coverage |
-| **Backend** | 1-2 phút | 30-60 giây | Install deps + pytest + coverage |
-| **Docker Compose Smoke** | 3-5 phút | 1-2 phút | Build images + health check |
-| **CD Prepare Release** | 30 giây | 30 giây | Generate metadata + release notes |
-| **CD Build Frontend** | 2-3 phút | 1-2 phút | npm build + bundle |
-| **CD Package Backend** | 30 giây | 30 giây | Syntax check + bundle |
-| **CD Package Docker** | 30 giây | 30 giây | Compose config + bundle |
-| **CD Publish GHCR Images** | 2-5 phút | 1-3 phút | Build và push image frontend/backend |
-| **CD Deploy Placeholder** | 30 giây | 30 giây | Tạo deployment summary placeholder |
-| **CD Release Bundle** | 1 phút | 1 phút | Download + merge all release artifacts |
+| Job | Initial Time | Cache Time | Description |
+|-----|--------------|------------|-------------|
+| **Frontend** | 2-3 min | 1-2 min | Lint + Test + Coverage |
+| **Backend** | 1-2 min | 30-60 sec | Pytest + Coverage |
+| **Docker Smoke** | 3-5 min | 1-2 min | Build + Health Check |
 
-> 💡 **Lưu ý:** Thời gian có thể thay đổi tùy thuộc vào kích thước code changes và tình trạng cache của GitHub Actions.
+---
 
-### 6.3 Giao diện và cấu hình CI/CD trên GitHub
+### 6.3 CI/CD GitHub Interface
 
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/github_actions.png" width="100%" alt="GitHub Actions Workflow" />
-        <p align="center"><em>Hình 4: GitHub Actions Workflow</em></p>
+        <p align="center"><em>Figure 4: GitHub Actions Workflow</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/runners.png" width="100%" alt="GitHub Actions Runners" />
-        <p align="center"><em>Hình 5: Trạng thái Runners</em></p>
+        <p align="center"><em>Figure 5: Runner Status</em></p>
       </td>
     </tr>
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/done.png" width="100%" alt="Pipeline Success" />
-        <p align="center"><em>Hình 6: Pipeline chạy thành công</em></p>
+        <p align="center"><em>Figure 6: Successful Pipeline</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/CICD/issues.png" width="100%" alt="GitHub Issues auto-create" />
-        <p align="center"><em>Hình 7: Tự động tạo Issue khi CI fail</em></p>
-      </td>
-    </tr>
-    <tr>
-      <td style="width: 50%; padding: 5px;">
-        <img src="image/CICD/scripts.png" width="100%" alt="CI Scripts" />
-        <p align="center"><em>Hình 8: Các scripts kiểm tra dữ liệu</em></p>
-      </td>
-      <td style="width: 50%; padding: 5px;">
-        <img src="image/CICD/secret.png" width="100%" alt="GHCR Token Secret" />
-        <p align="center"><em>Hình 9: Cấu hình Secret cho GHCR</em></p>
-      </td>
-    </tr>
-    <tr>
-      <td style="width: 50%; padding: 5px;">
-        <img src="image/CICD/domain.png" width="100%" alt="Cloudflare Domain" />
-        <p align="center"><em>Hình 10: Tên miền truy cập hệ thống trên Cloudflare</em></p>
-      </td>
-      <td style="width: 50%; padding: 5px;">
-        <img src="image/CICD/TOKEN.png" width="100%" alt="GitHub Token" />
-        <p align="center"><em>Hình 11: Cấu hình GitHub Token cho Workflow</em></p>
+        <p align="center"><em>Figure 7: Auto Issue Creation</em></p>
       </td>
     </tr>
   </table>
 </div>
 
-
-
-### 6.4 Cách chạy CI local
-
+### 6.4 Local CI Testing
 ```bash
-cd frontend
-npm ci
-npm run test:ci
-
-cd ../backend
-python -m pip install -r requirements-test.txt
-python -m pytest
-
-cp .env.docker.example .env
-docker compose build
-docker compose up
-curl http://localhost:8000/health
-docker compose down -v
+cd frontend; npm run test:ci
+cd backend; python -m pytest
+docker compose build; docker compose up --exit-code-from backend
 ```
 
-Coverage report sau khi chạy:
-
-- Frontend: `frontend/coverage/index.html`
-- Backend: `backend/htmlcov/index.html`
-- Docker: kiểm tra `http://localhost:8000/health` và `docker compose ps`
-
-### 6.5 Ghi chú
-
-- Frontend có coverage threshold trong `frontend/vitest.config.ts`
-- Backend có coverage threshold trong `backend/pytest.ini`
-- Tài liệu chi tiết hơn:
-  - `markdown_docs/CI_SUMMARY_2026-03-28.md`
-  - `markdown_docs/TOM_TAT_CD_2026-03-28.md`
-
-### 6.6 Hướng dẫn tải full-release-bundle từ CD
-
-1. Vào tab **Actions** trên GitHub
-2. Chọn workflow **CD Dự Án**
-3. Click vào lần chạy gần nhất (có status ✅ thành công)
-4. Kéo xuống phần **Artifacts** ở cuối trang
-5. Click vào `full-release-bundle-<sha>` để tải release bundle hoặc `ghcr-images-<sha>` để xem danh sách image đã publish
-
-> 💡 **Lưu ý:** Artifact chỉ được lưu trong **90 ngày**. Tải về ngay sau khi CD chạy thành công.
+### 6.5 CD Artifact Download
+1. Go to **Actions** tab.
+2. Select **CD Project**.
+3. Download `full-release-bundle-<sha>` from **Artifacts**.
 
 ---
 
 ## 6.5 Redis, Celery & Object Storage
 
-### 🔴 Redis - Message Broker & Result Backend
+### 🔴 Redis - Message Broker
 - **Port:** `6379`
-- **Monitoring:** http://localhost:8081 (Redis Insight)
-- **Vai trò:** Message broker cho Celery tasks + lưu kết quả
+- **Role:** Task queue & result backend
 
-### 🍀 Celery - Distributed Task Queue
-- **Services:** Celery Worker (execute tasks) + Flower (monitoring)
-- **Port:** `5555` (Flower UI)
-- **Tasks:** Generate slides, podcast, minigame
-- **Monitoring:** http://localhost:5555
+### 🍀 Celery - Distributed Tasks
+- **Flower:** http://localhost:5555
+- **Tasks:** Slides, podcast, minigame
 
-### 📦 MinIO / Cloudflare R2 - Object Storage
-- **Ports:** `9000` (API), `9001` (Console)
-- **Console:** http://localhost:9001 (minioadmin/minioadmin123)
-- **Bucket local (MinIO):** `ai-learning-storage`
-- **Bucket production (R2):** cấu hình qua `R2_BUCKET`
-- **Storage:** uploads/, generated/slides/, generated/podcasts/
-
-### 📦 Giao diện Object Storage
+### 📦 Object Storage
+- **MinIO Console:** http://localhost:9001 (minioadmin/minioadmin123)
+- **Bucket:** `ai-learning-storage`
+- **R2:** Production storage
 
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="width: 33%; padding: 5px;">
         <img src="image/object_storage/minio.png" width="100%" alt="MinIO Console" />
-        <p align="center"><em>Hình 12: MinIO Console (Local)</em></p>
+        <p align="center"><em>Figure 12: MinIO Console (Local)</em></p>
       </td>
       <td style="width: 33%; padding: 5px;">
         <img src="image/object_storage/r2_object.png" width="100%" alt="Cloudflare R2" />
-        <p align="center"><em>Hình 13: Cloudflare R2 (Production)</em></p>
+        <p align="center"><em>Figure 13: Cloudflare R2 (Production)</em></p>
       </td>
       <td style="width: 33%; padding: 5px;">
         <img src="image/object_storage/generated.png" width="100%" alt="Generated Files in Storage" />
-        <p align="center"><em>Hình 14: File học liệu được sinh ra trong Storage</em></p>
+        <p align="center"><em>Figure 14: Generated material files in Storage</em></p>
       </td>
     </tr>
   </table>
 </div>
 
-
 ### Quick Commands
 ```bash
 # Redis - Check task results
 docker exec any2-redis redis-cli -n 1 KEYS "celery-task-meta-*"
-
-# MinIO - List files local
-docker exec any2-minio mc ls myminio/ai-learning-storage/
-
-# Celery Worker logs
-docker logs any2-celery-worker --tail=50
 ```
-
-### Integration Flow
-```
-Upload → MinIO/Cloudflare R2 → MongoDB → Queue (Redis) → Celery Worker → Generate → MinIO/Cloudflare R2 → Result (Redis)
-```
-
-📚 **Chi tiết:** Xem `markdown_docs/Redis_Celery_Minio.md`
 
 ---
 
 ## 6.7 Monitoring (Prometheus + Grafana)
 
-Hệ thống đã tích hợp bộ công cụ quan sát (observability stack) đầy đủ để theo dõi hiệu suất backend, logs và traces.
+The system includes a full observability stack to monitor backend performance, logs, and traces.
 
-- **Backend metrics**: expose tại `GET /metrics` (định dạng Prometheus).
-- **Grafana**: [http://localhost:3300](http://localhost:3300) (User: `admin`, Pass: `yourpassword123`)
-- **Prometheus**: [http://localhost:9090](http://localhost:9090)
-- **Loki**: Hệ thống quản lý log tập trung.
-- **Tempo**: Hệ thống quản lý distributed tracing.
+- **Backend Metrics:** `GET /metrics` (Prometheus format)
+- **Grafana:** [http://localhost:3300](http://localhost:3300) (User: `admin`, Pass: `yourpassword123`)
+- **Prometheus:** [http://localhost:9090](http://localhost:9090)
+- **Loki:** Log aggregation
+- **Tempo:** Distributed tracing
 
 <div align="center">
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="width: 50%; padding: 5px;">
-        <img src="image/monitoring/devops.png" width="100%" alt="Kiến trúc Monitoring" />
-        <p align="center"><em>Kiến trúc bộ công cụ Monitoring</em></p>
+        <img src="image/monitoring/devops.png" width="100%" alt="Monitoring Architecture" />
+        <p align="center"><em>Full Observability Stack Architecture</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/monitoring/prometheus.png" width="100%" alt="Prometheus Metrics" />
@@ -1067,11 +825,11 @@ Hệ thống đã tích hợp bộ công cụ quan sát (observability stack) đ
     <tr>
       <td style="width: 50%; padding: 5px;">
         <img src="image/monitoring/loki.png" width="100%" alt="Loki Logs" />
-        <p align="center"><em>Quản lý Logs với Loki trong Grafana</em></p>
+        <p align="center"><em>Loki Log Aggregation in Grafana</em></p>
       </td>
       <td style="width: 50%; padding: 5px;">
         <img src="image/monitoring/tempo.png" width="100%" alt="Tempo Traces" />
-        <p align="center"><em>Distributed Tracing với Tempo</em></p>
+        <p align="center"><em>Tempo Distributed Tracing</em></p>
       </td>
     </tr>
   </table>
@@ -1081,113 +839,45 @@ Hệ thống đã tích hợp bộ công cụ quan sát (observability stack) đ
 
 ## 7. Troubleshooting
 
-### Lỗi không có lệnh `python`
-Trên Windows, dùng `py` thay cho `python`.
-
-### Lỗi kết nối MongoDB Atlas
-- Kiểm tra lại username/password trong connection string SRV.
-- Kiểm tra Network Access trên Atlas đã allow IP hiện tại chưa.
-- Kiểm tra biến `MONGO_URI` trong `backend/.env` đã đúng format chưa.
-
-### Lỗi frontend không gọi được backend
-- Kiểm tra backend có đang chạy cổng `8000`.
-- Kiểm tra `frontend/.env.local` có đúng `NEXT_PUBLIC_API_BASE_URL`.
-
-### Không có OpenAI API key
-- Hệ thống vẫn chạy demo với fallback.
-- Muốn kết quả AI thật, cần điền `OPENAI_API_KEY` hợp lệ.
-
-### Lỗi Speech-to-Text Groq trả 500
-- Kiểm tra đã cài package `groq`: `pip install groq`.
-- Kiểm tra `GROQ_API_KEY` trong `backend/.env`.
-- Đảm bảo `GROQ_BASE_URL=https://api.groq.com`.
-- Nếu đổi model STT sang `local-base`, kiểm tra FFmpeg có sẵn bằng lệnh `ffmpeg -version`.
-
-### Lỗi 404 với đường dẫn `/openai/v1/openai/v1/audio/transcriptions`
-- Nguyên nhân: base URL Groq bị lặp path.
-- Cách đúng: dùng `GROQ_BASE_URL=https://api.groq.com`.
-
-### Lỗi CSS/TailwindCSS
-- Đảm bảo đã cài đầy đủ: `npm install tailwindcss @tailwindcss/postcss postcss`
-- File `postcss.config.mjs` phải tồn tại trong `frontend/`.
+- **Missing `python` command:** Use `py` on Windows.
+- **MongoDB Atlas connection:** Check credentials and Network Access IP.
+- **Frontend-Backend connection:** Check port `8000` and `NEXT_PUBLIC_API_BASE_URL`.
+- **Speech-to-Text errors:** Check `GROQ_API_KEY` or FFmpeg install.
 
 ---
 
-## Phụ lục: Chức năng tạo Video + Infographic với NotebookLM
+## Appendix: NotebookLM Video + Infographic
 
-Chức năng này dùng NotebookLM để tạo **video tóm tắt** và **infographic** từ học liệu đã có trong hệ thống.
-
-Luồng hiện tại gồm 3 bước:
-
-1. Nhấn **Tạo Video + Infographic** để upload học liệu lên NotebookLM.
-2. Nhấn **Xác nhận và bắt đầu tạo Video + Infographic** để hệ thống bấm tạo media.
-3. Khi NotebookLM render xong, nhấn **Tải xuống** để backend kéo file về lưu trữ.
-
-Trải nghiệm hiện tại:
-
-- Thông báo hiển thị ở phía trên, tự ẩn sau `6 giây` và hỗ trợ cả chế độ sáng lẫn tối.
-- Infographic có thể bấm xem trực tiếp ngay trên web, không mở tab mới.
-- Nếu NotebookLM chưa render xong, backend sẽ trả lỗi rõ ràng thay vì báo thành công giả.
-
-API chính:
-
-- `POST /api/materials/{id}/generate/notebooklm-media`
-- `POST /api/notebooklm/sessions/{session_id}/confirm-artifacts`
-- `POST /api/notebooklm/sessions/{session_id}/confirm`
-- `POST /api/notebooklm/sessions/{session_id}/cancel`
-
-Lưu ý vận hành:
-
-- Tài khoản Google dùng cho NotebookLM phải đăng nhập sẵn trong Chrome profile của backend.
-- Cần cấu hình đúng `NOTEBOOKLM_DOCUMENTS_DIR`, `NOTEBOOKLM_USER_DATA_DIR`, `NOTEBOOKLM_GENERATE_WAIT_SECONDS`, `NOTEBOOKLM_HEADLESS`.
-- Chức năng này hiện phù hợp hơn cho môi trường demo hoặc nội bộ; nếu chạy nhiều người dùng đồng thời thì cần hoàn thiện thêm phần session và concurrency.
+1. Click **Create Video + Infographic** to upload.
+2. Click **Confirm and Start** to trigger generation.
+3. Click **Download** once complete.
+- Headless browser monitoring via noVNC.
+- Detailed docs: `markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md`
 
 ---
 
 ## Minigame
 
-- Tạo minigame tự động từ học liệu (MCQ, điền từ, ghép cặp).
-- API: `POST /api/materials/{material_id}/generate/minigame` — tạo minigame.
-- Chơi & nộp: `POST /api/games/{generated_content_id}/submit` — nộp kết quả.
-- Frontend: trang minigame tại `frontend/app/materials/[id]/minigame`.
+- Automatic generation from materials.
+- Plays & submits results to MongoDB.
 
 ---
 
-## 8. Tài liệu bổ sung & API Keys
+## 8. Additional Resources & API Keys
 
-### 🔑 Quản lý API Keys
-- **Google Gemini API:** [Google AI Studio (Lấy API Key tại đây)](https://aistudio.google.com/api-keys)
+### 🔑 API Key Management
+- **Google Gemini API:** [Google AI Studio](https://aistudio.google.com/api-keys)
 - **OpenAI API:** [OpenAI Platform](https://openai.com/api/)
-- **OpenRouter API:** [OpenRouter Dashboard (Cho các model gpt-4o-mini, gpt-4o, claude-3...)](https://openrouter.ai/)
-- **Groq API:** [Groq Cloud (Cho Whisper STT nhanh nhất)](https://console.groq.com/keys)
+- **Groq API:** [Groq Cloud](https://console.groq.com/keys)
 
-### 📚 Tài liệu tham khảo
-- **🚀 Google Drive Dự Án (Slide, Docs, ERD, Pipeline):** [**Truy cập tại đây**](https://drive.google.com/drive/folders/1jqmgd-Ku9A8Dn8_jNkcK26SXU6ES9OnR)
-- **Redis, Celery & Object Storage:** [Hướng dẫn tích hợp hạ tầng](markdown_docs/Redis_Celery_Minio.md).
-- **Monitoring & Cloudflare R2:** [Hướng dẫn cấu hình Monitoring và R2](markdown_docs/MONITORING_AND_CLOUDFLARE_R2.md).
-- **Docker:** [Trang chủ Docker](https://www.docker.com/)
-- **Redis:** [Redis Documentation](https://redis.io/)
-- **RedisInsight:** [RedisInsight GUI](https://github.com/redis/RedisInsight)
-- **MinIO:** [High Performance Object Storage](https://www.min.io/)
-- **Cloudflare R2:** [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)
-- **Celery:** [Distributed Task Queue](https://docs.celeryq.dev/en/stable/)
-- **Gemini API:** [Gemini API Quickstart](https://ai.google.dev/gemini-api/docs/quickstart)
-- **Web Search:** [Hướng dẫn Web Search (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
-- **LLM API Flow:** [Luồng xử lý AI & LLM](markdown_docs/LLM_API_FLOW.md)
-- **Reasoning & Streaming:** [Luồng reasoning và streaming trong chatbot](markdown_docs/REASONING_STREAMING.md)
-- **Minigame Design:** [Thiết kế & logic Minigame](markdown_docs/MINIGAME.md)
-- **NotebookLM Media:** [NotebookLM Video & Infographic](markdown_docs/NOTEBOOKLM_VIDEO_INFOGRAPHIC_REVIEW_2026-03-26.md)
-- **Docker Review bản hiện tại:** [Đánh giá Docker & Hot-reload](markdown_docs/DOCKER_REVIEW.md)
-- **CI Summary bản hiện tại:** [Tóm tắt Pipeline CI dự án](markdown_docs/CI_SUMMARY.md)
-- **CD Summary:** [Tóm tắt CI/CD và phát hành](markdown_docs/TOM_TAT_CD.md)
-- **NotebookLM Docker Browser:** [Theo dõi Chrome của NotebookLM trong Docker](markdown_docs/NOTEBOOKLM_DOCKER_BROWSER_MONITORING.md)
-- **Storage & Media Fixes:** [Ghi chú các bản vá storage và media](markdown_docs/STORAGE_AND_MEDIA_FIXES.md)
-- **Web Search Online Review:** [Đánh giá và tổng hợp Web Search online](markdown_docs/WEB_SEARCH_ONLINE_REVIEW.md)
-- **YouTube Interactive Lesson:** [Hướng dẫn chức năng YouTube tương tác](markdown_docs/YOUTUBE_INTERACTIVE_LESSON_GUIDE_VI.md)
+### 📚 References
+- **🚀 Project Google Drive (Slides, Docs, ERD, Pipeline):** [**Access Here**](https://drive.google.com/drive/folders/1jqmgd-Ku9A8Dn8_jNkcK26SXU6ES9OnR)
+- **Redis, Celery & Storage:** [Integration Guide](markdown_docs/Redis_Celery_Minio.md).
+- **Web Search:** [Web Search Guide (VI)](markdown_docs/WEB_SEARCH_GUIDE_VI.md)
 
 ---
 
-## 🔗 Các tác giả & Tài khoản Github
+## 🔗 Authors & Github Accounts
 
 <p align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=header" alt="header" />
@@ -1195,11 +885,8 @@ Lưu ý vận hành:
 
 | | | | |
 | :---: | :---: | :---: | :---: |
-| <a href="https://github.com/Kietnehi"><img src="https://github-readme-stats.vercel.app/api?username=Kietnehi&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/ductoanoxo"><img src="https://github-readme-stats.vercel.app/api?username=ductoanoxo&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/phatle224"><img src="https://github-readme-stats.vercel.app/api?username=phatle224&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> | <a href="https://github.com/nhdotvn"><img src="https://github-readme-stats.vercel.app/api?username=nhdotvn&show_icons=true&hide_title=true&hide=issues,contribs,prs&rank_icon=github&hide_border=true"/></a> |
-| <img src="https://github.com/Kietnehi.png" width="80"/> | <img src="https://github.com/ductoanoxo.png" width="80"/> | <img src="https://github.com/phatle224.png" width="80"/> | <img src="https://github.com/nhdotvn.png" width="80"/> |
 | <b><a href="https://github.com/Kietnehi">Trương Phú Kiệt</a></b> | <b><a href="https://github.com/ductoanoxo">Đức Toàn</a></b> | <b><a href="https://github.com/phatle224">Phát Lê</a></b> | <b><a href="https://github.com/nhdotvn">Lê Ngọc Hiệp</a></b> |
 | Fullstack Dev & AI Researcher | Developer | Data Engineer | Supporter |
-| <p align="center"><img src="https://img.shields.io/github/followers/Kietnehi?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2FKietnehi&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/Kietnehi"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/ductoanoxo?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fductoanoxo&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/ductoanoxo"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/phatle224?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fphatle224&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/phatle224"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> | <p align="center"><img src="https://img.shields.io/github/followers/nhdotvn?style=for-the-badge"/> <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github-star-counter.workers.dev%2Fuser%2Fnhdotvn&query=%24.stars&style=for-the-badge&color=yellow&label=Stars&logo=github"/> <a href="https://github.com/nhdotvn"><img src="https://img.shields.io/badge/Profile-GitHub-181717?style=for-the-badge&logo=github"/></a></p> |
 
 <p align="center">
   <a href="https://github.com/Kietnehi/AI-FOR-EDUCATION">
@@ -1229,7 +916,7 @@ Lưu ý vận hành:
 </p>
 
 
-<!-- Quote động -->
+<!-- Daily Quote -->
   <p align="center">
     <img src="https://quotes-github-readme.vercel.app/api?type=horizontal&theme=dark" alt="Daily Quote"/>
   </p>
